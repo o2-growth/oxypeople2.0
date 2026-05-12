@@ -31,7 +31,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Plus, Pencil, Trash2, Loader2, Activity, EyeOff, BarChart3 } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Activity, EyeOff, BarChart3, AlertTriangle, Clock } from "lucide-react";
 import { toast } from "sonner";
 import {
   usePulseSurveysAdmin,
@@ -60,6 +60,23 @@ function formatLastDispatch(value: string | null): string {
   } catch {
     return value;
   }
+}
+
+function nextDispatchUTC(): string {
+  const next = new Date();
+  next.setUTCMinutes(0, 0, 0);
+  next.setUTCHours(next.getUTCHours() + 1);
+  return `${String(next.getUTCHours()).padStart(2, "0")}:00 UTC`;
+}
+
+function isDispatchOverdue(row: PulseSurveyAdminRow): boolean {
+  if (!row.active) return false;
+  const limit = 25 * 60 * 60 * 1000;
+  const now = Date.now();
+  const ref = row.last_dispatched_at
+    ? new Date(row.last_dispatched_at).getTime()
+    : new Date(row.created_at).getTime();
+  return now - ref > limit;
 }
 
 export default function PulseSurveysAdminPage() {
@@ -132,6 +149,10 @@ export default function PulseSurveysAdminPage() {
             <p className="text-muted-foreground mt-1 text-sm">
               Pulses são perguntas curtas recorrentes (clima/eNPS/mood). Resultados em série temporal.
             </p>
+            <p className="text-muted-foreground mt-1 text-xs flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              Próximo dispatch: {nextDispatchUTC()}
+            </p>
           </div>
           <Button onClick={openCreate} className="gap-1.5">
             <Plus className="h-4 w-4" />
@@ -201,7 +222,17 @@ export default function PulseSurveysAdminPage() {
                           )}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          {formatLastDispatch(s.last_dispatched_at)}
+                          <div className="flex items-center gap-1.5">
+                            {formatLastDispatch(s.last_dispatched_at)}
+                            {isDispatchOverdue(s) && (
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                                </TooltipTrigger>
+                                <TooltipContent>Dispatch atrasado — verifique o cron</TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-right">
                           <Badge variant={s.response_count_current_period > 0 ? "secondary" : "outline"}>
