@@ -1,0 +1,19 @@
+name: Feedback Expire Cron
+
+on:
+  schedule:
+    - cron: "0 23 * * *"
+  workflow_dispatch:
+
+jobs:
+  expire:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Expire overdue feedback requests
+        run: |
+          RESULT=$(curl -sf -X POST \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/rpc/expire_feedback_requests" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json")
+          echo "Expired: $RESULT requests"

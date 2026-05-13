@@ -24,6 +24,7 @@ import { FeedbackKpiCards } from "@/components/admin/feedback/FeedbackKpiCards";
 import { FeedbackTimelineChart } from "@/components/admin/feedback/FeedbackTimelineChart";
 import { CompetencyRankingChart } from "@/components/admin/feedback/CompetencyRankingChart";
 import { AdoptionGauge } from "@/components/admin/feedback/AdoptionGauge";
+import { CronStatusCard } from "@/components/admin/feedback/CronStatusCard";
 
 const STATUS_LABEL: Record<string, string> = {
   all: "Todos",
@@ -183,10 +184,15 @@ export default function FeedbackAnalyticsPage() {
               />
             </div>
 
-            <CompetencyRankingChart
-              data={metrics.competencies}
-              onTagClick={(tag) => openDrilldown("tag", tag)}
-            />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-2">
+                <CompetencyRankingChart
+                  data={metrics.competencies}
+                  onTagClick={(tag) => openDrilldown("tag", tag)}
+                />
+              </div>
+              <CronStatusCard />
+            </div>
           </>
         )}
       </div>
