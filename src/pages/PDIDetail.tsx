@@ -7,13 +7,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, BookOpen, ArrowLeft, UserCheck } from "lucide-react";
 import { usePDIDetail, useActivatePDI, useRefetchPDIDetail, useCompletePDI, type PDIStatus } from "@/hooks/usePDI";
 import { usePDICompetencies } from "@/hooks/usePDICompetencies";
+import { usePDIActions } from "@/hooks/usePDIActions";
 import { CompetenciesList } from "@/components/pdi/CompetenciesList";
 import { ActionsKanban } from "@/components/pdi/ActionsKanban";
+import { CompetencyRadar } from "@/components/pdi/CompetencyRadar";
 import { ApprovalBadge } from "@/components/pdi/ApprovalBadge";
 import { ApprovalActions } from "@/components/pdi/ApprovalActions";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useNavigate as useNav } from "react-router-dom";
 
 const STATUS_BADGE: Record<PDIStatus, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
   draft: { label: "Rascunho", variant: "outline" },
@@ -30,11 +33,14 @@ export default function PDIDetail() {
 
   const { data: plan, isLoading } = usePDIDetail(id ?? "");
   const { list: competenciesList } = usePDICompetencies(id ?? "");
+  const { list: actionsList } = usePDIActions(id ?? "");
   const activatePDI = useActivatePDI(id ?? "");
   const completePDI = useCompletePDI(id ?? "");
   const refetchPlan = useRefetchPDIDetail(id ?? "");
 
   const competencies = competenciesList.data ?? [];
+  const actions = actionsList.data ?? [];
+  const evidences = actions.filter((a) => a.evidence_url);
 
   if (isLoading) {
     return (
@@ -66,8 +72,10 @@ export default function PDIDetail() {
   }
 
   const status = STATUS_BADGE[plan.status];
-  const canActivate = plan.status === "draft" && competencies.length >= 1 && plan.user_id === userId;
-  const canComplete = plan.status === "active" && plan.progress === 100 && plan.user_id === userId;
+  const isOwner = plan.user_id === userId;
+  const canActivate = plan.status === "draft" && competencies.length >= 1 && isOwner;
+  const canComplete = plan.status === "active" && plan.progress === 100 && isOwner;
+  const backPath = isOwner ? "/pdi" : "/pdi/team";
 
   return (
     <AppLayout>
@@ -77,7 +85,7 @@ export default function PDIDetail() {
             variant="ghost"
             size="icon"
             className="mt-0.5 shrink-0"
-            onClick={() => navigate(plan.user_id === userId ? "/pdi" : "/pdi/team")}
+            onClick={() => navigate(backPath)}
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -156,14 +164,32 @@ export default function PDIDetail() {
         <Tabs defaultValue="competencies">
           <TabsList>
             <TabsTrigger value="competencies">
-              Competências{" "}
+              Competências
               {competencies.length > 0 && (
                 <span className="ml-1.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold leading-none">
                   {competencies.length}
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="actions">Ações</TabsTrigger>
+            <TabsTrigger value="actions">
+              Ações
+              {actions.length > 0 && (
+                <span className="ml-1.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold leading-none">
+                  {actions.length}
+                </span>
+              )}
+            </TabsTrigger>
+            {competencies.length >= 3 && (
+              <TabsTrigger value="radar">Mapa de Competências</TabsTrigger>
+            )}
+            {evidences.length > 0 && (
+              <TabsTrigger value="evidences">
+                Evidências
+                <span className="ml-1.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold leading-none">
+                  {evidences.length}
+                </span>
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="competencies" className="mt-4">
@@ -177,7 +203,35 @@ export default function PDIDetail() {
               planId={plan.id}
               competencies={competencies}
               onPlanRefetch={refetchPlan}
+              planUserId={plan.user_id}
+              currentUserId={userId}
             />
+          </TabsContent>
+
+          <TabsContent value="radar" className="mt-4">
+            <div className="border rounded-lg p-4">
+              <CompetencyRadar competencies={competencies} />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="evidences" className="mt-4">
+            <div className="border rounded-lg divide-y divide-border">
+              {evidences.map((action) => (
+                <div key={action.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{action.title}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {action.evidence_url!.split("/").pop()}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="text-xs shrink-0">
+                    {action.status === "done" ? "Concluída" :
+                     action.status === "doing" ? "Em andamento" :
+                     action.status === "blocked" ? "Bloqueada" : "A fazer"}
+                  </Badge>
+                </div>
+              ))}
+            </div>
           </TabsContent>
         </Tabs>
       </div>
