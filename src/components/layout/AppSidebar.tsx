@@ -25,6 +25,7 @@ import {
   Sun,
   MonitorPlay,
   ExternalLink,
+  BookOpen,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { NavLink } from "@/components/NavLink";
@@ -82,6 +83,7 @@ const managementItems = [
   { title: "RH", url: "/hr", icon: Briefcase },
   { title: "Pesquisas", url: "/surveys", icon: BarChart3 },
   { title: "Equipes", url: "/teams", icon: UsersRound },
+  { title: "PDI Gestão", url: "/admin/pdi-dashboard", icon: BookOpen },
   { title: "Oxy VE", url: "https://oxyve.lovable.app", icon: MonitorPlay, external: true },
   { title: "Configurações", url: "/settings", icon: Settings },
 ];
