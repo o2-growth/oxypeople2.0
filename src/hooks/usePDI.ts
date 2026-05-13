@@ -21,6 +21,8 @@ export interface PDIPlan {
   target_date: string | null;
   progress: number;
   approved_at: string | null;
+  approval_requested_at: string | null;
+  review_comment: string | null;
   completed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -32,6 +34,10 @@ export interface CreatePDIInput {
   target_date?: string | null;
   cycle_id?: string | null;
   manager_id?: string | null;
+}
+
+export interface CreatePDIForReportInput extends CreatePDIInput {
+  forUserId: string;
 }
 
 const listKey = (userId: string) => ["pdi-plans", userId];
@@ -142,4 +148,71 @@ export function useActivatePDI(planId: string) {
 export function useRefetchPDIDetail(planId: string) {
   const queryClient = useQueryClient();
   return () => queryClient.invalidateQueries({ queryKey: detailKey(planId) });
+}
+
+export function useCreatePDIForReport() {
+  const { user } = useAuth();
+  const { profile } = useUser();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  return useMutation({
+    mutationFn: async (input: CreatePDIForReportInput) => {
+      if (!user?.id || !profile?.primary_company_id) throw new Error("Não autenticado");
+      const { data, error } = await supabase
+        .from("pdi_plans")
+        .insert({
+          user_id: input.forUserId,
+          manager_id: user.id,
+          company_id: profile.primary_company_id,
+          title: input.title,
+          description: input.description ?? null,
+          target_date: input.target_date ?? null,
+          cycle_id: input.cycle_id ?? null,
+          status: "draft",
+          progress: 0,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data as PDIPlan;
+    },
+    onSuccess: (plan) => {
+      trackEvent("pdi_created", {
+        has_cycle: !!plan.cycle_id,
+        has_manager: true,
+        created_for_report: true,
+      });
+      queryClient.invalidateQueries({ queryKey: ["team-pdi-plans"] });
+      navigate(`/pdi/${plan.id}`);
+    },
+    onError: (err: Error) => {
+      toast.error(err.message ?? "Erro ao criar PDI.");
+    },
+  });
+}
+
+export function useCompletePDI(planId: string) {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const userId = user?.id ?? "";
+
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("pdi_plans")
+        .update({ status: "completed", completed_at: new Date().toISOString() })
+        .eq("id", planId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      trackEvent("pdi_completed");
+      queryClient.invalidateQueries({ queryKey: detailKey(planId) });
+      queryClient.invalidateQueries({ queryKey: listKey(userId) });
+      toast.success("PDI concluído com sucesso!");
+    },
+    onError: (err: Error) => {
+      toast.error(err.message ?? "Erro ao concluir PDI.");
+    },
+  });
 }

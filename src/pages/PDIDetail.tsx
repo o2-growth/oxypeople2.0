@@ -4,11 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, BookOpen, ArrowLeft } from "lucide-react";
-import { usePDIDetail, useActivatePDI, useRefetchPDIDetail, type PDIStatus } from "@/hooks/usePDI";
+import { Loader2, BookOpen, ArrowLeft, UserCheck } from "lucide-react";
+import { usePDIDetail, useActivatePDI, useRefetchPDIDetail, useCompletePDI, type PDIStatus } from "@/hooks/usePDI";
 import { usePDICompetencies } from "@/hooks/usePDICompetencies";
 import { CompetenciesList } from "@/components/pdi/CompetenciesList";
 import { ActionsKanban } from "@/components/pdi/ActionsKanban";
+import { ApprovalBadge } from "@/components/pdi/ApprovalBadge";
+import { ApprovalActions } from "@/components/pdi/ApprovalActions";
+import { useAuth } from "@/contexts/AuthContext";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -22,10 +25,13 @@ const STATUS_BADGE: Record<PDIStatus, { label: string; variant: "default" | "sec
 export default function PDIDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const userId = user?.id ?? "";
 
   const { data: plan, isLoading } = usePDIDetail(id ?? "");
   const { list: competenciesList } = usePDICompetencies(id ?? "");
   const activatePDI = useActivatePDI(id ?? "");
+  const completePDI = useCompletePDI(id ?? "");
   const refetchPlan = useRefetchPDIDetail(id ?? "");
 
   const competencies = competenciesList.data ?? [];
@@ -60,7 +66,8 @@ export default function PDIDetail() {
   }
 
   const status = STATUS_BADGE[plan.status];
-  const canActivate = plan.status === "draft" && competencies.length >= 1;
+  const canActivate = plan.status === "draft" && competencies.length >= 1 && plan.user_id === userId;
+  const canComplete = plan.status === "active" && plan.progress === 100 && plan.user_id === userId;
 
   return (
     <AppLayout>
@@ -70,7 +77,7 @@ export default function PDIDetail() {
             variant="ghost"
             size="icon"
             className="mt-0.5 shrink-0"
-            onClick={() => navigate("/pdi")}
+            onClick={() => navigate(plan.user_id === userId ? "/pdi" : "/pdi/team")}
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -82,8 +89,15 @@ export default function PDIDetail() {
             {plan.description && (
               <p className="text-sm text-muted-foreground mt-0.5">{plan.description}</p>
             )}
+            <p className="text-xs text-muted-foreground mt-1">
+              Criado em {format(parseISO(plan.created_at), "d 'de' MMMM yyyy", { locale: ptBR })}
+            </p>
           </div>
-          <div className="flex items-center gap-2 shrink-0 mt-1">
+          <div className="flex items-center gap-2 shrink-0 mt-1 flex-wrap justify-end">
+            <ApprovalBadge
+              approvedAt={plan.approved_at}
+              approvalRequestedAt={plan.approval_requested_at}
+            />
             {canActivate && (
               <Button
                 size="sm"
@@ -96,9 +110,35 @@ export default function PDIDetail() {
                 Ativar PDI
               </Button>
             )}
+            {canComplete && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => completePDI.mutate()}
+                disabled={completePDI.isPending}
+                className="gap-1.5"
+              >
+                {completePDI.isPending
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  : <UserCheck className="h-3.5 w-3.5" />
+                }
+                Marcar como concluído
+              </Button>
+            )}
             <Badge variant={status.variant}>{status.label}</Badge>
           </div>
         </div>
+
+        {plan.review_comment && (
+          <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <strong>Ajustes solicitados pelo gestor:</strong>
+            <p className="mt-1">{plan.review_comment}</p>
+          </div>
+        )}
+
+        {plan.status === "active" && (
+          <ApprovalActions plan={plan} currentUserId={userId} />
+        )}
 
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">

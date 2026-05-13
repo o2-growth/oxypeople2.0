@@ -59,6 +59,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/hooks/useUser";
 import { useAuth } from "@/contexts/AuthContext";
+import { useIsManager } from "@/hooks/useIsManager";
 import { O2Logo } from "@/components/o2/Logo";
 
 const mainNavItems = [
@@ -182,6 +183,7 @@ export function AppSidebar() {
   const { profile } = useUser();
   const { user, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
+  const { isManager } = useIsManager();
 
   const displayName = profile?.full_name || user?.email?.split("@")[0] || "Usuário";
   const displayEmail = user?.email || "usuario@empresa.com";
@@ -230,7 +232,14 @@ export function AppSidebar() {
 
       <SidebarContent className="px-2 py-4">
         <NavGroup label="Principal" items={mainNavItems} />
-        <NavGroup label="Engajamento" items={engagementItems} />
+        <NavGroup
+          label="Engajamento"
+          items={
+            isManager
+              ? [...engagementItems, { title: "PDI Equipe", url: "/pdi/team", icon: Users }]
+              : engagementItems
+          }
+        />
         <NavGroup label="Gestão" items={managementItems} />
       </SidebarContent>
 
