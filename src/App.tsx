@@ -40,6 +40,7 @@ const NineBoxAdmin = lazy(() => import("./pages/admin/NineBox"));
 const NineBoxEditorAdmin = lazy(() => import("./pages/admin/NineBoxEditor"));
 const FeedbackAnalyticsAdmin = lazy(() => import("./pages/admin/FeedbackAnalytics"));
 const OneOnOnesDashboardAdmin = lazy(() => import("./pages/admin/OneOnOnesDashboard"));
+const PDIDashboardAdmin = lazy(() => import("./pages/admin/PDIDashboard"));
 const PulsePage = lazy(() => import("./pages/Pulse"));
 const NewFeedbackRequest = lazy(() => import("./pages/feedback/NewFeedbackRequest"));
 const FeedbackInbox = lazy(() => import("./pages/feedback/Inbox"));
@@ -91,6 +92,7 @@ const App = () => (
                   <Route path="/admin/pulse-surveys/:id/analytics" element={<ProtectedRoute><PulseAnalyticsAdmin /></ProtectedRoute>} />
                   <Route path="/admin/nine-box" element={<ProtectedRoute><NineBoxAdmin /></ProtectedRoute>} />
                   <Route path="/admin/nine-box/:id" element={<ProtectedRoute><NineBoxEditorAdmin /></ProtectedRoute>} />
+                  <Route path="/admin/pdi-dashboard" element={<ProtectedRoute><PDIDashboardAdmin /></ProtectedRoute>} />
                   <Route path="/pulse/:id" element={<ProtectedRoute><PulsePage /></ProtectedRoute>} />
                   <Route path="/admin/feedback/analytics" element={<ProtectedRoute><FeedbackAnalyticsAdmin /></ProtectedRoute>} />
                   <Route path="/admin/one-on-ones-dashboard" element={<ProtectedRoute><OneOnOnesDashboardAdmin /></ProtectedRoute>} />
