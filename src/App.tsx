@@ -46,6 +46,7 @@ const FeedbackSent = lazy(() => import("./pages/feedback/Sent"));
 const FeedbackAboutMe = lazy(() => import("./pages/feedback/AboutMe"));
 const FeedbackDetail = lazy(() => import("./pages/feedback/Detail"));
 const OneOnOnes = lazy(() => import("./pages/OneOnOnes"));
+const OneOnOneDetail = lazy(() => import("./pages/OneOnOneDetail"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -94,6 +95,7 @@ const App = () => (
                   <Route path="/feedback/about-me" element={<ProtectedRoute><FeedbackAboutMe /></ProtectedRoute>} />
                   <Route path="/feedback/:id" element={<ProtectedRoute><FeedbackDetail /></ProtectedRoute>} />
                   <Route path="/one-on-ones" element={<ProtectedRoute><OneOnOnes /></ProtectedRoute>} />
+                  <Route path="/one-on-ones/:id" element={<ProtectedRoute><OneOnOneDetail /></ProtectedRoute>} />
                   <Route path="*" element={<NotFound />} />
                 </TracedRoutes>
               </Suspense>

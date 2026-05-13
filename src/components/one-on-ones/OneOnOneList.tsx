@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { format, parseISO, isPast } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -15,7 +16,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { Pencil, CheckCheck, X, Clock, MapPin, RefreshCw } from "lucide-react";
+import { Pencil, CheckCheck, X, Clock, MapPin, RefreshCw, ClipboardList } from "lucide-react";
 import type { OneOnOneRow } from "@/hooks/useOneOnOnes";
 
 const STATUS_BADGE: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
@@ -49,6 +50,7 @@ interface Props {
 export function OneOnOneList({ rows, currentUserId, onEdit, onCancel, onComplete, isMutating }: Props) {
   const [cancelTarget, setCancelTarget] = useState<OneOnOneRow | null>(null);
   const [cancelReason, setCancelReason] = useState("");
+  const navigate = useNavigate();
 
   if (rows.length === 0) {
     return (
@@ -121,42 +123,53 @@ export function OneOnOneList({ rows, currentUserId, onEdit, onCancel, onComplete
                 )}
               </div>
 
-              {isScheduled && (
-                <div className="flex items-center gap-1 shrink-0">
-                  {canComplete && (
+              <div className="flex items-center gap-1 shrink-0">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  onClick={() => navigate(`/one-on-ones/${row.id}`)}
+                  title="Ver pauta"
+                >
+                  <ClipboardList className="h-4 w-4" />
+                </Button>
+                {isScheduled && (
+                  <>
+                    {canComplete && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-green-600 hover:text-green-700"
+                        onClick={() => onComplete(row.id)}
+                        disabled={isMutating}
+                        title="Marcar como concluída"
+                      >
+                        <CheckCheck className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-8 w-8 text-green-600 hover:text-green-700"
-                      onClick={() => onComplete(row.id)}
+                      className="h-8 w-8"
+                      onClick={() => onEdit(row)}
                       disabled={isMutating}
-                      title="Marcar como concluída"
+                      title="Editar"
                     >
-                      <CheckCheck className="h-4 w-4" />
+                      <Pencil className="h-4 w-4" />
                     </Button>
-                  )}
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8"
-                    onClick={() => onEdit(row)}
-                    disabled={isMutating}
-                    title="Editar"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    onClick={() => setCancelTarget(row)}
-                    disabled={isMutating}
-                    title="Cancelar"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => setCancelTarget(row)}
+                      disabled={isMutating}
+                      title="Cancelar"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           );
         })}
