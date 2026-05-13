@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Pencil, CheckCheck, X, Clock, MapPin, RefreshCw, ClipboardList } from "lucide-react";
 import type { OneOnOneRow } from "@/hooks/useOneOnOnes";
+import { DownloadIcsButton } from "./DownloadIcsButton";
 
 const STATUS_BADGE: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
   scheduled: { label: "Agendada", variant: "default" },
@@ -133,6 +134,14 @@ export function OneOnOneList({ rows, currentUserId, onEdit, onCancel, onComplete
                 >
                   <ClipboardList className="h-4 w-4" />
                 </Button>
+                <DownloadIcsButton
+                  meeting={row}
+                  leader={row.leader ?? { full_name: null }}
+                  member={row.member ?? { full_name: null }}
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                />
                 {isScheduled && (
                   <>
                     {canComplete && (

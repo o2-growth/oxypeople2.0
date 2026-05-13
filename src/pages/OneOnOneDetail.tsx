@@ -11,6 +11,7 @@ import { ptBR } from "date-fns/locale";
 import { TopicsPanel } from "@/components/one-on-ones/TopicsPanel";
 import { NotesPanel } from "@/components/one-on-ones/NotesPanel";
 import { PreviousMeetings } from "@/components/one-on-ones/PreviousMeetings";
+import { DownloadIcsButton } from "@/components/one-on-ones/DownloadIcsButton";
 import type { OneOnOneRow } from "@/hooks/useOneOnOnes";
 
 const STATUS_BADGE: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
@@ -91,7 +92,14 @@ export default function OneOnOneDetail() {
             </h1>
             <p className="text-sm text-muted-foreground capitalize mt-0.5">{dateStr}</p>
           </div>
-          <Badge variant={status.variant} className="shrink-0 mt-1">{status.label}</Badge>
+          <div className="flex items-center gap-2 shrink-0 mt-1">
+            <DownloadIcsButton
+              meeting={row}
+              leader={row.leader ?? { full_name: leaderName }}
+              member={row.member ?? { full_name: memberName }}
+            />
+            <Badge variant={status.variant}>{status.label}</Badge>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
