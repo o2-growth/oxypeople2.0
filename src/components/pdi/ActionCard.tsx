@@ -17,16 +17,20 @@ import { useState } from "react";
 import { isAfter, isBefore, addDays, parseISO, startOfToday } from "date-fns";
 import type { PDIAction } from "@/hooks/usePDIActions";
 import type { PDICompetency } from "@/hooks/usePDICompetencies";
+import { EvidenceUpload } from "./EvidenceUpload";
 
 interface Props {
   action: PDIAction;
   competencies: PDICompetency[];
   onEdit: (action: PDIAction) => void;
   onDelete: (id: string) => void;
+  planUserId?: string;
+  currentUserId?: string;
 }
 
-export function ActionCard({ action, competencies, onEdit, onDelete }: Props) {
+export function ActionCard({ action, competencies, onEdit, onDelete, planUserId, currentUserId }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const isOwner = !!planUserId && !!currentUserId && planUserId === currentUserId;
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: action.id,
@@ -119,6 +123,8 @@ export function ActionCard({ action, competencies, onEdit, onDelete }: Props) {
             </Badge>
           )}
         </div>
+
+        <EvidenceUpload action={action} planId={action.pdi_plan_id} isOwner={isOwner} />
       </div>
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>

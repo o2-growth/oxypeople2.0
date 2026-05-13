@@ -27,6 +27,8 @@ interface Props {
   planId: string;
   competencies: PDICompetency[];
   onPlanRefetch: () => void;
+  planUserId?: string;
+  currentUserId?: string;
 }
 
 const COLUMNS: { id: ActionStatus; label: string }[] = [
@@ -43,6 +45,8 @@ function KanbanColumn({
   onAddAction,
   onEditAction,
   onDeleteAction,
+  planUserId,
+  currentUserId,
 }: {
   column: { id: ActionStatus; label: string };
   actions: PDIAction[];
@@ -50,6 +54,8 @@ function KanbanColumn({
   onAddAction: (status: ActionStatus) => void;
   onEditAction: (action: PDIAction) => void;
   onDeleteAction: (id: string) => void;
+  planUserId?: string;
+  currentUserId?: string;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
@@ -84,6 +90,8 @@ function KanbanColumn({
             competencies={competencies}
             onEdit={onEditAction}
             onDelete={onDeleteAction}
+            planUserId={planUserId}
+            currentUserId={currentUserId}
           />
         ))}
       </div>
@@ -91,7 +99,7 @@ function KanbanColumn({
   );
 }
 
-export function ActionsKanban({ planId, competencies, onPlanRefetch }: Props) {
+export function ActionsKanban({ planId, competencies, onPlanRefetch, planUserId, currentUserId }: Props) {
   const { list, add, edit, changeStatus, remove } = usePDIActions(planId);
 
   const [formOpen, setFormOpen] = useState(false);
@@ -213,6 +221,8 @@ export function ActionsKanban({ planId, competencies, onPlanRefetch }: Props) {
                 onDeleteAction={(id) => {
                   remove.mutate(id, { onSuccess: onPlanRefetch });
                 }}
+                planUserId={planUserId}
+                currentUserId={currentUserId}
               />
             ))}
           </div>
@@ -225,6 +235,8 @@ export function ActionsKanban({ planId, competencies, onPlanRefetch }: Props) {
                   competencies={competencies}
                   onEdit={() => {}}
                   onDelete={() => {}}
+                  planUserId={planUserId}
+                  currentUserId={currentUserId}
                 />
               </div>
             ) : null}
