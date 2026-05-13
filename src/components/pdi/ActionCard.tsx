@@ -18,6 +18,7 @@ import { isAfter, isBefore, addDays, parseISO, startOfToday } from "date-fns";
 import type { PDIAction } from "@/hooks/usePDIActions";
 import type { PDICompetency } from "@/hooks/usePDICompetencies";
 import { EvidenceUpload } from "./EvidenceUpload";
+import { FeedbackOriginBadge } from "./FeedbackOriginBadge";
 
 interface Props {
   action: PDIAction;
@@ -122,6 +123,7 @@ export function ActionCard({ action, competencies, onEdit, onDelete, planUserId,
               {competency.name}
             </Badge>
           )}
+          <FeedbackOriginBadge action={action} />
         </div>
 
         <EvidenceUpload action={action} planId={action.pdi_plan_id} isOwner={isOwner} />

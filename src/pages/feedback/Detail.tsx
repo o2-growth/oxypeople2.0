@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -5,11 +6,13 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Loader2, ShieldOff, MessageSquare } from "lucide-react";
+import { ArrowLeft, Loader2, ShieldOff, MessageSquare, BookOpen } from "lucide-react";
 import { useFeedbackDetail } from "@/hooks/useFeedbackDetail";
 import { FeedbackStatusBadge } from "@/components/feedback/FeedbackStatusBadge";
 import { FeedbackVisibilityBadge } from "@/components/feedback/FeedbackVisibilityBadge";
 import { UserCell } from "@/components/feedback/UserCell";
+import { CreatePDIActionFromFeedback } from "@/components/feedback/CreatePDIActionFromFeedback";
+import { useAuth } from "@/contexts/AuthContext";
 
 function formatDate(v: string | null) {
   if (!v) return "—";
@@ -24,6 +27,8 @@ export default function FeedbackDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { data, isLoading, error } = useFeedbackDetail(id);
+  const { user } = useAuth();
+  const [pdiDialogOpen, setPdiDialogOpen] = useState(false);
 
   return (
     <AppLayout>
@@ -134,10 +139,33 @@ export default function FeedbackDetailPage() {
               <p className="text-xs text-muted-foreground">
                 Pedido criado em {formatDate(data.created_at)}.
               </p>
+
+              {data.status === "answered" && (
+                <div className="pt-2 border-t">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    onClick={() => setPdiDialogOpen(true)}
+                  >
+                    <BookOpen className="h-4 w-4" />
+                    Criar ação no PDI
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
       </div>
+
+      {data && (
+        <CreatePDIActionFromFeedback
+          feedback={data}
+          currentUserId={user?.id ?? ""}
+          open={pdiDialogOpen}
+          onOpenChange={setPdiDialogOpen}
+        />
+      )}
     </AppLayout>
   );
 }

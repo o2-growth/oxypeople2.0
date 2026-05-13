@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ActionCard } from "./ActionCard";
 import { ActionForm } from "./ActionForm";
@@ -106,14 +106,15 @@ export function ActionsKanban({ planId, competencies, onPlanRefetch, planUserId,
   const [editTarget, setEditTarget] = useState<PDIAction | null>(null);
   const [defaultStatus, setDefaultStatus] = useState<ActionStatus>("todo");
   const [filterCompetency, setFilterCompetency] = useState<string>("");
+  const [filterFeedback, setFilterFeedback] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor));
   const actions = list.data ?? [];
 
-  const filteredActions = filterCompetency
-    ? actions.filter((a) => a.competency_id === filterCompetency)
-    : actions;
+  const filteredActions = actions
+    .filter((a) => !filterCompetency || a.competency_id === filterCompetency)
+    .filter((a) => !filterFeedback || a.feedback_request_id !== null);
 
   const actionsByStatus = (status: ActionStatus) =>
     filteredActions.filter((a) => a.status === status);
@@ -169,22 +170,34 @@ export function ActionsKanban({ planId, competencies, onPlanRefetch, planUserId,
 
   return (
     <div className="space-y-4">
-      {competencies.length > 0 && (
-        <div className="flex items-center gap-2">
+      {(competencies.length > 0 || actions.some((a) => a.feedback_request_id !== null)) && (
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm text-muted-foreground shrink-0">Filtrar por:</span>
-          <Select value={filterCompetency} onValueChange={setFilterCompetency}>
-            <SelectTrigger className="w-[200px] h-8 text-sm">
-              <SelectValue placeholder="Todas as competências" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">Todas as competências</SelectItem>
-              {competencies.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {competencies.length > 0 && (
+            <Select value={filterCompetency} onValueChange={setFilterCompetency}>
+              <SelectTrigger className="w-[200px] h-8 text-sm">
+                <SelectValue placeholder="Todas as competências" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Todas as competências</SelectItem>
+                {competencies.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Button
+            size="sm"
+            variant={filterFeedback ? "default" : "outline"}
+            className="h-8 text-xs gap-1.5"
+            onClick={() => setFilterFeedback(!filterFeedback)}
+            type="button"
+          >
+            <MessageSquare className="h-3 w-3" />
+            De feedback
+          </Button>
         </div>
       )}
 
