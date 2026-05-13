@@ -19,6 +19,7 @@ import {
   Inbox,
   Send,
   Sparkles,
+  Coffee,
   LogOut,
   User,
   Moon,
@@ -69,6 +70,7 @@ const mainNavItems = [
 const engagementItems = [
   { title: "Reconhecimentos", url: "/recognition", icon: Trophy },
   { title: "Objetivos", url: "/objectives", icon: Target },
+  { title: "1:1s", url: "/one-on-ones", icon: Coffee },
   { title: "Pedir feedback", url: "/feedback/new", icon: MessageSquareQuote },
   { title: "Inbox feedback", url: "/feedback/inbox", icon: Inbox },
   { title: "Pedidos enviados", url: "/feedback/sent", icon: Send },
