@@ -26,6 +26,7 @@ import {
   Sun,
   MonitorPlay,
   ExternalLink,
+  BookOpen,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { NavLink } from "@/components/NavLink";
@@ -77,6 +78,7 @@ const engagementItems = [
   { title: "Sobre mim", url: "/feedback/about-me", icon: Sparkles },
   { title: "Desempenho", url: "/performance", icon: ClipboardCheck },
   { title: "Gamificação", url: "/gamification", icon: Gamepad2 },
+  { title: "PDI", url: "/pdi", icon: BookOpen },
 ];
 
 const managementItems = [
