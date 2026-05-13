@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { TopicsPanel } from "@/components/one-on-ones/TopicsPanel";
+import { NotesPanel } from "@/components/one-on-ones/NotesPanel";
 import type { OneOnOneRow } from "@/hooks/useOneOnOnes";
 
 const STATUS_BADGE: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
@@ -69,6 +70,7 @@ export default function OneOnOneDetail() {
     );
   }
 
+  const isLeader = userId === row.leader_id;
   const leaderName = row.leader?.full_name ?? "Líder";
   const memberName = row.member?.full_name ?? "Liderado";
   const dateStr = format(parseISO(row.scheduled_at), "EEEE, d 'de' MMMM yyyy 'às' HH:mm", { locale: ptBR });
@@ -116,6 +118,10 @@ export default function OneOnOneDetail() {
 
         <div className="border rounded-lg p-4">
           <TopicsPanel oneOnOneId={row.id} currentUserId={userId} />
+        </div>
+
+        <div className="border rounded-lg p-4">
+          <NotesPanel oneOnOneId={row.id} currentUserId={userId} isLeader={isLeader} />
         </div>
       </div>
     </AppLayout>
