@@ -1,12 +1,24 @@
 import { useState } from "react";
+import { isToday, parseISO, isFuture } from "date-fns";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Coffee, Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOneOnOnes, type OneOnOneRow } from "@/hooks/useOneOnOnes";
 import { OneOnOneForm } from "@/components/one-on-ones/OneOnOneForm";
 import { OneOnOneList } from "@/components/one-on-ones/OneOnOneList";
+import { HistoryTab } from "@/components/one-on-ones/HistoryTab";
 import type { OneOnOneFormValues } from "@/lib/validation/oneOnOneSchema";
+
+function tabCount(n: number) {
+  if (n === 0) return null;
+  return (
+    <span className="ml-1.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold leading-none">
+      {n}
+    </span>
+  );
+}
 
 export default function OneOnOnesPage() {
   const { user } = useAuth();
@@ -43,6 +55,12 @@ export default function OneOnOnesPage() {
   const isMutating =
     create.isPending || update.isPending || cancel.isPending || complete.isPending;
 
+  const scheduled = (list.data ?? []).filter((r) => r.status === "scheduled");
+  const todayRows = scheduled.filter((r) => isToday(parseISO(r.scheduled_at)));
+  const upcomingRows = scheduled.filter(
+    (r) => !isToday(parseISO(r.scheduled_at)) && isFuture(parseISO(r.scheduled_at)),
+  );
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -67,14 +85,43 @@ export default function OneOnOnesPage() {
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <OneOnOneList
-            rows={list.data ?? []}
-            currentUserId={userId}
-            onEdit={openEdit}
-            onCancel={(id, reason) => cancel.mutate({ id, reason })}
-            onComplete={(id) => complete.mutate(id)}
-            isMutating={isMutating}
-          />
+          <Tabs defaultValue={todayRows.length > 0 ? "today" : "upcoming"}>
+            <TabsList>
+              <TabsTrigger value="upcoming">
+                Próximas{tabCount(upcomingRows.length)}
+              </TabsTrigger>
+              <TabsTrigger value="today">
+                Hoje{tabCount(todayRows.length)}
+              </TabsTrigger>
+              <TabsTrigger value="history">Histórico</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="upcoming" className="mt-4">
+              <OneOnOneList
+                rows={upcomingRows}
+                currentUserId={userId}
+                onEdit={openEdit}
+                onCancel={(id, reason) => cancel.mutate({ id, reason })}
+                onComplete={(id) => complete.mutate(id)}
+                isMutating={isMutating}
+              />
+            </TabsContent>
+
+            <TabsContent value="today" className="mt-4">
+              <OneOnOneList
+                rows={todayRows}
+                currentUserId={userId}
+                onEdit={openEdit}
+                onCancel={(id, reason) => cancel.mutate({ id, reason })}
+                onComplete={(id) => complete.mutate(id)}
+                isMutating={isMutating}
+              />
+            </TabsContent>
+
+            <TabsContent value="history" className="mt-4">
+              <HistoryTab currentUserId={userId} />
+            </TabsContent>
+          </Tabs>
         )}
       </div>
 

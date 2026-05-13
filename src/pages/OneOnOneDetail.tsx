@@ -10,6 +10,7 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { TopicsPanel } from "@/components/one-on-ones/TopicsPanel";
 import { NotesPanel } from "@/components/one-on-ones/NotesPanel";
+import { PreviousMeetings } from "@/components/one-on-ones/PreviousMeetings";
 import type { OneOnOneRow } from "@/hooks/useOneOnOnes";
 
 const STATUS_BADGE: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
@@ -122,6 +123,15 @@ export default function OneOnOneDetail() {
 
         <div className="border rounded-lg p-4">
           <NotesPanel oneOnOneId={row.id} currentUserId={userId} isLeader={isLeader} />
+        </div>
+
+        <div className="border rounded-lg p-4">
+          <PreviousMeetings
+            oneOnOneId={row.id}
+            leaderId={row.leader_id}
+            memberId={row.member_id}
+            counterpartName={isLeader ? memberName : leaderName}
+          />
         </div>
       </div>
     </AppLayout>
