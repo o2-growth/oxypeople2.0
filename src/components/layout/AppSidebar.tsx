@@ -84,6 +84,7 @@ const managementItems = [
   { title: "RH", url: "/hr", icon: Briefcase },
   { title: "Pesquisas", url: "/surveys", icon: BarChart3 },
   { title: "Equipes", url: "/teams", icon: UsersRound },
+  { title: "1:1s Gestor", url: "/admin/one-on-ones-dashboard", icon: Coffee },
   { title: "Oxy VE", url: "https://oxyve.lovable.app", icon: MonitorPlay, external: true },
   { title: "Configurações", url: "/settings", icon: Settings },
 ];

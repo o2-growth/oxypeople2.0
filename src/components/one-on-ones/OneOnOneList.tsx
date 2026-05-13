@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format, parseISO, isPast } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { Pencil, CheckCheck, X, Clock, MapPin, RefreshCw, ClipboardList } from "lucide-react";
+import { Pencil, CheckCheck, X, Clock, MapPin, RefreshCw, ClipboardList, StopCircle } from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import type { OneOnOneRow } from "@/hooks/useOneOnOnes";
 import { DownloadIcsButton } from "./DownloadIcsButton";
 
@@ -51,7 +54,10 @@ interface Props {
 export function OneOnOneList({ rows, currentUserId, onEdit, onCancel, onComplete, isMutating }: Props) {
   const [cancelTarget, setCancelTarget] = useState<OneOnOneRow | null>(null);
   const [cancelReason, setCancelReason] = useState("");
+  const [stopSeriesTarget, setStopSeriesTarget] = useState<OneOnOneRow | null>(null);
+  const [isStoppingSeries, setIsStoppingSeries] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   if (rows.length === 0) {
     return (
@@ -66,6 +72,25 @@ export function OneOnOneList({ rows, currentUserId, onEdit, onCancel, onComplete
     onCancel(cancelTarget.id, cancelReason.trim() || undefined);
     setCancelTarget(null);
     setCancelReason("");
+  };
+
+  const handleStopSeriesConfirm = async () => {
+    if (!stopSeriesTarget) return;
+    setIsStoppingSeries(true);
+    try {
+      const { error } = await supabase
+        .from("one_on_ones")
+        .update({ recurrence: "none" })
+        .eq("id", stopSeriesTarget.id);
+      if (error) throw error;
+      toast.success("Série pausada. Esta 1:1 continuará normalmente.");
+      queryClient.invalidateQueries({ queryKey: ["one-on-ones"] });
+    } catch (err) {
+      toast.error((err as Error).message ?? "Erro ao parar a série.");
+    } finally {
+      setIsStoppingSeries(false);
+      setStopSeriesTarget(null);
+    }
   };
 
   return (
@@ -176,6 +201,18 @@ export function OneOnOneList({ rows, currentUserId, onEdit, onCancel, onComplete
                     >
                       <X className="h-4 w-4" />
                     </Button>
+                    {row.recurrence !== "none" && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-muted-foreground hover:text-orange-600"
+                        onClick={() => setStopSeriesTarget(row)}
+                        disabled={isMutating}
+                        title="Parar série"
+                      >
+                        <StopCircle className="h-4 w-4" />
+                      </Button>
+                    )}
                   </>
                 )}
               </div>
@@ -205,6 +242,26 @@ export function OneOnOneList({ rows, currentUserId, onEdit, onCancel, onComplete
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Cancelar 1:1
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!stopSeriesTarget} onOpenChange={(open) => !open && setStopSeriesTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Parar esta série?</AlertDialogTitle>
+            <AlertDialogDescription>
+              As próximas ocorrências não serão geradas automaticamente. Esta reunião continua normalmente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleStopSeriesConfirm}
+              disabled={isStoppingSeries}
+            >
+              Parar série
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

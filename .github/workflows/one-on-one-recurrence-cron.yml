@@ -1,0 +1,22 @@
+name: One-on-One Recurrence Sweep Cron
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invoke one-on-one-recurrence-sweep edge function
+        run: |
+          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" -X POST \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/one-on-one-recurrence-sweep" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json")
+          echo "HTTP status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "one-on-one-recurrence-sweep returned $STATUS" >&2
+            exit 1
+          fi
