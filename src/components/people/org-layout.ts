@@ -13,6 +13,8 @@ const VERTICAL_GAP = 80;
 export type OrgFlowNodeData = HierarchyNode & {
   isHighlighted: boolean;
   isDimmed: boolean;
+  isDropTarget?: boolean;
+  isEditMode?: boolean;
 };
 
 /**

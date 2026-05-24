@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Building2, Users, Network } from "lucide-react";
+import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { ChevronDown, ChevronRight, Building2, Users, Network, GripVertical } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -10,7 +10,29 @@ interface OrgListViewProps {
   search: string;
   onSelectMember: (node: HierarchyNode) => void;
   myUserNodeId: string | null;
+  canDrag?: boolean;
+  onReassignManager?: (userId: string, managerId: string) => Promise<unknown>;
 }
+
+interface DragState {
+  draggingId: string | null;
+  dropTargetId: string | null;
+  canDrag: boolean;
+  onDragStart: (id: string) => void;
+  onDragEnd: () => void;
+  onDragOver: (id: string) => void;
+  onDrop: (targetId: string) => void;
+}
+
+const DragCtx = createContext<DragState>({
+  draggingId: null,
+  dropTargetId: null,
+  canDrag: false,
+  onDragStart: () => {},
+  onDragEnd: () => {},
+  onDragOver: () => {},
+  onDrop: () => {},
+});
 
 function getInitials(name: string) {
   return name
@@ -22,8 +44,6 @@ function getInitials(name: string) {
 }
 
 function countMembers(node: HierarchyNode): number {
-  // Count this node if it's a person (member) AND walk children — a person
-  // can have direct reports, so we still need to recurse.
   let count = node.type === "member" ? 1 : 0;
   for (const c of node.children ?? []) count += countMembers(c);
   return count;
@@ -63,26 +83,64 @@ function TreeRow({
   myUserNodeId: string | null;
 }) {
   const [open, setOpen] = useState(defaultExpanded);
+  const drag = useContext(DragCtx);
+
   const hasChildren = (node.children?.length ?? 0) > 0;
   const memberCount = node.type === "member" ? 0 : countMembers(node);
   const isMember = node.type === "member";
   const isMe = node.id === myUserNodeId;
 
+  const isDragging = drag.draggingId === node.id;
+  const isDropTarget = drag.dropTargetId === node.id && drag.draggingId !== node.id;
+  const draggable = drag.canDrag && isMember;
+
   const matchesQuery = search ? nodeMatches(node, search) : true;
   if (!matchesQuery) return null;
 
-  // Auto-expand groups when there's an active search
   const effectiveOpen = search ? true : open;
 
   return (
     <>
       <div
         className={cn(
-          "group flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/60 transition-colors",
+          "group flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors",
           isMember && "cursor-pointer",
+          !isDragging && !isDropTarget && "hover:bg-muted/60",
           isMe && "bg-primary/5 ring-1 ring-primary/20",
+          isDragging && "opacity-40",
+          isDropTarget &&
+            "bg-emerald-50 dark:bg-emerald-950/30 ring-1 ring-emerald-500 ring-inset",
         )}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
+        draggable={draggable}
+        onDragStart={
+          draggable
+            ? (e) => {
+                e.dataTransfer.effectAllowed = "move";
+                drag.onDragStart(node.id);
+              }
+            : undefined
+        }
+        onDragOver={
+          draggable
+            ? (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                if (drag.draggingId && drag.draggingId !== node.id) {
+                  drag.onDragOver(node.id);
+                }
+              }
+            : undefined
+        }
+        onDrop={
+          draggable
+            ? (e) => {
+                e.preventDefault();
+                drag.onDrop(node.id);
+              }
+            : undefined
+        }
+        onDragEnd={draggable ? () => drag.onDragEnd() : undefined}
         onClick={() => {
           if (isMember) onSelectMember(node);
           else setOpen((v) => !v);
@@ -106,6 +164,10 @@ function TreeRow({
           </button>
         ) : (
           <span className="h-5 w-5 inline-block shrink-0" />
+        )}
+
+        {draggable && (
+          <GripVertical className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab" />
         )}
 
         {isMember ? (
@@ -155,8 +217,6 @@ function TreeRow({
               depth={depth + 1}
               search={search}
               onSelectMember={onSelectMember}
-              // Expand the first 2 levels by default so CEO + C-Level + Heads
-              // are visible immediately. Squad members stay collapsed.
               defaultExpanded={defaultExpanded && depth < 2}
               myUserNodeId={myUserNodeId}
             />
@@ -172,10 +232,46 @@ export function OrgListView({
   search,
   onSelectMember,
   myUserNodeId,
+  canDrag = false,
+  onReassignManager,
 }: OrgListViewProps) {
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+
   const totalPeople = useMemo(
     () => (hierarchy ? countMembers(hierarchy) : 0),
     [hierarchy],
+  );
+
+  const handleDrop = useCallback(
+    (targetId: string) => {
+      if (!draggingId || draggingId === targetId) return;
+      const sourceUserId = draggingId.startsWith("member-") ? draggingId.slice(7) : null;
+      const targetUserId = targetId.startsWith("member-") ? targetId.slice(7) : null;
+      if (!sourceUserId || !targetUserId) return;
+      onReassignManager?.(sourceUserId, targetUserId);
+    },
+    [draggingId, onReassignManager],
+  );
+
+  const dragCtx = useMemo<DragState>(
+    () => ({
+      draggingId,
+      dropTargetId,
+      canDrag,
+      onDragStart: setDraggingId,
+      onDragEnd: () => {
+        setDraggingId(null);
+        setDropTargetId(null);
+      },
+      onDragOver: setDropTargetId,
+      onDrop: (targetId) => {
+        handleDrop(targetId);
+        setDraggingId(null);
+        setDropTargetId(null);
+      },
+    }),
+    [draggingId, dropTargetId, canDrag, handleDrop],
   );
 
   if (!hierarchy) {
@@ -187,19 +283,21 @@ export function OrgListView({
   }
 
   return (
-    <div className="space-y-0.5 py-1">
-      <div className="px-2 pb-2 text-xs text-muted-foreground">
-        {totalPeople} {totalPeople === 1 ? "pessoa" : "pessoas"}
-        {search ? ` • filtrando "${search}"` : ""}
+    <DragCtx.Provider value={dragCtx}>
+      <div className="space-y-0.5 py-1">
+        <div className="px-2 pb-2 text-xs text-muted-foreground">
+          {totalPeople} {totalPeople === 1 ? "pessoa" : "pessoas"}
+          {search ? ` • filtrando "${search}"` : ""}
+        </div>
+        <TreeRow
+          node={hierarchy}
+          depth={0}
+          search={search}
+          onSelectMember={onSelectMember}
+          defaultExpanded={true}
+          myUserNodeId={myUserNodeId}
+        />
       </div>
-      <TreeRow
-        node={hierarchy}
-        depth={0}
-        search={search}
-        onSelectMember={onSelectMember}
-        defaultExpanded={true}
-        myUserNodeId={myUserNodeId}
-      />
-    </div>
+    </DragCtx.Provider>
   );
 }

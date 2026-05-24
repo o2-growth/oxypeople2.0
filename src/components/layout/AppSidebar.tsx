@@ -7,7 +7,6 @@ import {
   Building2,
   Trophy,
   Target,
-  BarChart3,
   Settings,
   ChevronDown,
   Zap,
@@ -27,6 +26,7 @@ import {
   MonitorPlay,
   ExternalLink,
   BookOpen,
+  BarChart3,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { NavLink } from "@/components/NavLink";
@@ -60,38 +60,8 @@ import { cn } from "@/lib/utils";
 import { useUser } from "@/hooks/useUser";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsManager } from "@/hooks/useIsManager";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { O2Logo } from "@/components/o2/Logo";
-
-const mainNavItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Mural", url: "/feed", icon: MessageSquare },
-  
-  { title: "Automação", url: "/automation", icon: Zap },
-];
-
-const engagementItems = [
-  { title: "Reconhecimentos", url: "/recognition", icon: Trophy },
-  { title: "Objetivos", url: "/objectives", icon: Target },
-  { title: "1:1s", url: "/one-on-ones", icon: Coffee },
-  { title: "Pedir feedback", url: "/feedback/new", icon: MessageSquareQuote },
-  { title: "Inbox feedback", url: "/feedback/inbox", icon: Inbox },
-  { title: "Pedidos enviados", url: "/feedback/sent", icon: Send },
-  { title: "Sobre mim", url: "/feedback/about-me", icon: Sparkles },
-  { title: "Desempenho", url: "/performance", icon: ClipboardCheck },
-  { title: "Gamificação", url: "/gamification", icon: Gamepad2 },
-  { title: "PDI", url: "/pdi", icon: BookOpen },
-];
-
-const managementItems = [
-  { title: "Empresa", url: "/company", icon: Building2 },
-  { title: "RH", url: "/hr", icon: Briefcase },
-  { title: "Pesquisas", url: "/surveys", icon: BarChart3 },
-  { title: "Equipes", url: "/teams", icon: UsersRound },
-  { title: "1:1s Gestor", url: "/admin/one-on-ones-dashboard", icon: Coffee },
-  { title: "PDI Gestão", url: "/admin/pdi-dashboard", icon: BookOpen },
-  { title: "Oxy VE", url: "https://oxyve.lovable.app", icon: MonitorPlay, external: true },
-  { title: "Configurações", url: "/settings", icon: Settings },
-];
 
 interface NavItem {
   title: string;
@@ -99,6 +69,44 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   external?: boolean;
 }
+
+const inicioItems: NavItem[] = [
+  { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Mural", url: "/feed", icon: MessageSquare },
+];
+
+const meuEspacoItems: NavItem[] = [
+  { title: "Sobre mim", url: "/feedback/about-me", icon: Sparkles },
+  { title: "Objetivos", url: "/objectives", icon: Target },
+  { title: "Desempenho", url: "/performance", icon: ClipboardCheck },
+  { title: "Gamificação", url: "/gamification", icon: Gamepad2 },
+  { title: "Reconhecimentos", url: "/recognition", icon: Trophy },
+];
+
+const feedbackItems: NavItem[] = [
+  { title: "Inbox", url: "/feedback/inbox", icon: Inbox },
+  { title: "Pedir feedback", url: "/feedback/new", icon: MessageSquareQuote },
+  { title: "Enviados", url: "/feedback/sent", icon: Send },
+];
+
+const desenvolvimentoItems: NavItem[] = [
+  { title: "PDI", url: "/pdi", icon: BookOpen },
+  { title: "1:1s", url: "/one-on-ones", icon: Coffee },
+];
+
+const gestaoItems: NavItem[] = [
+  { title: "RH", url: "/hr", icon: Briefcase },
+  { title: "Equipes", url: "/teams", icon: UsersRound },
+  { title: "Pesquisas", url: "/surveys", icon: BarChart3 },
+  { title: "PDI Equipe", url: "/pdi/team", icon: Users },
+  { title: "1:1s Gestão", url: "/admin/one-on-ones-dashboard", icon: Coffee },
+];
+
+const adminItems: NavItem[] = [
+  { title: "Empresa", url: "/company", icon: Building2 },
+  { title: "Automação", url: "/automation", icon: Zap },
+  { title: "Oxy VE", url: "https://oxyve.lovable.app", icon: MonitorPlay, external: true },
+];
 
 interface NavGroupProps {
   label: string;
@@ -134,10 +142,7 @@ function NavGroup({ label, items, defaultOpen = true }: NavGroupProps) {
             <SidebarMenu>
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    tooltip={collapsed ? item.title : undefined}
-                  >
+                  <SidebarMenuButton asChild tooltip={collapsed ? item.title : undefined}>
                     {item.external ? (
                       <a
                         href={item.url}
@@ -185,6 +190,7 @@ export function AppSidebar() {
   const { user, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
   const { isManager } = useIsManager();
+  const { isAdmin } = useUserPermissions();
 
   const displayName = profile?.full_name || user?.email?.split("@")[0] || "Usuário";
   const displayEmail = user?.email || "usuario@empresa.com";
@@ -201,15 +207,10 @@ export function AppSidebar() {
     navigate("/auth");
   };
 
-  const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
-  };
+  const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
 
   return (
-    <Sidebar
-      className="border-r border-sidebar-border"
-      collapsible="icon"
-    >
+    <Sidebar className="border-r border-sidebar-border" collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border p-3">
         <div className="flex items-center justify-center gap-3">
           <div className={cn(
@@ -220,28 +221,24 @@ export function AppSidebar() {
           </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="text-lg font-heading font-bold text-sidebar-foreground">
-                Oxy People
-              </span>
-              <span className="text-xs text-sidebar-foreground/60">
-                by O2 Inc
-              </span>
+              <span className="text-lg font-heading font-bold text-sidebar-foreground">Oxy People</span>
+              <span className="text-xs text-sidebar-foreground/60">by O2 Inc</span>
             </div>
           )}
         </div>
       </SidebarHeader>
 
       <SidebarContent className="px-2 py-4">
-        <NavGroup label="Principal" items={mainNavItems} />
-        <NavGroup
-          label="Engajamento"
-          items={
-            isManager
-              ? [...engagementItems, { title: "PDI Equipe", url: "/pdi/team", icon: Users }]
-              : engagementItems
-          }
-        />
-        <NavGroup label="Gestão" items={managementItems} />
+        <NavGroup label="Início" items={inicioItems} />
+        <NavGroup label="Meu Espaço" items={meuEspacoItems} />
+        <NavGroup label="Feedback" items={feedbackItems} defaultOpen={false} />
+        <NavGroup label="Desenvolvimento" items={desenvolvimentoItems} defaultOpen={false} />
+        {(isManager || isAdmin) && (
+          <NavGroup label="Gestão" items={gestaoItems} defaultOpen={false} />
+        )}
+        {isAdmin && (
+          <NavGroup label="Administração" items={adminItems} defaultOpen={false} />
+        )}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border p-4">
@@ -250,18 +247,12 @@ export function AppSidebar() {
             <button className="flex w-full items-center gap-3 rounded-lg p-1 transition-colors hover:bg-sidebar-accent focus:outline-none focus:ring-2 focus:ring-sidebar-primary/20">
               <Avatar className="h-9 w-9 ring-2 ring-sidebar-primary/20">
                 <AvatarImage src={avatarUrl} />
-                <AvatarFallback className="bg-sidebar-accent text-sidebar-foreground">
-                  {initials}
-                </AvatarFallback>
+                <AvatarFallback className="bg-sidebar-accent text-sidebar-foreground">{initials}</AvatarFallback>
               </Avatar>
               {!collapsed && (
                 <div className="flex flex-col overflow-hidden text-left">
-                  <span className="truncate text-sm font-medium text-sidebar-foreground">
-                    {displayName}
-                  </span>
-                  <span className="truncate text-xs text-sidebar-foreground/60">
-                    {displayEmail}
-                  </span>
+                  <span className="truncate text-sm font-medium text-sidebar-foreground">{displayName}</span>
+                  <span className="truncate text-xs text-sidebar-foreground/60">{displayEmail}</span>
                 </div>
               )}
             </button>
@@ -276,11 +267,7 @@ export function AppSidebar() {
               Configurações
             </DropdownMenuItem>
             <DropdownMenuItem onClick={toggleTheme}>
-              {theme === "dark" ? (
-                <Sun className="mr-2 h-4 w-4" />
-              ) : (
-                <Moon className="mr-2 h-4 w-4" />
-              )}
+              {theme === "dark" ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
               {theme === "dark" ? "Modo Claro" : "Modo Escuro"}
             </DropdownMenuItem>
             <DropdownMenuSeparator />

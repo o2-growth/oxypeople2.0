@@ -22,10 +22,10 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Network, Search, Download, RotateCcw, GripVertical } from "lucide-react";
 import { toPng } from "html-to-image";
-import { toast } from "sonner";
 import { useOrganizationHierarchy, type HierarchyNode } from "@/hooks/useOrganizationHierarchy";
 import { useManagers } from "@/hooks/useManagers";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 import {
   buildOrgGraph,
   buildManagerHierarchy,
@@ -38,25 +38,18 @@ import { OrgListView } from "./OrgListView";
 import { trackEvent } from "@/lib/analytics";
 
 type DepartmentOption = { id: string; name: string };
-type OrgMode = "visual" | "manager" | "list";
+type OrgMode = "visual" | "list";
 
 interface FlowInnerProps {
   hierarchy: HierarchyNode | null;
-  mode: OrgMode;
   search: string;
   departmentId: string;
   scope: "all" | "mine";
   myUserNodeId: string | null;
   departmentOptions: DepartmentOption[];
   setSelected: (node: HierarchyNode | null) => void;
-  setSearch: (v: string) => void;
-  setDepartmentId: (v: string) => void;
-  setScope: (v: "all" | "mine") => void;
-  setMode: (v: OrgMode) => void;
   wrapperRef: React.RefObject<HTMLDivElement>;
   flowInstanceRef: React.MutableRefObject<ReactFlowInstance | null>;
-  setManager: (userId: string, managerId: string | null) => Promise<unknown>;
-  managersLoading: boolean;
 }
 
 function userIdFromNodeId(nodeId: string): string | null {
@@ -66,21 +59,14 @@ function userIdFromNodeId(nodeId: string): string | null {
 
 function FlowInner({
   hierarchy,
-  mode,
   search,
   departmentId,
   scope,
   myUserNodeId,
   departmentOptions,
   setSelected,
-  setSearch,
-  setDepartmentId,
-  setScope,
-  setMode,
   wrapperRef,
   flowInstanceRef,
-  setManager,
-  managersLoading,
 }: FlowInnerProps) {
   const reactFlow = useReactFlow();
 
@@ -112,8 +98,6 @@ function FlowInner({
     return buildOrgGraph(hierarchy, hasFilter ? filterMatch : () => false);
   }, [hierarchy, search, departmentId, scope, filterMatch]);
 
-  // Local copy of nodes so we can apply drag positions without losing them
-  // when react-query refetches don't fire.
   const [nodes, setNodes] = useState<Node<OrgFlowNodeData>[]>(baseGraph.nodes);
   useEffect(() => {
     setNodes(baseGraph.nodes);
@@ -161,61 +145,6 @@ function FlowInner({
     [setSelected],
   );
 
-  const handleNodeDragStop = useCallback(
-    (_: unknown, draggedNode: Node<OrgFlowNodeData>) => {
-      if (mode !== "manager") return;
-      const draggedUserId = userIdFromNodeId(draggedNode.id);
-      if (!draggedUserId) {
-        // Restore base position
-        setNodes(baseGraph.nodes);
-        return;
-      }
-
-      const intersections = reactFlow
-        .getIntersectingNodes(draggedNode)
-        .filter((n) => n.id !== draggedNode.id);
-      const target = intersections[0];
-
-      if (!target) {
-        // Snap back — no valid drop target
-        setNodes(baseGraph.nodes);
-        return;
-      }
-
-      const targetUserId = userIdFromNodeId(target.id);
-      if (!targetUserId) {
-        setNodes(baseGraph.nodes);
-        return;
-      }
-
-      const draggedName = draggedNode.data.name;
-      const targetName = (target.data as OrgFlowNodeData | undefined)?.name ?? "esta pessoa";
-
-      toast(`Mover ${draggedName} para sob ${targetName}?`, {
-        action: {
-          label: "Confirmar",
-          onClick: async () => {
-            try {
-              await setManager(draggedUserId, targetUserId);
-              // The hook invalidates the org-hierarchy query → graph rebuilds.
-            } catch {
-              // Hook already toasts the error; revert visually.
-              setNodes(baseGraph.nodes);
-            }
-          },
-        },
-        cancel: {
-          label: "Cancelar",
-          onClick: () => setNodes(baseGraph.nodes),
-        },
-        duration: 8000,
-        onDismiss: () => setNodes(baseGraph.nodes),
-        onAutoClose: () => setNodes(baseGraph.nodes),
-      });
-    },
-    [mode, baseGraph.nodes, reactFlow, setManager],
-  );
-
   return (
     <ReactFlow
       nodes={nodes}
@@ -223,14 +152,11 @@ function FlowInner({
       nodeTypes={orgNodeTypes}
       onInit={(instance) => {
         flowInstanceRef.current = instance;
-        // Larger padding + cap initial zoom so we don't render tiny pinhead
-        // cards when there are many leaves at the same depth.
         instance.fitView({ padding: 0.35, duration: 300, maxZoom: 0.9 });
       }}
       onNodeClick={handleNodeClick}
       onNodesChange={onNodesChange}
-      onNodeDragStop={handleNodeDragStop}
-      nodesDraggable={mode === "manager" && !managersLoading}
+      nodesDraggable={false}
       nodesConnectable={false}
       elementsSelectable
       proOptions={{ hideAttribution: true }}
@@ -260,6 +186,9 @@ export function OrganizationChartFlow() {
   const { data: visualHierarchy, isLoading, error } = useOrganizationHierarchy();
   const { members, isLoading: managersLoading, setManager } = useManagers();
   const { user } = useAuth();
+  const { isAdmin } = useUserPermissions();
+
+  const canDrag = isAdmin && !managersLoading;
 
   // Default to "list" — much more legible for companies with many people
   // and works regardless of department/team configuration.
@@ -289,15 +218,7 @@ export function OrganizationChartFlow() {
     );
   }, [members]);
 
-  // Prefer the manager-based hierarchy whenever it exists — it represents the
-  // real chain of command (CEO → C-Level → Heads → Squad leaders → ICs).
-  // Fall back to the dept/team visual hierarchy only when manager_id is empty
-  // for the whole company. The "manager" mode itself stays purely manager-based
-  // since that's where users edit hierarchies via drag-and-drop.
-  const activeHierarchy: HierarchyNode | null =
-    mode === "manager"
-      ? managerHierarchy
-      : managerHierarchy ?? visualHierarchy ?? null;
+  const activeHierarchy: HierarchyNode | null = managerHierarchy ?? visualHierarchy ?? null;
 
   const departmentOptions = useMemo<DepartmentOption[]>(() => {
     if (!visualHierarchy) return [];
@@ -334,7 +255,7 @@ export function OrganizationChartFlow() {
     }
   }, [mode]);
 
-  const showLoading = isLoading || (mode === "manager" && managersLoading);
+  const showLoading = isLoading || managersLoading;
 
   if (showLoading) {
     return (
@@ -357,9 +278,7 @@ export function OrganizationChartFlow() {
           <p className="text-muted-foreground text-sm">
             {error
               ? "Não foi possível carregar a estrutura organizacional."
-              : mode === "manager"
-                ? "Nenhuma relação de gestor configurada. Use /admin/managers para definir."
-                : "Configure departamentos e equipes para visualizar o organograma."}
+              : "Configure departamentos e equipes para visualizar o organograma."}
           </p>
         </CardContent>
       </Card>
@@ -384,7 +303,6 @@ export function OrganizationChartFlow() {
               <SelectContent>
                 <SelectItem value="list">Lista (árvore)</SelectItem>
                 <SelectItem value="visual">Visual (organograma)</SelectItem>
-                <SelectItem value="manager">Editar hierarquia</SelectItem>
               </SelectContent>
             </Select>
             {mode !== "list" && (
@@ -437,10 +355,10 @@ export function OrganizationChartFlow() {
               Limpar
             </Button>
           )}
-          {mode === "manager" && (
+          {canDrag && mode === "list" && (
             <span className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground">
               <GripVertical className="h-3 w-3" />
-              Arraste uma pessoa sobre outra para reatribuir o gestor
+              Arraste uma pessoa sobre outra para reorganizar
             </span>
           )}
         </div>
@@ -453,6 +371,8 @@ export function OrganizationChartFlow() {
               search={search}
               onSelectMember={setSelected}
               myUserNodeId={myUserNodeId}
+              canDrag={canDrag}
+              onReassignManager={setManager}
             />
           </div>
         ) : (
@@ -460,21 +380,14 @@ export function OrganizationChartFlow() {
             <ReactFlowProvider>
               <FlowInner
                 hierarchy={activeHierarchy}
-                mode={mode}
                 search={search}
                 departmentId={departmentId}
                 scope={scope}
                 myUserNodeId={myUserNodeId}
                 departmentOptions={departmentOptions}
                 setSelected={setSelected}
-                setSearch={setSearch}
-                setDepartmentId={setDepartmentId}
-                setScope={setScope}
-                setMode={setMode}
                 wrapperRef={wrapperRef}
                 flowInstanceRef={flowInstanceRef}
-                setManager={setManager}
-                managersLoading={managersLoading}
               />
             </ReactFlowProvider>
           </div>

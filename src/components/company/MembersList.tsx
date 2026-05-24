@@ -6,6 +6,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -34,6 +37,7 @@ interface MembersListProps {
   members: Member[];
   onChangeRole?: (memberId: string, newRole: string) => void;
   onRemoveMember?: (memberId: string) => void;
+  onMemberClick?: (memberId: string) => void;
 }
 
 const roleConfig = {
@@ -50,7 +54,16 @@ const statusConfig = {
   inactive: { label: "Inativo", className: "bg-gray-500/10 text-gray-600" },
 };
 
-export function MembersList({ members, onChangeRole, onRemoveMember }: MembersListProps) {
+const roles: { label: string; value: "owner" | "admin" | "manager" | "member" }[] = [
+  { label: "Proprietário", value: "owner" },
+  { label: "Admin", value: "admin" },
+  { label: "Gestor", value: "manager" },
+  { label: "Membro", value: "member" },
+];
+
+export function MembersList({ members, onChangeRole, onRemoveMember, onMemberClick }: MembersListProps) {
+  const showDropdown = !!onChangeRole || !!onRemoveMember;
+
   return (
     <div className="rounded-lg border bg-card">
       <Table>
@@ -70,7 +83,11 @@ export function MembersList({ members, onChangeRole, onRemoveMember }: MembersLi
             const status = statusConfig[member.status];
 
             return (
-              <TableRow key={member.id}>
+              <TableRow
+                key={member.id}
+                className={onMemberClick ? "cursor-pointer" : undefined}
+                onClick={() => onMemberClick?.(member.id)}
+              >
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <Avatar className="h-9 w-9">
@@ -98,35 +115,72 @@ export function MembersList({ members, onChangeRole, onRemoveMember }: MembersLi
                 </TableCell>
                 <TableCell className="text-muted-foreground">{member.joinedAt}</TableCell>
                 <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem className="gap-2">
-                        <Mail className="h-4 w-4" />
-                        Enviar email
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        className="gap-2"
-                        onClick={() => onChangeRole?.(member.id, "admin")}
-                      >
-                        <Shield className="h-4 w-4" />
-                        Alterar função
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem 
-                        className="gap-2 text-destructive focus:text-destructive"
-                        onClick={() => onRemoveMember?.(member.id)}
-                        disabled={member.role === "owner"}
-                      >
-                        <UserMinus className="h-4 w-4" />
-                        Remover
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {showDropdown && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          className="gap-2"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open("mailto:" + member.email, "_blank");
+                          }}
+                        >
+                          <Mail className="h-4 w-4" />
+                          Enviar email
+                        </DropdownMenuItem>
+                        {onChangeRole && (
+                          <DropdownMenuSub>
+                            <DropdownMenuSubTrigger
+                              className="gap-2"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Shield className="h-4 w-4" />
+                              Alterar função
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent>
+                              {roles.map((r) => (
+                                <DropdownMenuItem
+                                  key={r.value}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onChangeRole(member.id, r.value);
+                                  }}
+                                >
+                                  {r.label}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuSubContent>
+                          </DropdownMenuSub>
+                        )}
+                        {onRemoveMember && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="gap-2 text-destructive focus:text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onRemoveMember(member.id);
+                              }}
+                              disabled={member.role === "owner"}
+                            >
+                              <UserMinus className="h-4 w-4" />
+                              Remover
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </TableCell>
               </TableRow>
             );

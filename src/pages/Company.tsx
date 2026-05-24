@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { MembersList, Member } from "@/components/company/MembersList";
+import { MemberDetailSheet } from "@/components/company/MemberDetailSheet";
 import { InviteModal } from "@/components/company/InviteModal";
 import { CreateDepartmentDialog } from "@/components/company/CreateDepartmentDialog";
 import { DepartmentCard } from "@/components/company/DepartmentCard";
@@ -41,7 +42,7 @@ import {
   useDeleteDepartment,
   type Department 
 } from "@/hooks/useDepartmentsManager";
-import { usePeopleList, usePeopleStats } from "@/hooks/usePeopleList";
+import { usePeopleList, usePeopleStats, useUpdateMember, useUpdateMemberStatus } from "@/hooks/usePeopleList";
 import { useUser } from "@/hooks/useUser";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { format } from "date-fns";
@@ -84,9 +85,13 @@ export default function Company() {
   const [managingDepartment, setManagingDepartment] = useState<Department | null>(null);
   const [deletingDepartmentId, setDeletingDepartmentId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+  const [detailMemberId, setDetailMemberId] = useState<string | null>(null);
 
   const { data: departments = [], isLoading: isLoadingDepartments } = useDepartmentsWithDetails();
   const deleteDepartment = useDeleteDepartment();
+  const updateMember = useUpdateMember();
+  const updateStatus = useUpdateMemberStatus();
   
   // Real data hooks
   const { data: people = [], isLoading: isLoadingPeople } = usePeopleList();
@@ -144,6 +149,24 @@ export default function Company() {
     ];
   }, [stats, members, invitedMembers]);
 
+  const handleChangeRole = (membershipId: string, role: string) => {
+    const person = people.find((p) => p.id === membershipId);
+    if (!person) return;
+    updateMember.mutate({
+      membershipId,
+      userId: person.user_id,
+      role: role as "owner" | "admin" | "manager" | "member",
+    });
+  };
+
+  const handleRemoveMember = (membershipId: string) => {
+    setRemovingMemberId(membershipId);
+  };
+
+  const handleMemberClick = (membershipId: string) => {
+    setDetailMemberId(membershipId);
+  };
+
   const handleEditDepartment = (department: Department) => {
     setEditingDepartment(department);
     setCreateDepartmentOpen(true);
@@ -170,6 +193,8 @@ export default function Company() {
       setEditingDepartment(null);
     }
   };
+
+  const detailMember = detailMemberId ? people.find(p => p.id === detailMemberId) ?? null : null;
 
   const isLoading = isLoadingPeople || isLoadingStats;
 
@@ -342,7 +367,12 @@ export default function Company() {
                 )}
               </div>
             ) : (
-              <MembersList members={filteredMembers} />
+              <MembersList
+                members={filteredMembers}
+                onChangeRole={handleChangeRole}
+                onRemoveMember={handleRemoveMember}
+                onMemberClick={handleMemberClick}
+              />
             )}
           </TabsContent>
 
@@ -396,7 +426,12 @@ export default function Company() {
                 </Button>
               </div>
             ) : (
-              <MembersList members={invitedMembers} />
+              <MembersList
+                members={invitedMembers}
+                onChangeRole={handleChangeRole}
+                onRemoveMember={handleRemoveMember}
+                onMemberClick={handleMemberClick}
+              />
             )}
           </TabsContent>
         </Tabs>
@@ -440,6 +475,40 @@ export default function Company() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Remove Member Confirmation */}
+        <AlertDialog open={!!removingMemberId} onOpenChange={(open) => { if (!open) setRemovingMemberId(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remover membro?</AlertDialogTitle>
+              <AlertDialogDescription>
+                O membro será desativado e perderá acesso ao workspace.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (removingMemberId) {
+                    updateStatus.mutate({ membershipId: removingMemberId, status: "inactive" });
+                    setRemovingMemberId(null);
+                  }
+                }}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Remover
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Member Detail Sheet */}
+        <MemberDetailSheet
+          member={detailMember}
+          open={!!detailMemberId}
+          onOpenChange={(open) => { if (!open) setDetailMemberId(null); }}
+          isAdmin={isAdmin}
+        />
       </div>
     </AppLayout>
   );

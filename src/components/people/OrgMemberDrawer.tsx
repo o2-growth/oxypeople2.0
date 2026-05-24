@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Sheet,
   SheetContent,
@@ -14,7 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Mail, Briefcase, Building2, Users, ShieldCheck, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Mail, Briefcase, Building2, Users, ShieldCheck, ShieldOff, Loader2, Network, Save } from "lucide-react";
 import type { HierarchyNode } from "@/hooks/useOrganizationHierarchy";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import {
@@ -22,6 +24,11 @@ import {
   useUpdateOkrAccessLevel,
   type OkrAccessLevel,
 } from "@/hooks/useOkrAccessLevels";
+import { useManagers } from "@/hooks/useManagers";
+import { useDepartmentOptions } from "@/hooks/usePeopleWithBirthdays";
+import { useUpdateMember } from "@/hooks/usePeopleList";
+import { usePeopleList } from "@/hooks/usePeopleList";
+import { toast } from "sonner";
 
 interface OrgMemberDrawerProps {
   node: HierarchyNode | null;
@@ -44,9 +51,157 @@ const TYPE_LABEL: Record<HierarchyNode["type"], string> = {
   member: "Colaborador",
 };
 
+const NO_MANAGER = "__none__";
+const NO_DEPT = "__none__";
+
+function OrgEditSection({ node, onClose }: { node: HierarchyNode; onClose: () => void }) {
+  const { members, setManager, isMutating: managersLoading } = useManagers();
+  const { data: departments = [] } = useDepartmentOptions();
+  const { data: people = [] } = usePeopleList();
+  const updateMember = useUpdateMember();
+
+  const userId = node.id.startsWith("member-") ? node.id.slice("member-".length) : null;
+  const membership = userId ? people.find((p) => p.user_id === userId) : null;
+
+  const currentManager = userId
+    ? members.find((m) => m.user_id === userId)?.manager_id ?? NO_MANAGER
+    : NO_MANAGER;
+  const currentDeptId = membership?.department_id ?? NO_DEPT;
+
+  const [managerId, setManagerId] = useState<string>(currentManager ?? NO_MANAGER);
+  const [deptId, setDeptId] = useState<string>(currentDeptId ?? NO_DEPT);
+
+  if (!userId || !membership) return null;
+
+  const otherMembers = members.filter((m) => m.user_id !== userId);
+
+  const handleSave = async () => {
+    try {
+      const newManagerId = managerId === NO_MANAGER ? null : managerId;
+      if (newManagerId !== (currentManager === NO_MANAGER ? null : currentManager)) {
+        await setManager(userId, newManagerId);
+      }
+
+      const newDeptId = deptId === NO_DEPT ? null : deptId;
+      if (newDeptId !== (currentDeptId === NO_DEPT ? null : currentDeptId)) {
+        await updateMember.mutateAsync({
+          membershipId: membership.id,
+          userId,
+          department_id: newDeptId,
+        });
+      }
+
+      toast.success("Organograma atualizado!");
+      onClose();
+    } catch {
+      // Errors already shown by hooks
+    }
+  };
+
+  const isSaving = managersLoading || updateMember.isPending;
+
+  return (
+    <div className="rounded-md border border-border/60 bg-muted/30 p-3 space-y-3">
+      <div className="flex items-center gap-2 text-foreground">
+        <Network className="h-4 w-4 shrink-0" />
+        <span className="font-medium">Editar Organograma</span>
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-xs text-muted-foreground">Gestor</label>
+        <Select value={managerId} onValueChange={setManagerId} disabled={isSaving}>
+          <SelectTrigger className="h-9">
+            <SelectValue placeholder="Sem gestor" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NO_MANAGER}>Sem gestor</SelectItem>
+            {otherMembers.map((m) => (
+              <SelectItem key={m.user_id} value={m.user_id}>
+                {m.full_name || m.email}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-xs text-muted-foreground">Departamento</label>
+        <Select value={deptId} onValueChange={setDeptId} disabled={isSaving}>
+          <SelectTrigger className="h-9">
+            <SelectValue placeholder="Sem departamento" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NO_DEPT}>Sem departamento</SelectItem>
+            {departments.map((d) => (
+              <SelectItem key={d.id} value={d.id}>
+                {d.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Button size="sm" className="w-full gap-1.5" onClick={handleSave} disabled={isSaving}>
+        {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+        Salvar alterações
+      </Button>
+    </div>
+  );
+}
+
+function OrgPermissionSection({ node }: { node: HierarchyNode }) {
+  const { data: people = [] } = usePeopleList();
+  const updateMember = useUpdateMember();
+
+  const userId = node.id.startsWith("member-") ? node.id.slice("member-".length) : null;
+  const membership = userId ? people.find((p) => p.user_id === userId) : null;
+
+  if (!userId || !membership || membership.role === "owner") return null;
+
+  const hasPermission = membership.role === "admin";
+
+  const toggle = () =>
+    updateMember.mutate({
+      membershipId: membership.id,
+      userId,
+      role: hasPermission ? "member" : "admin",
+    });
+
+  return (
+    <div className="rounded-md border border-border/60 bg-muted/30 p-3 space-y-3">
+      <div className="flex items-center gap-2 text-foreground">
+        <Network className="h-4 w-4 shrink-0" />
+        <span className="font-medium">Edição do organograma</span>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {hasPermission
+          ? "Esta pessoa pode reorganizar o organograma via drag-and-drop."
+          : "Esta pessoa não pode reorganizar o organograma."}
+      </p>
+      <Button
+        size="sm"
+        variant={hasPermission ? "outline" : "default"}
+        className="w-full gap-1.5"
+        onClick={toggle}
+        disabled={updateMember.isPending}
+      >
+        {updateMember.isPending ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : hasPermission ? (
+          <ShieldOff className="h-3.5 w-3.5" />
+        ) : (
+          <ShieldCheck className="h-3.5 w-3.5" />
+        )}
+        {hasPermission ? "Revogar acesso" : "Conceder acesso de edição"}
+      </Button>
+    </div>
+  );
+}
+
 export function OrgMemberDrawer({ node, onOpenChange }: OrgMemberDrawerProps) {
   const open = !!node;
-  const { isAdmin } = useUserPermissions();
+  const { isAdmin, role } = useUserPermissions();
+  const isOwner = role === "owner";
   const { byUserId, isLoading: levelsLoading } = useOkrAccessLevels();
   const updateLevel = useUpdateOkrAccessLevel();
 
@@ -56,6 +211,8 @@ export function OrgMemberDrawer({ node, onOpenChange }: OrgMemberDrawerProps) {
       : null;
   const accessRow = memberUserId ? byUserId.get(memberUserId) ?? null : null;
   const showOkrAccess = node?.type === "member" && isAdmin;
+  const showOrgEdit = node?.type === "member" && isAdmin;
+  const showOrgPermission = node?.type === "member" && isOwner;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -101,6 +258,15 @@ export function OrgMemberDrawer({ node, onOpenChange }: OrgMemberDrawerProps) {
                   <span>{node.department}</span>
                 </div>
               )}
+
+              {showOrgEdit && (
+                <OrgEditSection
+                  node={node}
+                  onClose={() => onOpenChange(false)}
+                />
+              )}
+
+              {showOrgPermission && <OrgPermissionSection node={node} />}
 
               {showOkrAccess && (
                 <div className="rounded-md border border-border/60 bg-muted/30 p-3 space-y-2">

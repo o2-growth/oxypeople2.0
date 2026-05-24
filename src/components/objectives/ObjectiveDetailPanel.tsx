@@ -16,6 +16,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -37,6 +38,8 @@ import {
   MoreHorizontal,
   Copy,
   Link,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { KeyResultItem, KeyResult } from "./KeyResultItem";
 import { ProgressChart } from "./ProgressChart";
@@ -44,7 +47,9 @@ import { ProgressBarStatus } from "./ProgressBarStatus";
 import { StatusBadge } from "./StatusBadge";
 import { OverdueBadge } from "./OverdueBadge";
 import { AuditHistory } from "./AuditHistory";
-import { ObjectiveWithDetails, ObjectiveType, usePeriods, useUpdateObjective, type CommitmentType } from "@/hooks/useObjectives";
+import { ObjectiveWithDetails, ObjectiveType, usePeriods, useUpdateObjective, useDeleteObjective, useDeleteKeyResult, type CommitmentType } from "@/hooks/useObjectives";
+import { Checkbox } from "@/components/ui/checkbox";
+import { EditObjectiveDialog } from "./EditObjectiveDialog";
 import { CommitmentTypeBadge } from "./CommitmentTypeBadge";
 import {
   AlertDialog,
@@ -127,6 +132,9 @@ export function ObjectiveDetailPanel({
   const isOperational = objective.type === "operational";
   const childType = childTypeMap[objective.type];
   const duplicateObjective = useDuplicateObjective();
+  const deleteObjective = useDeleteObjective();
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const breadcrumb = allObjectives.length > 0 ? buildBreadcrumb(objective, allObjectives) : [objective];
 
@@ -170,6 +178,7 @@ export function ObjectiveDetailPanel({
   ];
 
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
         <SheetHeader className="space-y-3">
@@ -214,6 +223,10 @@ export function ObjectiveDetailPanel({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Editar Objetivo
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => duplicateObjective.mutate(objective)}>
                   <Copy className="h-4 w-4 mr-2" />
                   Duplicar Objetivo
@@ -221,6 +234,14 @@ export function ObjectiveDetailPanel({
                 <DropdownMenuItem onClick={handleCopyLink}>
                   <Link className="h-4 w-4 mr-2" />
                   Copiar Link
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setDeleteConfirmOpen(true)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Excluir Objetivo
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -292,6 +313,38 @@ export function ObjectiveDetailPanel({
         </div>
       </SheetContent>
     </Sheet>
+
+    <EditObjectiveDialog
+      objective={objective}
+      open={editOpen}
+      onOpenChange={setEditOpen}
+    />
+
+    <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Excluir objetivo?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Esta ação não pode ser desfeita. O objetivo e seus dados associados serão removidos.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={async () => {
+              await deleteObjective.mutateAsync(objective.id);
+              setDeleteConfirmOpen(false);
+              onOpenChange(false);
+            }}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            disabled={deleteObjective.isPending}
+          >
+            {deleteObjective.isPending ? "Excluindo..." : "Excluir"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
 
@@ -314,6 +367,8 @@ function OperationalContent({
   const [krSearch, setKrSearch] = useState("");
   const [isCreateKROpen, setIsCreateKROpen] = useState(false);
   const [isBulkCheckinOpen, setIsBulkCheckinOpen] = useState(false);
+  const [selectedKrIds, setSelectedKrIds] = useState<Set<string>>(new Set());
+  const deleteKr = useDeleteKeyResult();
   const allKrIds = objective.key_results.map((kr) => kr.id);
   const firstKrId = allKrIds[0];
   useRealtimeObjective(objective.id);
@@ -342,6 +397,33 @@ function OperationalContent({
   const filteredKRs = krSearch
     ? keyResults.filter((kr) => kr.title.toLowerCase().includes(krSearch.toLowerCase()))
     : keyResults;
+
+  const allFilteredKrIds = filteredKRs.map((kr) => kr.id);
+  const allSelected = allFilteredKrIds.length > 0 && allFilteredKrIds.every((id) => selectedKrIds.has(id));
+  const someSelected = selectedKrIds.size > 0;
+
+  const toggleKr = (id: string) => {
+    setSelectedKrIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (allSelected) setSelectedKrIds(new Set());
+    else setSelectedKrIds(new Set(allFilteredKrIds));
+  };
+
+  const clearSelection = () => setSelectedKrIds(new Set());
+
+  const handleBulkDelete = async () => {
+    for (const id of selectedKrIds) {
+      await deleteKr.mutateAsync(id);
+    }
+    clearSelection();
+  };
 
   // Empty state: no KRs and no children
   if (!hasKRs && !hasChildren) {
@@ -432,26 +514,82 @@ function OperationalContent({
             </div>
           )}
 
-          <div className="flex items-center justify-between">
-            <h4 className="text-sm font-medium">
+          {/* Header row: select-all + title + actions */}
+          <div className="flex items-center gap-2">
+            {filteredKRs.length > 0 && (
+              <Checkbox
+                checked={allSelected}
+                onCheckedChange={toggleAll}
+                aria-label="Selecionar todos"
+              />
+            )}
+            <h4 className="text-sm font-medium flex-1">
               Key Results ({filteredKRs.length})
+              {someSelected && (
+                <span className="ml-1.5 text-xs text-muted-foreground font-normal">
+                  · {selectedKrIds.size} selecionado{selectedKrIds.size > 1 ? "s" : ""}
+                </span>
+              )}
             </h4>
-            {keyResults.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 text-xs h-7"
-                onClick={() => setIsBulkCheckinOpen(true)}
-              >
-                <ClipboardList className="h-3 w-3" />
-                Check-in em massa
-              </Button>
+            {someSelected ? (
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs h-7"
+                  onClick={() => setIsBulkCheckinOpen(true)}
+                >
+                  <ClipboardList className="h-3 w-3" />
+                  Check-in
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs h-7 text-destructive hover:text-destructive border-destructive/30"
+                  onClick={handleBulkDelete}
+                  disabled={deleteKr.isPending}
+                >
+                  <Trash2 className="h-3 w-3" />
+                  Excluir
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs h-7 text-muted-foreground"
+                  onClick={clearSelection}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            ) : (
+              keyResults.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs h-7"
+                  onClick={() => setIsBulkCheckinOpen(true)}
+                >
+                  <ClipboardList className="h-3 w-3" />
+                  Check-in em massa
+                </Button>
+              )
             )}
           </div>
+
           {filteredKRs.length > 0 ? (
             <div className="space-y-2">
               {filteredKRs.map((kr) => (
-                <KeyResultItem key={kr.id} keyResult={kr} canEdit expandable />
+                <div key={kr.id} className="flex items-start gap-2">
+                  <Checkbox
+                    checked={selectedKrIds.has(kr.id)}
+                    onCheckedChange={() => toggleKr(kr.id)}
+                    className="mt-3.5 shrink-0"
+                    aria-label={`Selecionar ${kr.title}`}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <KeyResultItem keyResult={kr} canEdit expandable />
+                  </div>
+                </div>
               ))}
             </div>
           ) : (
@@ -497,9 +635,9 @@ function OperationalContent({
       {keyResults.length > 0 && (
         <BulkCheckinDialog
           open={isBulkCheckinOpen}
-          onOpenChange={setIsBulkCheckinOpen}
+          onOpenChange={(open) => { setIsBulkCheckinOpen(open); if (!open) clearSelection(); }}
           objectiveTitle={objective.title}
-          keyResults={keyResults.map((kr) => ({
+          keyResults={(someSelected ? keyResults.filter((kr) => selectedKrIds.has(kr.id)) : keyResults).map((kr) => ({
             id: kr.id,
             title: kr.title,
             current_value: kr.current_value,

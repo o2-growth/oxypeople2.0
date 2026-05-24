@@ -24,6 +24,7 @@ import { useTheme } from "next-themes";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUser } from "@/hooks/useUser";
+import { useMyMembership } from "@/hooks/usePeopleList";
 import { cn } from "@/lib/utils";
 
 function getInitials(name: string | null | undefined, email: string | null | undefined) {
@@ -40,6 +41,7 @@ function getInitials(name: string | null | undefined, email: string | null | und
 export default function Settings() {
   const { user, signOut } = useAuth();
   const { profile, isLoading } = useUser();
+  const { data: membership } = useMyMembership();
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
 
@@ -47,9 +49,16 @@ export default function Settings() {
   const displayEmail = profile?.email || user?.email || "";
   const metadata = (profile?.metadata as Record<string, unknown> | null) ?? {};
   const phone = typeof metadata.phone === "string" ? metadata.phone : "";
-  const department = typeof metadata.department === "string" ? metadata.department : "";
-  const position = typeof metadata.position === "string" ? metadata.position : "";
   const bio = typeof metadata.bio === "string" ? metadata.bio : "";
+  const position = membership?.position ?? (typeof metadata.position === "string" ? metadata.position : "");
+  const department = membership?.department_info?.name ?? (typeof metadata.department === "string" ? metadata.department : "");
+  const cpf = typeof metadata.cpf === "string" ? metadata.cpf : "";
+  const personalEmail = typeof metadata.personal_email === "string" ? metadata.personal_email : "";
+  const birthDate = typeof metadata.birth_date === "string" ? metadata.birth_date : "";
+  const address = typeof metadata.address === "string" ? metadata.address : "";
+  const cnpj = typeof metadata.cnpj === "string" ? metadata.cnpj : "";
+  const razaoSocial = typeof metadata.razao_social === "string" ? metadata.razao_social : "";
+  const calendarLink = typeof metadata.calendar_link === "string" ? metadata.calendar_link : "";
 
   const handleSignOut = async () => {
     await signOut();
@@ -112,6 +121,7 @@ export default function Settings() {
               </Card>
             ) : (
               <ProfileForm
+                membershipId={membership?.id ?? null}
                 user={{
                   name: displayName,
                   email: displayEmail,
@@ -121,6 +131,13 @@ export default function Settings() {
                   phone,
                   department,
                   position,
+                  cpf,
+                  personalEmail,
+                  birthDate,
+                  address,
+                  cnpj,
+                  razaoSocial,
+                  calendarLink,
                 }}
               />
             )}

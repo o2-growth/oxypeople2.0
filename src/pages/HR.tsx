@@ -1,9 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { HRStats } from "@/components/hr/HRStats";
 import { PipefySyncCard } from "@/components/hr/PipefySyncCard";
 import { SyncHistoryList } from "@/components/hr/SyncHistoryList";
 import { PipefyConfigDialog } from "@/components/hr/PipefyConfigDialog";
+import { EditMemberDialog } from "@/components/hr/EditMemberDialog";
+import { CollaboratorDetailDrawer } from "@/components/hr/CollaboratorDetailDrawer";
 import { useHRTurnover } from "@/hooks/useHRTurnover";
 import { useHeadcountAnalytics } from "@/hooks/useHeadcountAnalytics";
 import { HRCalendarTab } from "@/components/hr/HRCalendarTab";
@@ -27,10 +29,18 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
   Briefcase, LayoutDashboard, Users, CalendarDays,
   FileBarChart, Network, ClipboardList, BarChart3, UserPlus,
   MoreHorizontal, Loader2, UserX, UserCheck, Mail, TrendingDown, Clock, TrendingUp,
-  ArrowUpRight, ArrowDownRight,
+  ArrowUpRight, ArrowDownRight, Trash2, X, ChevronUp, ChevronDown, ChevronsUpDown,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
@@ -38,7 +48,8 @@ import {
 } from "recharts";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import {
-  usePeopleList, usePeopleStats, useInviteMember, useUpdateMemberStatus,
+  usePeopleList, usePeopleStats, useInviteMember, useUpdateMemberStatus, useDeleteMember,
+  useBulkUpdateMembers, useBulkUpdateMemberRole, useBulkDeleteMembers, type CompanyMember,
 } from "@/hooks/usePeopleList";
 import { useDepartmentOptions, useUserBirthdays } from "@/hooks/usePeopleWithBirthdays";
 import {
@@ -340,6 +351,14 @@ function DepartmentDistributionChart() {
 export default function HR() {
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState<CompanyMember | null>(null);
+  const [detailMembershipId, setDetailMembershipId] = useState<string | null>(null);
+  const [deletingMember, setDeletingMember] = useState<CompanyMember | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  type SortCol = "name" | "position" | "department" | "role" | "status";
+  const [sortCol, setSortCol] = useState<SortCol | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   // Collaborators filter states
   const [searchQuery, setSearchQuery] = useState("");
@@ -354,6 +373,10 @@ export default function HR() {
   const { data: departments = [] } = useDepartmentOptions();
   const inviteMember = useInviteMember();
   const updateStatus = useUpdateMemberStatus();
+  const deleteMember = useDeleteMember();
+  const bulkUpdate = useBulkUpdateMembers();
+  const bulkUpdateRole = useBulkUpdateMemberRole();
+  const bulkDelete = useBulkDeleteMembers();
 
   const userIds = useMemo(() => people?.map((p) => p.user_id) || [], [people]);
   const { data: birthdaysMap = new Map() } = useUserBirthdays(userIds);
@@ -369,9 +392,18 @@ export default function HR() {
     setBirthdayFilter("all");
   };
 
+  const toggleSort = (col: SortCol) => {
+    if (sortCol === col) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortCol(col);
+      setSortDir("asc");
+    }
+  };
+
   const filteredPeople = useMemo(() => {
     if (!people) return [];
-    return people.filter((person) => {
+    const filtered = people.filter((person) => {
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
         const matchesSearch =
@@ -404,7 +436,70 @@ export default function HR() {
       }
       return true;
     });
-  }, [people, searchQuery, departmentFilter, statusFilter, birthdayFilter, birthdaysMap]);
+
+    if (!sortCol) return filtered;
+
+    const getValue = (p: CompanyMember): string => {
+      switch (sortCol) {
+        case "name": return p.user?.full_name?.toLowerCase() ?? p.user?.email?.toLowerCase() ?? "";
+        case "position": return p.position?.toLowerCase() ?? "";
+        case "department": return p.department_info?.name?.toLowerCase() ?? "";
+        case "role": return p.role ?? "";
+        case "status": return p.status ?? "";
+      }
+    };
+
+    return [...filtered].sort((a, b) => {
+      const av = getValue(a);
+      const bv = getValue(b);
+      const cmp = av.localeCompare(bv, undefined, { sensitivity: "base" });
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [people, searchQuery, departmentFilter, statusFilter, birthdayFilter, birthdaysMap, sortCol, sortDir]);
+
+  // Clear selection when filters change
+  useEffect(() => { setSelectedIds(new Set()); }, [searchQuery, departmentFilter, statusFilter, birthdayFilter]);
+
+  const allFilteredIds = useMemo(() => filteredPeople.map((p) => p.id), [filteredPeople]);
+  const allSelected = allFilteredIds.length > 0 && allFilteredIds.every((id) => selectedIds.has(id));
+  const someSelected = allFilteredIds.some((id) => selectedIds.has(id)) && !allSelected;
+
+  const toggleSelect = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  const toggleSelectAll = () =>
+    setSelectedIds(allSelected ? new Set() : new Set(allFilteredIds));
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const selectedMembers = useMemo(
+    () => filteredPeople.filter((p) => selectedIds.has(p.id)),
+    [filteredPeople, selectedIds],
+  );
+
+  const handleBulkSetDepartment = (deptId: string) => {
+    const ids = [...selectedIds];
+    bulkUpdate.mutate({ membershipIds: ids, department_id: deptId === "__none__" ? null : deptId },
+      { onSuccess: clearSelection });
+  };
+
+  const handleBulkSetRole = (role: "admin" | "manager" | "member") => {
+    const userIds = selectedMembers.map((m) => m.user_id);
+    bulkUpdateRole.mutate({ userIds, role }, { onSuccess: clearSelection });
+  };
+
+  const handleBulkSetStatus = (status: "active" | "inactive") => {
+    bulkUpdate.mutate({ membershipIds: [...selectedIds], status }, { onSuccess: clearSelection });
+  };
+
+  const handleBulkDelete = () => {
+    bulkDelete.mutate([...selectedIds], { onSuccess: clearSelection });
+    setBulkDeleteConfirm(false);
+  };
 
   const handleInvite = (
     emails: string[],
@@ -559,6 +654,53 @@ export default function HR() {
               </Card>
             </div>
 
+            {selectedIds.size > 0 && (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/60 px-4 py-2 mb-2">
+                <span className="text-sm font-medium shrink-0">
+                  {selectedIds.size} selecionado{selectedIds.size > 1 ? "s" : ""}
+                </span>
+                <div className="flex flex-wrap items-center gap-2 ml-2">
+                  <Select onValueChange={handleBulkSetDepartment}>
+                    <SelectTrigger className="h-8 w-44 text-xs">
+                      <SelectValue placeholder="Departamento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sem departamento</SelectItem>
+                      {departments.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select onValueChange={(v) => handleBulkSetRole(v as "admin" | "manager" | "member")}>
+                    <SelectTrigger className="h-8 w-36 text-xs">
+                      <SelectValue placeholder="Função" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="manager">Gestor</SelectItem>
+                      <SelectItem value="member">Membro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button size="sm" variant="outline" className="h-8 text-xs gap-1"
+                    onClick={() => handleBulkSetStatus("active")}>
+                    <UserCheck className="h-3.5 w-3.5" /> Ativar
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-8 text-xs gap-1"
+                    onClick={() => handleBulkSetStatus("inactive")}>
+                    <UserX className="h-3.5 w-3.5" /> Desativar
+                  </Button>
+                  <Button size="sm" variant="destructive" className="h-8 text-xs gap-1"
+                    onClick={() => setBulkDeleteConfirm(true)}>
+                    <Trash2 className="h-3.5 w-3.5" /> Excluir
+                  </Button>
+                </div>
+                <Button size="sm" variant="ghost" className="h-8 w-8 p-0 ml-auto shrink-0"
+                  onClick={clearSelection}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+
             <Card>
               <CardHeader className="pb-4">
                 <CardTitle className="text-lg font-heading mb-4">Colaboradores</CardTitle>
@@ -610,11 +752,37 @@ export default function HR() {
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-muted/50">
-                          <TableHead>Colaborador</TableHead>
-                          <TableHead>Cargo</TableHead>
-                          <TableHead>Departamento</TableHead>
-                          <TableHead>Função</TableHead>
-                          <TableHead>Status</TableHead>
+                          {isAdmin && (
+                            <TableHead className="w-[40px]">
+                              <Checkbox
+                                checked={allSelected}
+                                data-state={someSelected ? "indeterminate" : undefined}
+                                onCheckedChange={toggleSelectAll}
+                                aria-label="Selecionar todos"
+                              />
+                            </TableHead>
+                          )}
+                          {(["name", "position", "department", "role", "status"] as SortCol[]).map((col) => {
+                            const labels: Record<SortCol, string> = {
+                              name: "Colaborador", position: "Cargo",
+                              department: "Departamento", role: "Função", status: "Status",
+                            };
+                            const Icon = sortCol === col
+                              ? sortDir === "asc" ? ChevronUp : ChevronDown
+                              : ChevronsUpDown;
+                            return (
+                              <TableHead key={col}>
+                                <button
+                                  type="button"
+                                  className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide hover:text-foreground transition-colors"
+                                  onClick={() => toggleSort(col)}
+                                >
+                                  {labels[col]}
+                                  <Icon className="h-3.5 w-3.5 shrink-0" />
+                                </button>
+                              </TableHead>
+                            );
+                          })}
                           <TableHead className="w-[50px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -622,18 +790,34 @@ export default function HR() {
                         {filteredPeople.map((person) => {
                           const initials = person.user?.full_name?.split(" ").map((n) => n[0]).join("").slice(0, 2) || "?";
                           return (
-                            <TableRow key={person.id} className="hover:bg-muted/30">
+                            <TableRow
+                              key={person.id}
+                              className={`hover:bg-muted/30 ${selectedIds.has(person.id) ? "bg-primary/5" : ""}`}
+                            >
+                              {isAdmin && (
+                                <TableCell className="w-[40px]">
+                                  <Checkbox
+                                    checked={selectedIds.has(person.id)}
+                                    onCheckedChange={() => toggleSelect(person.id)}
+                                    aria-label={`Selecionar ${person.user?.full_name}`}
+                                  />
+                                </TableCell>
+                              )}
                               <TableCell>
-                                <div className="flex items-center gap-3">
-                                  <Avatar className="h-10 w-10">
+                                <button
+                                  type="button"
+                                  className="flex items-center gap-3 text-left hover:opacity-80 transition-opacity"
+                                  onClick={() => setDetailMembershipId(person.id)}
+                                >
+                                  <Avatar className="h-10 w-10 shrink-0">
                                     <AvatarImage src={person.user?.avatar_url || undefined} alt={person.user?.full_name || ""} />
                                     <AvatarFallback>{initials}</AvatarFallback>
                                   </Avatar>
                                   <div>
-                                    <p className="font-medium">{person.user?.full_name || "Sem nome"}</p>
+                                    <p className="font-medium hover:underline">{person.user?.full_name || "Sem nome"}</p>
                                     <p className="text-sm text-muted-foreground">{person.user?.email}</p>
                                   </div>
-                                </div>
+                                </button>
                               </TableCell>
                               <TableCell>{person.position || <span className="text-muted-foreground">—</span>}</TableCell>
                               <TableCell>
@@ -659,27 +843,36 @@ export default function HR() {
                                 {isAdmin && (
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                                      <Button variant="ghost" size="icon" className="h-8 w-8"
+                                        onClick={(e) => e.stopPropagation()}>
                                         <MoreHorizontal className="h-4 w-4" />
                                       </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                      <DropdownMenuItem onClick={() => window.open(`mailto:${person.user?.email}`, "_blank")}>
+                                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); window.open(`mailto:${person.user?.email}`, "_blank"); }}>
                                         <Mail className="h-4 w-4 mr-2" />
                                         Enviar email
                                       </DropdownMenuItem>
                                       <DropdownMenuSeparator />
                                       {person.status === "active" ? (
-                                        <DropdownMenuItem onClick={() => handleToggleStatus(person.id, person.status)} className="text-destructive">
+                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleToggleStatus(person.id, person.status); }} className="text-destructive">
                                           <UserX className="h-4 w-4 mr-2" />
                                           Desativar
                                         </DropdownMenuItem>
                                       ) : (
-                                        <DropdownMenuItem onClick={() => handleToggleStatus(person.id, person.status)}>
+                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleToggleStatus(person.id, person.status); }}>
                                           <UserCheck className="h-4 w-4 mr-2" />
                                           Ativar
                                         </DropdownMenuItem>
                                       )}
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        className="text-destructive focus:text-destructive"
+                                        onClick={(e) => { e.stopPropagation(); setDeletingMember(person); }}
+                                      >
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Excluir colaborador
+                                      </DropdownMenuItem>
                                     </DropdownMenuContent>
                                   </DropdownMenu>
                                 )}
@@ -722,7 +915,66 @@ export default function HR() {
 
         {/* Invite Modal */}
         <InviteModal open={inviteModalOpen} onOpenChange={setInviteModalOpen} onInvite={handleInvite} />
+
+        {/* Edit Member Dialog */}
+        <EditMemberDialog
+          member={editingMember}
+          open={!!editingMember}
+          onOpenChange={(open) => { if (!open) setEditingMember(null); }}
+        />
+
+        {/* Bulk Delete Confirmation */}
+        <AlertDialog open={bulkDeleteConfirm} onOpenChange={setBulkDeleteConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir {selectedIds.size} colaborador{selectedIds.size > 1 ? "es" : ""}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta ação é permanente e não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={handleBulkDelete}
+              >
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete Confirmation */}
+        <AlertDialog open={!!deletingMember} onOpenChange={(open) => { if (!open) setDeletingMember(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir colaborador?</AlertDialogTitle>
+              <AlertDialogDescription>
+                <strong>{deletingMember?.user?.full_name || deletingMember?.user?.email}</strong> será removido permanentemente da empresa. Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => {
+                  if (deletingMember) deleteMember.mutate(deletingMember.id);
+                  setDeletingMember(null);
+                }}
+              >
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
+
+      <CollaboratorDetailDrawer
+        membershipId={detailMembershipId}
+        open={!!detailMembershipId}
+        onOpenChange={(open) => { if (!open) setDetailMembershipId(null); }}
+        isAdmin={isAdmin}
+      />
     </AppLayout>
   );
 }
