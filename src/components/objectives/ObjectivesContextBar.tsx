@@ -1,3 +1,4 @@
+import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,8 +30,10 @@ import {
   Search,
   Building,
   UserCircle,
+  Rocket,
+  ShieldCheck,
 } from "lucide-react";
-import { ObjectivesFilterState, ViewMode } from "@/hooks/useObjectivesFilters";
+import { ObjectivesFilterState, ViewMode, CommitmentFilterValue } from "@/hooks/useObjectivesFilters";
 import { ObjectivesStats } from "@/hooks/useObjectivesFilters";
 import { usePeriods } from "@/hooks/useObjectives";
 import { cn } from "@/lib/utils";
@@ -175,8 +178,38 @@ export function ObjectivesContextBar({
         </div>
       </div>
 
-      {/* Row 2: Quick filters + advanced filters */}
+      {/* Row 2: Commitment filter + quick filters + advanced filters */}
       <div className="flex flex-wrap items-center gap-2">
+        {/* Commitment type pills */}
+        <div className="flex items-center gap-0 border border-border rounded-md overflow-hidden h-8 shrink-0">
+          {([
+            { value: "all",         label: "Todos" },
+            { value: "committed",   label: "Compromissadas",  icon: ShieldCheck },
+            { value: "aspirational",label: "Aspiracionais",   icon: Rocket },
+          ] as { value: CommitmentFilterValue; label: string; icon?: React.ElementType }[]).map(({ value, label, icon: Icon }, i, arr) => (
+            <button
+              key={value}
+              onClick={() => setFilters((prev) => ({ ...prev, commitmentFilter: value }))}
+              className={cn(
+                "px-3 h-full text-xs font-medium flex items-center gap-1.5 transition-colors",
+                i < arr.length - 1 && "border-r border-border",
+                filters.commitmentFilter === value
+                  ? value === "committed"
+                    ? "bg-blue-500 text-white"
+                    : value === "aspirational"
+                      ? "bg-violet-500 text-white"
+                      : "bg-foreground text-background"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
+              )}
+            >
+              {Icon && <Icon className="h-3 w-3" />}
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <Separator orientation="vertical" className="h-6" />
+
         {/* Quick filter chips */}
         <Button
           variant={filters.atRisk ? "default" : "outline"}

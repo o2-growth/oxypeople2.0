@@ -197,6 +197,8 @@ export default function Objectives() {
           search={filters.search}
           onSearchChange={(v) => setFilters((p) => ({ ...p, search: v }))}
           canCreate={canCreateObjective}
+          quarterFilter={filters.quarterFilter}
+          onQuarterChange={(q) => setFilters((p) => ({ ...p, quarterFilter: q }))}
         />
 
         {/* Compact filters bar */}

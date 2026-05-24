@@ -31,11 +31,13 @@ import {
   Scale,
   Check,
   X,
+  Pencil,
 } from "lucide-react";
 import { KeyResultItem, KeyResult } from "./KeyResultItem";
 import { StatusBadge } from "./StatusBadge";
 import { OverdueBadge } from "./OverdueBadge";
 import { BreakdownObjectiveDialog } from "./BreakdownObjectiveDialog";
+import { EditObjectiveDialog } from "./EditObjectiveDialog";
 import { ObjectiveWithDetails, useDeleteObjective, ObjectiveType } from "@/hooks/useObjectives";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { useOkrTier } from "@/hooks/useOkrTier";
@@ -79,6 +81,7 @@ export function ObjectiveTreeNode({ objective, depth = 0, onCreateChild, onSelec
   const [isExpanded, setIsExpanded] = useState(depth < 2);
   const [showKRs, setShowKRs] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [showBreakdown, setShowBreakdown] = useState(false);
   const { canEditObjective, canDeleteObjective } = useUserPermissions();
   const { canManageRelations } = useOkrTier();
@@ -336,6 +339,13 @@ export function ObjectiveTreeNode({ objective, depth = 0, onCreateChild, onSelec
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
+                  {canEdit && (
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setShowEditDialog(true); }}>
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Editar
+                    </DropdownMenuItem>
+                  )}
+                  {canEdit && <DropdownMenuSeparator />}
                   {canAddChild && onCreateChild && canManageRelations && (
                     <DropdownMenuItem onClick={() => onCreateChild(objective.id, childTypeMap[objective.type]!)}>
                       <Plus className="h-4 w-4 mr-2" />
@@ -468,6 +478,9 @@ export function ObjectiveTreeNode({ objective, depth = 0, onCreateChild, onSelec
       {showBreakdown && (
         <BreakdownObjectiveDialog open={showBreakdown} onOpenChange={setShowBreakdown} parentObjective={objective} />
       )}
+
+      {/* Edit Dialog */}
+      <EditObjectiveDialog objective={objective} open={showEditDialog} onOpenChange={setShowEditDialog} />
     </>
   );
 }

@@ -6,6 +6,13 @@ import { useOkrSettings } from "./useCheckins";
 
 export type ViewMode = "company" | "department" | "my";
 
+export interface QuarterFilter {
+  year: number;
+  quarter: 1 | 2 | 3 | 4;
+}
+
+export type CommitmentFilterValue = "all" | "committed" | "aspirational";
+
 export interface ObjectivesFilterState {
   departments: string[];
   responsibleIds: string[];
@@ -13,6 +20,8 @@ export interface ObjectivesFilterState {
   statuses: ObjectiveStatus[];
   objectiveTypes: ObjectiveType[];
   progressRange: [number, number] | null;
+  quarterFilter: QuarterFilter;
+  commitmentFilter: CommitmentFilterValue;
   // Quick filters
   atRisk: boolean;
   checkinOverdue: boolean;
@@ -32,6 +41,22 @@ export interface ObjectivesStats {
   noKRCount: number;
 }
 
+function getCurrentQuarter(): QuarterFilter {
+  const now = new Date();
+  return {
+    year: now.getFullYear(),
+    quarter: (Math.floor(now.getMonth() / 3) + 1) as 1 | 2 | 3 | 4,
+  };
+}
+
+function getQuarterDateRange(q: QuarterFilter): { start: Date; end: Date } {
+  const startMonth = (q.quarter - 1) * 3;
+  return {
+    start: new Date(q.year, startMonth, 1),
+    end: new Date(q.year, startMonth + 3, 0, 23, 59, 59),
+  };
+}
+
 const defaultFilters: ObjectivesFilterState = {
   departments: [],
   responsibleIds: [],
@@ -39,6 +64,8 @@ const defaultFilters: ObjectivesFilterState = {
   statuses: [],
   objectiveTypes: [],
   progressRange: null,
+  quarterFilter: getCurrentQuarter(),
+  commitmentFilter: "all",
   atRisk: false,
   checkinOverdue: false,
   noKR: false,
@@ -119,7 +146,20 @@ export function useObjectivesFilters() {
 
   // Filter flat objectives
   const filteredObjectives = useMemo(() => {
+    const { start, end } = getQuarterDateRange(filters.quarterFilter);
+
     return flatObjectives.filter((obj) => {
+      // Quarter filter — always active, based on due_date
+      if (!obj.due_date) return false;
+      const dueDate = new Date(obj.due_date);
+      if (dueDate < start || dueDate > end) return false;
+
+      // Commitment filter
+      if (filters.commitmentFilter !== "all") {
+        const objCommitment = (obj as any).commitment_type ?? "committed";
+        if (objCommitment !== filters.commitmentFilter) return false;
+      }
+
       // View mode filter
       if (viewMode === "my") {
         if (obj.owner_id !== user?.id && obj.assignee_id !== user?.id) return false;
@@ -226,6 +266,7 @@ export function useObjectivesFilters() {
       filters.statuses.length > 0 ||
       filters.objectiveTypes.length > 0 ||
       filters.progressRange !== null ||
+      filters.commitmentFilter !== "all" ||
       filters.atRisk ||
       filters.checkinOverdue ||
       filters.noKR ||
@@ -234,7 +275,7 @@ export function useObjectivesFilters() {
   }, [filters]);
 
   const clearFilters = useCallback(() => {
-    setFilters(defaultFilters);
+    setFilters((prev) => ({ ...defaultFilters, quarterFilter: prev.quarterFilter }));
   }, []);
 
   return {
@@ -253,3 +294,5 @@ export function useObjectivesFilters() {
     setViewMode,
   };
 }
+
+export { getCurrentQuarter, getQuarterDateRange };

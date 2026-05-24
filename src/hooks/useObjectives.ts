@@ -316,20 +316,42 @@ export function useDeleteObjective() {
   });
 }
 
+export function useDeleteKeyResult() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (krId: string) => {
+      const { error } = await supabase.from("key_results").delete().eq("id", krId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["objectives"] });
+      queryClient.invalidateQueries({ queryKey: ["objectives-filtered"] });
+    },
+    onError: (err) => toastDbError(err),
+  });
+}
+
+export interface UpdateKeyResultInput {
+  id: string;
+  current_value?: number;
+  title?: string;
+  target_value?: number;
+  initial_value?: number;
+  unit?: string | null;
+  kr_type?: string;
+  direction?: string;
+  owner_user_id?: string | null;
+}
+
 export function useUpdateKeyResult() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      id,
-      current_value,
-    }: {
-      id: string;
-      current_value: number;
-    }) => {
+    mutationFn: async ({ id, ...updates }: UpdateKeyResultInput) => {
       const { data, error } = await supabase
         .from("key_results")
-        .update({ current_value })
+        .update(updates)
         .eq("id", id)
         .select()
         .single();
@@ -341,6 +363,7 @@ export function useUpdateKeyResult() {
       queryClient.invalidateQueries({ queryKey: ["objectives"] });
       queryClient.invalidateQueries({ queryKey: ["objectives-filtered"] });
     },
+    onError: (err) => toastDbError(err),
   });
 }
 

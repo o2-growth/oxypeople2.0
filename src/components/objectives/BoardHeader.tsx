@@ -1,9 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Star, List, Map, Zap, History, Trash2 } from "lucide-react";
+import { Plus, Search, Star, List, Map, Zap, History, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { ObjectivesExport } from "./ObjectivesExport";
 import { DisplayMode } from "@/pages/Objectives";
 import { ObjectiveWithDetails } from "@/hooks/useObjectives";
+import { QuarterFilter } from "@/hooks/useObjectivesFilters";
 import { cn } from "@/lib/utils";
 
 interface BoardHeaderProps {
@@ -16,6 +17,18 @@ interface BoardHeaderProps {
   search: string;
   onSearchChange: (value: string) => void;
   canCreate?: boolean;
+  quarterFilter: QuarterFilter;
+  onQuarterChange: (q: QuarterFilter) => void;
+}
+
+function prevQuarter(q: QuarterFilter): QuarterFilter {
+  if (q.quarter === 1) return { year: q.year - 1, quarter: 4 };
+  return { year: q.year, quarter: (q.quarter - 1) as 1 | 2 | 3 | 4 };
+}
+
+function nextQuarter(q: QuarterFilter): QuarterFilter {
+  if (q.quarter === 4) return { year: q.year + 1, quarter: 1 };
+  return { year: q.year, quarter: (q.quarter + 1) as 1 | 2 | 3 | 4 };
 }
 
 export function BoardHeader({
@@ -28,6 +41,8 @@ export function BoardHeader({
   search,
   onSearchChange,
   canCreate = true,
+  quarterFilter,
+  onQuarterChange,
 }: BoardHeaderProps) {
   return (
     <div className="space-y-3">
@@ -85,6 +100,25 @@ export function BoardHeader({
         </div>
 
         <div className="flex-1" />
+
+        {/* Quarter selector */}
+        <div className="flex items-center gap-0 border border-border rounded-md overflow-hidden h-8">
+          <button
+            onClick={() => onQuarterChange(prevQuarter(quarterFilter))}
+            className="px-1.5 h-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+          </button>
+          <span className="px-3 text-xs font-semibold text-foreground border-x border-border h-full flex items-center">
+            Q{quarterFilter.quarter} · {quarterFilter.year}
+          </span>
+          <button
+            onClick={() => onQuarterChange(nextQuarter(quarterFilter))}
+            className="px-1.5 h-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          >
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
 
         {/* Toolbar */}
         {canCreate && (

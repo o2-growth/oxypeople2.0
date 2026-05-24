@@ -6,6 +6,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   CheckCircle2,
   Circle,
   TrendingUp,
@@ -15,14 +32,19 @@ import {
   Plus,
   BarChart3,
   ListTodo,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { CheckinDialog } from "./CheckinDialog";
+import { EditKeyResultDialog } from "./EditKeyResultDialog";
 import { KrConfidenceSlider } from "./KrConfidenceSlider";
 import { ProgressBarStatus } from "./ProgressBarStatus";
 import { OverdueBadge } from "./OverdueBadge";
 import { ProgressChart } from "./ProgressChart";
 import { useCheckins } from "@/hooks/useCheckins";
 import { useActions, useCreateAction, getWeekBucket, formatWeekLabel } from "@/hooks/useActions";
+import { useDeleteKeyResult } from "@/hooks/useObjectives";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -66,7 +88,10 @@ const riskConfig: Record<string, { color: string }> = {
 
 export function KeyResultItem({ keyResult, canEdit = false, expandable = true }: KeyResultItemProps) {
   const [showCheckin, setShowCheckin] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const deleteKR = useDeleteKeyResult();
 
   const initialValue = keyResult.initial_value || 0;
   const range = keyResult.target_value - initialValue;
@@ -162,6 +187,27 @@ export function KeyResultItem({ keyResult, canEdit = false, expandable = true }:
               Check-in
             </Button>
           )}
+
+          {canEdit && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground">
+                  <MoreHorizontal className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuItem onClick={() => setShowEdit(true)}>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Editar KR
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setShowDeleteAlert(true)} className="text-destructive">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Excluir KR
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
         {expanded && expandable && (
@@ -184,6 +230,28 @@ export function KeyResultItem({ keyResult, canEdit = false, expandable = true }:
           }}
         />
       )}
+
+      <EditKeyResultDialog keyResult={keyResult} open={showEdit} onOpenChange={setShowEdit} />
+
+      <AlertDialog open={showDeleteAlert} onOpenChange={setShowDeleteAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Key Result?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O histórico de check-ins também será perdido.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteKR.mutate(keyResult.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
