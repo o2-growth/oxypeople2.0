@@ -157,11 +157,16 @@ serve(async (req) => {
     invited_by: callerId,
   };
 
-  // Issue Supabase auth invite (sends magic link with create-password flow)
-  const { data: inviteData, error: inviteErr } = await adminClient.auth.admin.inviteUserByEmail(
+  const DEFAULT_PASSWORD = "Alterar@01";
+
+  // Create user with default password so they can log in immediately (no magic link needed).
+  // email_confirm: true skips the confirmation e-mail — admin shares the password directly.
+  const { data: inviteData, error: inviteErr } = await adminClient.auth.admin.createUser({
     email,
-    { data: inviteMetadata },
-  );
+    password: DEFAULT_PASSWORD,
+    email_confirm: true,
+    user_metadata: inviteMetadata,
+  });
 
   let invitedUserId: string | null = inviteData?.user?.id ?? null;
 
