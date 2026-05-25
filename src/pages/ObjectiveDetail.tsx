@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { useObjectives, usePeriods, ObjectiveWithDetails, ObjectiveType } from "@/hooks/useObjectives";
 import { useOkrTier } from "@/hooks/useOkrTier";
+import { useAuth } from "@/contexts/AuthContext";
 import { useCheckins } from "@/hooks/useCheckins";
 import { CollaboratorsTab } from "@/components/objectives/CollaboratorsTab";
 import { useRealtimeObjective } from "@/hooks/useRealtimeObjective";
@@ -78,7 +79,8 @@ export default function ObjectiveDetail() {
   const navigate = useNavigate();
   const { data: objectives = [], isLoading } = useObjectives();
   const { data: periods = [] } = usePeriods();
-  const { canCreateKR, canManageRelations, canManageCollaborators } = useOkrTier();
+  const { tier, isAdmin, canCreateKR, canManageRelations, canManageCollaborators } = useOkrTier();
+  const { user } = useAuth();
   const duplicateObjective = useDuplicateObjective();
   const [isCreateKROpen, setIsCreateKROpen] = useState(false);
   const [isCreateChildOpen, setIsCreateChildOpen] = useState(false);
@@ -481,6 +483,13 @@ export default function ObjectiveDetail() {
                     krSearch={krSearch}
                     setKrSearch={setKrSearch}
                     onCreateKR={() => setIsCreateKROpen(true)}
+                    canEdit={tier === "manager" || isAdmin}
+                    canCheckin={(kr: KeyResult) =>
+                      kr.owner_user_id === user?.id ||
+                      objective.owner_id === user?.id ||
+                      (objective as any).assignee_id === user?.id ||
+                      isAdmin
+                    }
                   />
                 ) : hasChildren ? (
                   <ChildrenSection
@@ -648,12 +657,16 @@ function KeyResultsSection({
   krSearch,
   setKrSearch,
   onCreateKR,
+  canEdit = false,
+  canCheckin,
 }: {
   keyResults: KeyResult[];
   filteredKRs: KeyResult[];
   krSearch: string;
   setKrSearch: (s: string) => void;
   onCreateKR: () => void;
+  canEdit?: boolean;
+  canCheckin?: (kr: KeyResult) => boolean;
 }) {
   return (
     <div className="space-y-4">
@@ -683,7 +696,13 @@ function KeyResultsSection({
       {/* KR list */}
       <div className="space-y-3">
         {filteredKRs.map((kr) => (
-          <KeyResultItem key={kr.id} keyResult={kr} canEdit expandable />
+          <KeyResultItem
+            key={kr.id}
+            keyResult={kr}
+            canEdit={canEdit}
+            canCheckin={canCheckin ? canCheckin(kr) : false}
+            expandable
+          />
         ))}
       </div>
 

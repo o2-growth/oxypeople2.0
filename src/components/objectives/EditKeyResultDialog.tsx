@@ -77,7 +77,7 @@ export function EditKeyResultDialog({ keyResult, open, onOpenChange }: Props) {
       initial_value: 0,
       target_value:  100,
       unit:          "",
-      owner_user_id: "",
+      owner_user_id: "none",
     },
   });
 
@@ -90,7 +90,7 @@ export function EditKeyResultDialog({ keyResult, open, onOpenChange }: Props) {
         initial_value: keyResult.initial_value ?? 0,
         target_value:  keyResult.target_value,
         unit:          keyResult.unit ?? "",
-        owner_user_id: keyResult.owner_user_id ?? "",
+        owner_user_id: keyResult.owner_user_id ?? "none",
       });
     }
   }, [open, keyResult, form]);
@@ -105,7 +105,7 @@ export function EditKeyResultDialog({ keyResult, open, onOpenChange }: Props) {
         initial_value: data.initial_value,
         target_value:  data.target_value,
         unit:          data.unit || null,
-        owner_user_id: data.owner_user_id || null,
+        owner_user_id: data.owner_user_id === "none" ? null : (data.owner_user_id || null),
       });
       toast.success("KR atualizado!");
       onOpenChange(false);
@@ -146,14 +146,14 @@ export function EditKeyResultDialog({ keyResult, open, onOpenChange }: Props) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Responsável</FormLabel>
-                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                  <Select value={field.value ?? "none"} onValueChange={field.onChange}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione..." />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">Sem responsável</SelectItem>
+                      <SelectItem value="none">Sem responsável</SelectItem>
                       {members.map((m) => {
                         const user = (m as any).user;
                         const name = user?.full_name || user?.email || "";
