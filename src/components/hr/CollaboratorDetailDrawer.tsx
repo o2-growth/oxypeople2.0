@@ -18,11 +18,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Save, Mail, Phone, MapPin, Calendar, Building2, Briefcase, Link2, FileText, User } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Loader2, Save, Mail, Phone, MapPin, Calendar, Building2, Briefcase, Link2, FileText, User, KeyRound, Copy, Check } from "lucide-react";
 import {
   useCollaboratorDetail,
   useAdminUpdateCollaborator,
 } from "@/hooks/usePeopleList";
+import { supabase } from "@/integrations/supabase/client";
+import { useUser } from "@/hooks/useUser";
+import { toast } from "sonner";
 import { useDepartmentOptions } from "@/hooks/usePeopleWithBirthdays";
 
 const NO_DEPT = "__none__";
@@ -64,6 +74,34 @@ export function CollaboratorDetailDrawer({ membershipId, open, onOpenChange, isA
   const { data, isLoading } = useCollaboratorDetail(membershipId);
   const { data: departments = [] } = useDepartmentOptions();
   const updateCollaborator = useAdminUpdateCollaborator();
+  const { profile } = useUser();
+  const [resetLink, setResetLink] = useState<string | null>(null);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  async function handleResetPassword() {
+    if (!data?.email || !profile?.primary_company_id) return;
+    setResetLoading(true);
+    try {
+      const { data: result, error } = await supabase.functions.invoke("reset-user-password", {
+        body: { email: data.email, companyId: profile.primary_company_id },
+      });
+      if (error || !result?.success) throw new Error(result?.error ?? error?.message);
+      setResetLink(result.link);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erro ao gerar link";
+      toast.error(msg);
+    } finally {
+      setResetLoading(false);
+    }
+  }
+
+  function handleCopy() {
+    if (!resetLink) return;
+    navigator.clipboard.writeText(resetLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   const [form, setForm] = useState({
     full_name: "",
@@ -291,12 +329,36 @@ export function CollaboratorDetailDrawer({ membershipId, open, onOpenChange, isA
               </section>
 
               {isAdmin && (
-                <Button className="w-full gap-2" onClick={handleSave} disabled={updateCollaborator.isPending}>
-                  {updateCollaborator.isPending
-                    ? <><Loader2 className="h-4 w-4 animate-spin" />Salvando...</>
-                    : <><Save className="h-4 w-4" />Salvar alterações</>}
-                </Button>
+                <div className="space-y-2">
+                  <Button className="w-full gap-2" onClick={handleSave} disabled={updateCollaborator.isPending}>
+                    {updateCollaborator.isPending
+                      ? <><Loader2 className="h-4 w-4 animate-spin" />Salvando...</>
+                      : <><Save className="h-4 w-4" />Salvar alterações</>}
+                  </Button>
+                  <Button variant="outline" className="w-full gap-2" onClick={handleResetPassword} disabled={resetLoading}>
+                    {resetLoading
+                      ? <><Loader2 className="h-4 w-4 animate-spin" />Gerando link...</>
+                      : <><KeyRound className="h-4 w-4" />Gerar link de reset de senha</>}
+                  </Button>
+                </div>
               )}
+
+              <Dialog open={!!resetLink} onOpenChange={(o) => { if (!o) setResetLink(null); }}>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Link de reset de senha</DialogTitle>
+                    <DialogDescription>
+                      Copie e envie para <strong>{data?.full_name || data?.email}</strong>. O link expira em 24h e é de uso único.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex gap-2">
+                    <Input readOnly value={resetLink ?? ""} className="font-mono text-xs" />
+                    <Button size="icon" variant="outline" onClick={handleCopy}>
+                      {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </>
         )}
