@@ -48,6 +48,7 @@ import { StatusBadge } from "./StatusBadge";
 import { OverdueBadge } from "./OverdueBadge";
 import { AuditHistory } from "./AuditHistory";
 import { ObjectiveWithDetails, ObjectiveType, usePeriods, useUpdateObjective, useDeleteObjective, useDeleteKeyResult, type CommitmentType } from "@/hooks/useObjectives";
+import { useOkrTier } from "@/hooks/useOkrTier";
 import { Checkbox } from "@/components/ui/checkbox";
 import { EditObjectiveDialog } from "./EditObjectiveDialog";
 import { CommitmentTypeBadge } from "./CommitmentTypeBadge";
@@ -369,6 +370,9 @@ function OperationalContent({
   const [isBulkCheckinOpen, setIsBulkCheckinOpen] = useState(false);
   const [selectedKrIds, setSelectedKrIds] = useState<Set<string>>(new Set());
   const deleteKr = useDeleteKeyResult();
+  const { user } = useAuth();
+  const { tier, isAdmin } = useOkrTier();
+  const canEditKr = tier === "manager" || isAdmin;
   const allKrIds = objective.key_results.map((kr) => kr.id);
   const firstKrId = allKrIds[0];
   useRealtimeObjective(objective.id);
@@ -587,7 +591,17 @@ function OperationalContent({
                     aria-label={`Selecionar ${kr.title}`}
                   />
                   <div className="flex-1 min-w-0">
-                    <KeyResultItem keyResult={kr} canEdit expandable />
+                    <KeyResultItem
+                      keyResult={kr}
+                      canEdit={canEditKr}
+                      canCheckin={
+                        kr.owner_user_id === user?.id ||
+                        objective.owner_id === user?.id ||
+                        (objective as any).assignee_id === user?.id ||
+                        isAdmin
+                      }
+                      expandable
+                    />
                   </div>
                 </div>
               ))}

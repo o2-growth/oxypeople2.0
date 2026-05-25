@@ -77,6 +77,7 @@ export interface KeyResult {
 interface KeyResultItemProps {
   keyResult: KeyResult;
   canEdit?: boolean;
+  canCheckin?: boolean;
   expandable?: boolean;
 }
 
@@ -86,7 +87,7 @@ const riskConfig: Record<string, { color: string }> = {
   red: { color: "bg-red-500" },
 };
 
-export function KeyResultItem({ keyResult, canEdit = false, expandable = true }: KeyResultItemProps) {
+export function KeyResultItem({ keyResult, canEdit = false, canCheckin = false, expandable = true }: KeyResultItemProps) {
   const [showCheckin, setShowCheckin] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
@@ -176,7 +177,7 @@ export function KeyResultItem({ keyResult, canEdit = false, expandable = true }:
             className="shrink-0"
           />
 
-          {canEdit && keyResult.objective_id && (
+          {canCheckin && keyResult.objective_id && (
             <Button
               size="sm"
               variant="outline"

@@ -96,18 +96,22 @@ export function EditKeyResultDialog({ keyResult, open, onOpenChange }: Props) {
   }, [open, keyResult, form]);
 
   const onSubmit = async (data: FormData) => {
-    await updateKR.mutateAsync({
-      id:            keyResult.id,
-      title:         data.title,
-      kr_type:       data.kr_type,
-      direction:     data.direction,
-      initial_value: data.initial_value,
-      target_value:  data.target_value,
-      unit:          data.unit || null,
-      owner_user_id: data.owner_user_id || null,
-    });
-    toast.success("KR atualizado!");
-    onOpenChange(false);
+    try {
+      await updateKR.mutateAsync({
+        id:            keyResult.id,
+        title:         data.title,
+        kr_type:       data.kr_type,
+        direction:     data.direction,
+        initial_value: data.initial_value,
+        target_value:  data.target_value,
+        unit:          data.unit || null,
+        owner_user_id: data.owner_user_id || null,
+      });
+      toast.success("KR atualizado!");
+      onOpenChange(false);
+    } catch {
+      // error already shown by mutation onError
+    }
   };
 
   const getInitials = (name: string) =>

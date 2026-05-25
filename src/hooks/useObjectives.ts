@@ -349,15 +349,12 @@ export function useUpdateKeyResult() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: UpdateKeyResultInput) => {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("key_results")
         .update(updates)
-        .eq("id", id)
-        .select()
-        .single();
+        .eq("id", id);
 
       if (error) throw error;
-      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["objectives"] });
