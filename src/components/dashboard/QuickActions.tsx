@@ -21,7 +21,7 @@ const actions = [
     gradient: "from-success to-success/80",
   },
   {
-    label: "Ver Equipe",
+    label: "Ver Time",
     icon: Users,
     path: "/hr",
     gradient: "from-destructive/80 to-destructive/60",

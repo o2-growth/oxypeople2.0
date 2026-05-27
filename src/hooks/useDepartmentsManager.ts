@@ -137,11 +137,11 @@ export function useCreateDepartment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["departments-with-details"] });
       queryClient.invalidateQueries({ queryKey: ["departments"] });
-      toast.success("Departamento criado com sucesso!");
+      toast.success("Área criado com sucesso!");
     },
     onError: (error: Error) => {
       if (isDepartmentNameUniqueViolation(error.message)) {
-        toast.error("Já existe um departamento com este nome.");
+        toast.error("Já existe uma área com este nome.");
       } else {
         toast.error(friendlyDbError(error));
       }
@@ -169,11 +169,11 @@ export function useUpdateDepartment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["departments-with-details"] });
       queryClient.invalidateQueries({ queryKey: ["departments"] });
-      toast.success("Departamento atualizado com sucesso!");
+      toast.success("Área atualizado com sucesso!");
     },
     onError: (error: Error) => {
       if (isDepartmentNameUniqueViolation(error.message)) {
-        toast.error("Já existe um departamento com este nome.");
+        toast.error("Já existe uma área com este nome.");
       } else {
         toast.error(friendlyDbError(error));
       }
@@ -196,10 +196,10 @@ export function useDeleteDepartment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["departments-with-details"] });
       queryClient.invalidateQueries({ queryKey: ["departments"] });
-      toast.success("Departamento excluído com sucesso!");
+      toast.success("Área excluído com sucesso!");
     },
     onError: () => {
-      toast.error("Erro ao excluir departamento");
+      toast.error("Erro ao excluir área");
     },
   });
 }
@@ -219,7 +219,7 @@ export function useAssignMemberToDepartment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["departments-with-details"] });
       queryClient.invalidateQueries({ queryKey: ["department-members"] });
-      toast.success("Membro adicionado ao departamento!");
+      toast.success("Membro adicionado à área!");
     },
     onError: () => {
       toast.error("Erro ao adicionar membro");
@@ -242,7 +242,7 @@ export function useRemoveMemberFromDepartment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["departments-with-details"] });
       queryClient.invalidateQueries({ queryKey: ["department-members"] });
-      toast.success("Membro removido do departamento!");
+      toast.success("Membro removido da área!");
     },
     onError: () => {
       toast.error("Erro ao remover membro");

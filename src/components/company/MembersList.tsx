@@ -71,7 +71,7 @@ export function MembersList({ members, onChangeRole, onRemoveMember, onMemberCli
           <TableRow>
             <TableHead>Membro</TableHead>
             <TableHead>Função</TableHead>
-            <TableHead>Departamento</TableHead>
+            <TableHead>Área</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Desde</TableHead>
             <TableHead className="w-[50px]"></TableHead>

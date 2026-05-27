@@ -176,7 +176,7 @@ async function fetchDashboardData(companyId: string): Promise<PDIDashboardData> 
     const key = m.department_id ?? "__null__";
     if (!deptMap.has(key)) {
       const dept_name =
-        m.departments?.name ?? m.department ?? "Sem departamento";
+        m.departments?.name ?? m.department ?? "Sem área";
       deptMap.set(key, {
         dept_id: m.department_id ?? null,
         dept_name,

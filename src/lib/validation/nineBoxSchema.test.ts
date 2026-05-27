@@ -46,7 +46,7 @@ describe("nineBoxSnapshotSchema", () => {
     ).toBe(false);
   });
 
-  it("aceita target_all=false com 1 departamento", () => {
+  it("aceita target_all=false com 1 área", () => {
     expect(
       nineBoxSnapshotSchema.safeParse({
         ...VALID,

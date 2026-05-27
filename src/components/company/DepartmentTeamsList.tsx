@@ -22,7 +22,7 @@ export function DepartmentTeamsList({ departmentId }: DepartmentTeamsListProps) 
   if (teams.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
-        <p>Nenhuma equipe vinculada a este departamento</p>
+        <p>Nenhum time vinculada a esta área</p>
         <p className="text-sm mt-1">
           Vincule equipes em{" "}
           <Link to="/teams" className="text-primary hover:underline">

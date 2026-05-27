@@ -46,7 +46,7 @@ function getInitials(name: string): string {
 
 const TYPE_LABEL: Record<HierarchyNode["type"], string> = {
   company: "Sócio · CEO",
-  department: "Departamento",
+  department: "Área",
   team: "Time",
   member: "Colaborador",
 };
@@ -125,13 +125,13 @@ function OrgEditSection({ node, onClose }: { node: HierarchyNode; onClose: () =>
       </div>
 
       <div className="space-y-2">
-        <label className="text-xs text-muted-foreground">Departamento</label>
+        <label className="text-xs text-muted-foreground">Área</label>
         <Select value={deptId} onValueChange={setDeptId} disabled={isSaving}>
           <SelectTrigger className="h-9">
-            <SelectValue placeholder="Sem departamento" />
+            <SelectValue placeholder="Sem área" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={NO_DEPT}>Sem departamento</SelectItem>
+            <SelectItem value={NO_DEPT}>Sem área</SelectItem>
             {departments.map((d) => (
               <SelectItem key={d.id} value={d.id}>
                 {d.name}

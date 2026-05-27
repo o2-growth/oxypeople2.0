@@ -33,7 +33,7 @@ export function TargetAudienceSelector({
 }: TargetAudienceSelectorProps) {
   const { profile } = useUser();
 
-  // Buscar departamentos únicos dos membros da empresa
+  // Buscar áreas únicos dos membros da empresa
   const { data: departments } = useQuery({
     queryKey: ["departments", profile?.primary_company_id],
     queryFn: async () => {
@@ -48,7 +48,7 @@ export function TargetAudienceSelector({
 
       if (error) throw error;
 
-      // Extrair departamentos únicos
+      // Extrair áreas únicos
       const uniqueDepts = [...new Set(data.map((d) => d.department))].filter(
         Boolean
       ) as string[];
@@ -132,7 +132,7 @@ export function TargetAudienceSelector({
         >
           <RadioGroupItem value="department" className="sr-only" />
           <Building2 className="h-5 w-5 text-muted-foreground" />
-          <span className="text-sm font-medium">Departamento</span>
+          <span className="text-sm font-medium">Área</span>
           <span className="text-xs text-muted-foreground text-center">
             Por área
           </span>
@@ -147,18 +147,18 @@ export function TargetAudienceSelector({
         >
           <RadioGroupItem value="team" className="sr-only" />
           <UsersRound className="h-5 w-5 text-muted-foreground" />
-          <span className="text-sm font-medium">Equipe</span>
+          <span className="text-sm font-medium">Time</span>
           <span className="text-xs text-muted-foreground text-center">
             Time específico
           </span>
         </label>
       </RadioGroup>
 
-      {/* Seletor de Departamentos */}
+      {/* Seletor de Áreas */}
       {value.type === "department" && (
         <div className="space-y-2">
           <Label className="text-sm text-muted-foreground">
-            Selecione os departamentos
+            Selecione as áreas
           </Label>
           {departments && departments.length > 0 ? (
             <div className="flex flex-wrap gap-2">
@@ -178,7 +178,7 @@ export function TargetAudienceSelector({
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Nenhum departamento cadastrado. Configure departamentos nos perfis
+              Nenhuma área cadastrado. Configure áreas nos perfis
               dos colaboradores.
             </p>
           )}
@@ -214,7 +214,7 @@ export function TargetAudienceSelector({
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Nenhuma equipe cadastrada. Crie equipes na seção de gestão de
+              Nenhum time cadastrado. Crie times na seção de gestão de
               pessoas.
             </p>
           )}
@@ -226,9 +226,9 @@ export function TargetAudienceSelector({
         <div className="text-xs text-muted-foreground flex items-center gap-1">
           <Users className="h-3 w-3" />
           {value.type === "department" && value.departmentIds?.length
-            ? `${value.departmentIds.length} departamento(s) selecionado(s)`
+            ? `${value.departmentIds.length} área(s) selecionado(s)`
             : value.type === "team" && value.teamIds?.length
-            ? `${value.teamIds.length} equipe(s) selecionada(s)`
+            ? `${value.teamIds.length} time(s) selecionada(s)`
             : "Nenhuma seleção"}
         </div>
       )}

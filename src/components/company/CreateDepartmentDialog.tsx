@@ -138,13 +138,13 @@ export function CreateDepartmentDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? "Editar Departamento" : "Novo Departamento"}
+            {isEditing ? "Editar Área" : "Nova Área"}
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Nome do departamento *</Label>
+            <Label htmlFor="name">Nome da área *</Label>
             <Input
               id="name"
               value={name}
@@ -160,7 +160,7 @@ export function CreateDepartmentDialog({
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Descrição opcional do departamento..."
+              placeholder="Descrição opcional da área..."
               rows={3}
             />
           </div>
@@ -186,7 +186,7 @@ export function CreateDepartmentDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Líder do departamento</Label>
+            <Label>Líder da área</Label>
             <Select value={leaderId || "none"} onValueChange={(val) => setLeaderId(val === "none" ? "" : val)}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione um líder (opcional)" />

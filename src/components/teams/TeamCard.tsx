@@ -95,9 +95,9 @@ export function TeamCard({ team, memberCount, onEdit, onDelete, onManageMembers 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir equipe?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir time?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir a equipe "{team.name}"? Esta ação não pode ser desfeita.
+              Tem certeza que deseja excluir o time "{team.name}"? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

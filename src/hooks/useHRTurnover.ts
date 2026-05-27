@@ -102,7 +102,7 @@ export function useHRTurnover() {
       // By department
       const deptMap = new Map<string, { active: number; inactive: number; color: string }>();
       memberships?.forEach((m) => {
-        const deptName = (m.department_info as any)?.name || "Sem departamento";
+        const deptName = (m.department_info as any)?.name || "Sem área";
         const deptColor = (m.department_info as any)?.color || "#6B7280";
         if (!deptMap.has(deptName)) {
           deptMap.set(deptName, { active: 0, inactive: 0, color: deptColor });

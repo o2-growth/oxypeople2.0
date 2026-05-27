@@ -32,11 +32,13 @@ import {
   UserCircle,
   Rocket,
   ShieldCheck,
+  UsersRound,
 } from "lucide-react";
 import { ObjectivesFilterState, ViewMode, CommitmentFilterValue } from "@/hooks/useObjectivesFilters";
 import { ObjectivesStats } from "@/hooks/useObjectivesFilters";
 import { usePeriods } from "@/hooks/useObjectives";
 import { cn } from "@/lib/utils";
+import { Team } from "@/hooks/useTeams";
 
 interface ObjectivesContextBarProps {
   filters: ObjectivesFilterState;
@@ -44,6 +46,7 @@ interface ObjectivesContextBarProps {
   clearFilters: () => void;
   hasActiveFilters: boolean;
   departments: string[];
+  teams: Team[];
   responsibleUsers: { id: string; name: string; email: string; avatar_url: string | null }[];
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
@@ -56,6 +59,7 @@ export function ObjectivesContextBar({
   clearFilters,
   hasActiveFilters,
   departments,
+  teams,
   responsibleUsers,
   viewMode,
   setViewMode,
@@ -72,6 +76,15 @@ export function ObjectivesContextBar({
       departments: prev.departments.includes(dept)
         ? prev.departments.filter((d) => d !== dept)
         : [...prev.departments, dept],
+    }));
+  };
+
+  const handleTeamToggle = (teamId: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      teamIds: prev.teamIds.includes(teamId)
+        ? prev.teamIds.filter((id) => id !== teamId)
+        : [...prev.teamIds, teamId],
     }));
   };
 
@@ -343,7 +356,7 @@ export function ObjectivesContextBar({
             </PopoverTrigger>
             <PopoverContent className="w-56" align="start">
               <div className="space-y-2">
-                <h4 className="font-medium text-xs">Departamentos</h4>
+                <h4 className="font-medium text-xs">Áreas</h4>
                 <Separator />
                 <div className="max-h-40 overflow-y-auto space-y-1.5">
                   {departments.map((dept) => (
@@ -355,6 +368,46 @@ export function ObjectivesContextBar({
                       />
                       <Label htmlFor={`dept-${dept}`} className="text-xs cursor-pointer">
                         {dept}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
+
+        {/* Teams */}
+        {teams.length > 0 && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1 h-8 text-xs">
+                <UsersRound className="h-3 w-3" />
+                Time
+                {filters.teamIds.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
+                    {filters.teamIds.length}
+                  </Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56" align="start">
+              <div className="space-y-2">
+                <h4 className="font-medium text-xs">Times</h4>
+                <Separator />
+                <div className="max-h-48 overflow-y-auto space-y-1.5">
+                  {teams.map((team) => (
+                    <div key={team.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`team-${team.id}`}
+                        checked={filters.teamIds.includes(team.id)}
+                        onCheckedChange={() => handleTeamToggle(team.id)}
+                      />
+                      <Label htmlFor={`team-${team.id}`} className="text-xs cursor-pointer">
+                        <span className="font-medium">{team.name}</span>
+                        {team.department && (
+                          <span className="text-muted-foreground ml-1">· {team.department}</span>
+                        )}
                       </Label>
                     </div>
                   ))}
@@ -453,6 +506,14 @@ export function ObjectivesContextBar({
             <Badge key={dept} variant="secondary" className="gap-1 text-xs">
               {dept}
               <button onClick={() => handleDepartmentToggle(dept)} className="ml-0.5">
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+          {filters.teamIds.map((teamId) => (
+            <Badge key={teamId} variant="secondary" className="gap-1 text-xs">
+              {teams.find((t) => t.id === teamId)?.name || "Time"}
+              <button onClick={() => handleTeamToggle(teamId)} className="ml-0.5">
                 <X className="h-3 w-3" />
               </button>
             </Badge>

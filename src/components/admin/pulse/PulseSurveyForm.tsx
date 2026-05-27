@@ -357,7 +357,7 @@ export function PulseSurveyForm({
                         <div>
                           <FormLabel className="text-sm">Toda a empresa</FormLabel>
                           <FormDescription className="text-xs">
-                            Desligue para escolher departamentos/times.
+                            Desligue para escolher áreas/times.
                           </FormDescription>
                         </div>
                         <FormControl>
@@ -374,11 +374,11 @@ export function PulseSurveyForm({
                         name="target_departments"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Departamentos</FormLabel>
+                            <FormLabel>Áreas</FormLabel>
                             <div className="rounded-md border p-2 max-h-32 overflow-y-auto space-y-1">
                               {departments.length === 0 && (
                                 <p className="text-xs text-muted-foreground">
-                                  Nenhum departamento cadastrado.
+                                  Nenhuma área cadastrado.
                                 </p>
                               )}
                               {departments.map((d) => (

@@ -25,8 +25,8 @@ export function ObjectivesExport({ objectives }: ObjectivesExportProps) {
       "Progresso",
       "Data Limite",
       "Responsável",
-      "Equipe",
-      "Departamento",
+      "Time",
+      "Área",
       "Visibilidade",
       "Key Results",
     ];
@@ -76,8 +76,8 @@ export function ObjectivesExport({ objectives }: ObjectivesExportProps) {
       "Progresso KR",
       "Status Objetivo",
       "Responsável",
-      "Equipe",
-      "Departamento",
+      "Time",
+      "Área",
     ];
 
     const rows: string[][] = [];

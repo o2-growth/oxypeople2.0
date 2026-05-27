@@ -89,7 +89,7 @@ export function CreateGPTWSurveyCard() {
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
                 <Label className="flex items-center gap-1.5 text-sm">
-                  <Building2 className="h-4 w-4" /> Departamentos
+                  <Building2 className="h-4 w-4" /> Áreas
                 </Label>
                 <div className="flex flex-wrap gap-2">
                   {departments?.map((dept) => (
@@ -109,7 +109,7 @@ export function CreateGPTWSurveyCard() {
                     </Button>
                   ))}
                   {(!departments || departments.length === 0) && (
-                    <span className="text-sm text-muted-foreground">Nenhum departamento</span>
+                    <span className="text-sm text-muted-foreground">Nenhuma área</span>
                   )}
                 </div>
               </div>
@@ -135,7 +135,7 @@ export function CreateGPTWSurveyCard() {
                     </Button>
                   ))}
                   {(!teams || teams.length === 0) && (
-                    <span className="text-sm text-muted-foreground">Nenhuma equipe</span>
+                    <span className="text-sm text-muted-foreground">Nenhum time</span>
                   )}
                 </div>
               </div>

@@ -36,7 +36,7 @@ export function useCollaboratorsDetails(enabled: boolean) {
 
       const deptMap: Record<string, number> = {};
       (allMembers || []).forEach(m => {
-        const dept = m.department || "Sem departamento";
+        const dept = m.department || "Sem área";
         deptMap[dept] = (deptMap[dept] || 0) + 1;
       });
       const departments = Object.entries(deptMap)

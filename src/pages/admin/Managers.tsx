@@ -279,10 +279,10 @@ export default function ManagersAdminPage() {
               </div>
               <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
                 <SelectTrigger className="h-9 w-56">
-                  <SelectValue placeholder="Departamento" />
+                  <SelectValue placeholder="Área" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos os departamentos</SelectItem>
+                  <SelectItem value="all">Todas as áreas</SelectItem>
                   {departmentOptions.map((d) => (
                     <SelectItem key={d.id} value={d.id}>
                       {d.name}
@@ -314,7 +314,7 @@ export default function ManagersAdminPage() {
                     </TableHead>
                     <TableHead>Pessoa</TableHead>
                     <TableHead>Cargo</TableHead>
-                    <TableHead>Departamento</TableHead>
+                    <TableHead>Área</TableHead>
                     <TableHead>Gestor atual</TableHead>
                     <TableHead className="w-32 text-right">Ações</TableHead>
                   </TableRow>

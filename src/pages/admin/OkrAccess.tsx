@@ -177,7 +177,7 @@ export default function OkrAccessAdminPage() {
                   <TableRow>
                     <TableHead>Pessoa</TableHead>
                     <TableHead>Cargo</TableHead>
-                    <TableHead>Departamento</TableHead>
+                    <TableHead>Área</TableHead>
                     <TableHead className="w-56">Nível</TableHead>
                   </TableRow>
                 </TableHeader>

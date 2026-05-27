@@ -57,7 +57,7 @@ export function CollaboratorsDetailDialog({ open, onOpenChange }: Props) {
                 <div>
                   <h4 className="text-sm font-semibold mb-3 flex items-center gap-1.5">
                     <Building2 className="h-4 w-4" />
-                    Por Departamento
+                    Por Área
                   </h4>
                   <div className="space-y-2.5">
                     {data.departments.map(dept => (

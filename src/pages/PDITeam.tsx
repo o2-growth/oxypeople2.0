@@ -128,7 +128,7 @@ export default function PDITeamPage() {
           <div>
             <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
               <Users className="h-6 w-6" />
-              PDI da Equipe
+              PDI do Time
             </h1>
             <p className="text-muted-foreground mt-1 text-sm">
               Gerencie os planos de desenvolvimento dos seus liderados.

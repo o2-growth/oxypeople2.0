@@ -108,7 +108,7 @@ export function DepartmentCard({ department, onEdit, onManage, onDelete }: Depar
           </Badge>
           <Badge variant="outline" className="gap-1">
             <Building2 className="h-3 w-3" />
-            {department.team_count} equipe{department.team_count !== 1 ? "s" : ""}
+            {department.team_count} time{department.team_count !== 1 ? "s" : ""}
           </Badge>
         </div>
       </CardContent>

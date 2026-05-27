@@ -72,13 +72,13 @@ export function CreateTeamDialog({ open, onOpenChange, editingTeam }: CreateTeam
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? "Editar Equipe" : "Nova Equipe"}
+            {isEditing ? "Editar Time" : "Novo Time"}
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Nome da Equipe *</Label>
+            <Label htmlFor="name">Nome do Time *</Label>
             <Input
               id="name"
               value={name}
@@ -89,7 +89,7 @@ export function CreateTeamDialog({ open, onOpenChange, editingTeam }: CreateTeam
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="department">Departamento</Label>
+            <Label htmlFor="department">Área</Label>
             <Input
               id="department"
               value={department}
@@ -120,7 +120,7 @@ export function CreateTeamDialog({ open, onOpenChange, editingTeam }: CreateTeam
             </Button>
             <Button type="submit" disabled={isPending || !name.trim()}>
               {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {isEditing ? "Salvar" : "Criar Equipe"}
+              {isEditing ? "Salvar" : "Criar Time"}
             </Button>
           </DialogFooter>
         </form>

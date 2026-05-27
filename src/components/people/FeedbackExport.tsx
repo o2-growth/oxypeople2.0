@@ -24,7 +24,7 @@ export function exportFeedbackToCSV(feedbacks: OnboardingFeedback[]) {
     "Status",
     "Avaliação Geral",
     "Surpresa Positiva",
-    "Integração com Equipe",
+    "Integração com o Time",
     "Tem Todos os Acessos",
     "Acessos Faltantes",
     "Facilidade das Ferramentas",

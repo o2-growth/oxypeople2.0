@@ -110,13 +110,13 @@ export function DepartmentTable({ rows }: DepartmentTableProps) {
     <>
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">PDIs por departamento</CardTitle>
+          <CardTitle className="text-base">PDIs por área</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Departamento</TableHead>
+                <TableHead>Área</TableHead>
                 <TableHead className="text-right">Pessoas</TableHead>
                 <TableHead className="text-right">PDIs ativos</TableHead>
                 <TableHead className="text-right">Concluídos</TableHead>
@@ -179,7 +179,7 @@ export function DepartmentTable({ rows }: DepartmentTableProps) {
               </div>
             ) : drillQuery.data?.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">
-                Nenhum membro encontrado neste departamento.
+                Nenhum membro encontrado nesta área.
               </p>
             ) : (
               drillQuery.data?.map((row, idx) => (

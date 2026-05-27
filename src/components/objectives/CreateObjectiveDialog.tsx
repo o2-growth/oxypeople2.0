@@ -418,7 +418,7 @@ export function CreateObjectiveDialog({
                     name="teamId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Equipe</FormLabel>
+                        <FormLabel>Time</FormLabel>
                         <FormControl>
                           <TeamSelector value={field.value} onValueChange={field.onChange} />
                         </FormControl>

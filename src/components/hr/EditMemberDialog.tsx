@@ -124,15 +124,15 @@ export function EditMemberDialog({ member, open, onOpenChange }: Props) {
               name="department_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Departamento</FormLabel>
+                  <FormLabel>Área</FormLabel>
                   <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecionar departamento" />
+                        <SelectValue placeholder="Selecionar área" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value={NO_DEPT}>Sem departamento</SelectItem>
+                      <SelectItem value={NO_DEPT}>Sem área</SelectItem>
                       {departments.map((dept) => (
                         <SelectItem key={dept.id} value={dept.id}>
                           {dept.name}

@@ -45,7 +45,7 @@ export function HRCollaboratorsFilters({
   return (
     <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-muted-foreground">Departamento</label>
+        <label className="text-sm font-medium text-muted-foreground">Área</label>
         <Select value={departmentFilter} onValueChange={onDepartmentChange}>
           <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
           <SelectContent>

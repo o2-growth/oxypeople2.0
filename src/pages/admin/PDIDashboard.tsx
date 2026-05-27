@@ -65,7 +65,7 @@ export default function PDIDashboardPage() {
 
   const exportCsv = () => {
     if (!data) return;
-    const header = "Departamento,Pessoas,Ativos,Concluídos,Progresso Médio,Cobertura %";
+    const header = "Área,Pessoas,Ativos,Concluídos,Progresso Médio,Cobertura %";
     const rows = data.deptRows
       .map(
         (r) =>

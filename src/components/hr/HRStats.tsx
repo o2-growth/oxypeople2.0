@@ -28,7 +28,7 @@ export function HRStats() {
       bgColor: "bg-amber-100",
     },
     {
-      title: "Departamentos",
+      title: "Áreas",
       value: isLoading ? "-" : (stats?.departments || 0),
       icon: Building2,
       color: "text-purple-600",

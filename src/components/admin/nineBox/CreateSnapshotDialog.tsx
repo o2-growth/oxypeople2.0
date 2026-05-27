@@ -184,7 +184,7 @@ export function CreateSnapshotDialog({
                   <div>
                     <FormLabel className="text-sm">Toda a empresa</FormLabel>
                     <FormDescription className="text-xs">
-                      Desligue para escolher departamentos/times.
+                      Desligue para escolher áreas/times.
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -201,7 +201,7 @@ export function CreateSnapshotDialog({
                   name="target_departments"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Departamentos</FormLabel>
+                      <FormLabel>Áreas</FormLabel>
                       <div className="rounded-md border p-2 max-h-32 overflow-y-auto space-y-1">
                         {(departmentsQuery.data ?? []).map((d) => (
                           <Label

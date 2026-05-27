@@ -100,10 +100,10 @@ export function PulseFilters({ value, onChange }: PulseFiltersProps) {
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">Departamentos</Label>
+          <Label className="text-xs">Áreas</Label>
           <div className="rounded-md border p-2 max-h-32 overflow-y-auto space-y-1">
             {departments.length === 0 && (
-              <p className="text-xs text-muted-foreground">Nenhum departamento.</p>
+              <p className="text-xs text-muted-foreground">Nenhuma área.</p>
             )}
             {departments.map((d) => (
               <Label

@@ -205,7 +205,7 @@ export function ObjectivesFilters({
             </PopoverTrigger>
             <PopoverContent className="w-56" align="start">
               <div className="space-y-2">
-                <h4 className="font-medium text-xs">Departamentos</h4>
+                <h4 className="font-medium text-xs">Áreas</h4>
                 <Separator />
                 <div className="max-h-40 overflow-y-auto space-y-1.5">
                   {departments.map((dept) => (

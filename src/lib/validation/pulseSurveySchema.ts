@@ -80,7 +80,7 @@ export const pulseSurveySchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["target_all"],
-          message: "Selecione ao menos 1 departamento ou time",
+          message: "Selecione ao menos 1 área ou time",
         });
       }
     }

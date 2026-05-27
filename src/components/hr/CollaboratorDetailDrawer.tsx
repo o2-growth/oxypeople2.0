@@ -229,11 +229,11 @@ export function CollaboratorDetailDrawer({ membershipId, open, onOpenChange, isA
                     <Input value={form.position} onChange={(e) => set("position", e.target.value)} placeholder="—" disabled={!isAdmin} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Departamento</Label>
+                    <Label>Área</Label>
                     <Select value={form.department_id} onValueChange={(v) => set("department_id", v)} disabled={!isAdmin}>
-                      <SelectTrigger><SelectValue placeholder="Sem departamento" /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="Sem área" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value={NO_DEPT}>Sem departamento</SelectItem>
+                        <SelectItem value={NO_DEPT}>Sem área</SelectItem>
                         {departments.map((d) => (
                           <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
                         ))}

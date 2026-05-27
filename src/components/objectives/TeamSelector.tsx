@@ -77,7 +77,7 @@ export function TeamSelector({
     return (
       <Select disabled>
         <SelectTrigger>
-          <SelectValue placeholder="Nenhuma equipe disponível" />
+          <SelectValue placeholder="Nenhum time disponível" />
         </SelectTrigger>
       </Select>
     );

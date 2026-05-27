@@ -121,7 +121,7 @@ export default function InvitationsAdminPage() {
           <CardHeader>
             <CardTitle className="text-base">Novo convite</CardTitle>
             <CardDescription>
-              Cargo e departamento são opcionais — você pode editar depois em /hr.
+              Cargo e área são opcionais — você pode editar depois em /hr.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -149,17 +149,17 @@ export default function InvitationsAdminPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="invite-department">Departamento</Label>
+                <Label htmlFor="invite-department">Área</Label>
                 <Select
                   value={departmentId}
                   onValueChange={setDepartmentId}
                   disabled={inviteUser.isPending}
                 >
                   <SelectTrigger id="invite-department">
-                    <SelectValue placeholder="Sem departamento" />
+                    <SelectValue placeholder="Sem área" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={DEPT_NONE_VALUE}>Sem departamento</SelectItem>
+                    <SelectItem value={DEPT_NONE_VALUE}>Sem área</SelectItem>
                     {departments.map((d) => (
                       <SelectItem key={d.id} value={d.id}>
                         {d.name}
@@ -208,7 +208,7 @@ export default function InvitationsAdminPage() {
                   <TableRow>
                     <TableHead>E-mail</TableHead>
                     <TableHead>Cargo</TableHead>
-                    <TableHead>Departamento</TableHead>
+                    <TableHead>Área</TableHead>
                     <TableHead>Convidado em</TableHead>
                     <TableHead className="w-40 text-right">Ações</TableHead>
                   </TableRow>

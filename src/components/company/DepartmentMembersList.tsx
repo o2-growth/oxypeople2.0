@@ -84,7 +84,7 @@ export function DepartmentMembersList({ departmentId }: DepartmentMembersListPro
               <SelectContent>
                 {availableMembers.length === 0 ? (
                   <div className="px-2 py-4 text-sm text-muted-foreground text-center">
-                    Todos os membros já estão em departamentos
+                    Todos os membros já estão em áreas
                   </div>
                 ) : (
                   availableMembers.map((member) => (
@@ -125,7 +125,7 @@ export function DepartmentMembersList({ departmentId }: DepartmentMembersListPro
       {/* Members List */}
       {members.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
-          <p>Nenhum membro neste departamento</p>
+          <p>Nenhum membro nesta área</p>
           <p className="text-sm mt-1">Adicione membros usando o botão acima</p>
         </div>
       ) : (

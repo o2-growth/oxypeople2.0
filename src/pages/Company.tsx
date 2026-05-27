@@ -108,7 +108,7 @@ export default function Company() {
       initials: getInitials(p.user?.full_name),
       role: p.role || "member",
       status: p.status,
-      department: p.department_info?.name || p.department || "Sem departamento",
+      department: p.department_info?.name || p.department || "Sem área",
       joinedAt: formatJoinDate(p.joined_at || p.created_at),
     }));
   }, [people]);
@@ -222,7 +222,7 @@ export default function Company() {
           <div className="flex items-center gap-2">
             <Button variant="outline" className="gap-2" onClick={() => setCreateDepartmentOpen(true)}>
               <Plus className="h-4 w-4" />
-              Novo Departamento
+              Nova Área
             </Button>
             <Button className="gap-2" onClick={() => setInviteModalOpen(true)}>
               <UserPlus className="h-4 w-4" />
@@ -316,7 +316,7 @@ export default function Company() {
             </TabsTrigger>
             <TabsTrigger value="departments" className="gap-2">
               <Building2 className="h-4 w-4" />
-              Departamentos
+              Áreas
               {departments.length > 0 && (
                 <Badge variant="secondary" className="ml-1 h-5 min-w-5 p-0 justify-center">
                   {departments.length}
@@ -384,13 +384,13 @@ export default function Company() {
             ) : departments.length === 0 ? (
               <div className="text-center py-12">
                 <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium">Nenhum departamento criado</h3>
+                <h3 className="text-lg font-medium">Nenhuma área criado</h3>
                 <p className="text-muted-foreground mt-1 mb-4">
-                  Crie departamentos para organizar membros e equipes
+                  Crie áreas para organizar membros e equipes
                 </p>
                 <Button onClick={() => setCreateDepartmentOpen(true)} className="gap-2">
                   <Plus className="h-4 w-4" />
-                  Criar Departamento
+                  Criar Área
                 </Button>
               </div>
             ) : (
@@ -458,10 +458,10 @@ export default function Company() {
         <AlertDialog open={!!deletingDepartmentId} onOpenChange={() => setDeletingDepartmentId(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Excluir departamento?</AlertDialogTitle>
+              <AlertDialogTitle>Excluir área?</AlertDialogTitle>
               <AlertDialogDescription>
                 Esta ação não pode ser desfeita. Os membros e equipes vinculados a este
-                departamento terão a associação removida.
+                área terão a associação removida.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

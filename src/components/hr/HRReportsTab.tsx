@@ -16,14 +16,14 @@ export function HRReportsTab() {
     if (!people) return;
     const deptCounts = new Map<string, number>();
     people.filter((p) => p.status === "active").forEach((p) => {
-      const dept = p.department_info?.name || "Sem departamento";
+      const dept = p.department_info?.name || "Sem área";
       deptCounts.set(dept, (deptCounts.get(dept) || 0) + 1);
     });
     const rows = Array.from(deptCounts.entries()).map(([dept, count]) => ({
-      Departamento: dept,
+      Área: dept,
       Quantidade: count,
     }));
-    exportToCSV(rows, `headcount-departamento-${format(new Date(), "yyyy-MM-dd")}`);
+    exportToCSV(rows, `headcount-area-${format(new Date(), "yyyy-MM-dd")}`);
     toast.success("Relatório exportado com sucesso!");
   };
 
@@ -35,7 +35,7 @@ export function HRReportsTab() {
         Nome: p.user?.full_name || "Sem nome",
         Email: p.user?.email || "",
         Cargo: p.position || "",
-        Departamento: p.department_info?.name || "",
+        Área: p.department_info?.name || "",
         "Tipo Contratação": p.employment_type || "",
         "Data Admissão": p.hire_date ? format(parseISO(p.hire_date), "dd/MM/yyyy", { locale: ptBR }) : "",
         Status: p.status,
@@ -70,11 +70,11 @@ export function HRReportsTab() {
 
   const reports = [
     {
-      title: "Headcount por Departamento",
-      description: "Quantidade de colaboradores ativos agrupados por departamento.",
+      title: "Headcount por Área",
+      description: "Quantidade de colaboradores ativos agrupados por área.",
       icon: Building2,
       onExport: handleHeadcountExport,
-      stats: `${departments.length} departamentos`,
+      stats: `${departments.length} áreas`,
     },
     {
       title: "Admissões e Desligamentos",

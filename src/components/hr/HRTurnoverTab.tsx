@@ -100,7 +100,7 @@ export function HRTurnoverTab() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Por Departamento</CardTitle>
+            <CardTitle className="text-lg">Por Área</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>

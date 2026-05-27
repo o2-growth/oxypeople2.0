@@ -142,7 +142,7 @@ function TurnoverOverviewCards() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Por Departamento</CardTitle>
+            <CardTitle className="text-lg">Por Área</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -264,7 +264,7 @@ function DepartmentDistributionChart() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Distribuição por Departamento</CardTitle>
+        <CardTitle className="text-lg">Distribuição por Área</CardTitle>
         <p className="text-sm text-muted-foreground">Distribuição atual e crescimento do headcount</p>
       </CardHeader>
       <CardContent>
@@ -311,7 +311,7 @@ function DepartmentDistributionChart() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Departamento</TableHead>
+                  <TableHead>Área</TableHead>
                   <TableHead className="text-right">Atual</TableHead>
                   <TableHead className="text-right">6m</TableHead>
                   <TableHead className="text-right">1 ano</TableHead>
@@ -641,7 +641,7 @@ export default function HR() {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Departamentos</p>
+                      <p className="text-sm text-muted-foreground">Áreas</p>
                       <p className="text-2xl font-bold">
                         {isLoadingStats ? <Loader2 className="h-5 w-5 animate-spin" /> : stats?.departments || 0}
                       </p>
@@ -662,10 +662,10 @@ export default function HR() {
                 <div className="flex flex-wrap items-center gap-2 ml-2">
                   <Select onValueChange={handleBulkSetDepartment}>
                     <SelectTrigger className="h-8 w-44 text-xs">
-                      <SelectValue placeholder="Departamento" />
+                      <SelectValue placeholder="Área" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">Sem departamento</SelectItem>
+                      <SelectItem value="__none__">Sem área</SelectItem>
                       {departments.map((d) => (
                         <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
                       ))}
@@ -765,7 +765,7 @@ export default function HR() {
                           {(["name", "position", "department", "role", "status"] as SortCol[]).map((col) => {
                             const labels: Record<SortCol, string> = {
                               name: "Colaborador", position: "Cargo",
-                              department: "Departamento", role: "Função", status: "Status",
+                              department: "Área", role: "Função", status: "Status",
                             };
                             const Icon = sortCol === col
                               ? sortDir === "asc" ? ChevronUp : ChevronDown

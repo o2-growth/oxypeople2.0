@@ -53,7 +53,7 @@ export function CollaboratorsFilters({
         {/* Department Filter */}
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-muted-foreground">
-            Departamento
+            Área
           </label>
           <Select value={departmentFilter} onValueChange={onDepartmentChange}>
             <SelectTrigger>

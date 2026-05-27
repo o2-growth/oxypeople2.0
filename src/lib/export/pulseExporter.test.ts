@@ -65,7 +65,7 @@ describe("rowsToCsv", () => {
 
   it("empty rows still produces valid header", () => {
     const csv = rowsToCsv([], false);
-    expect(csv).toContain("Período;Nome;E-mail;Departamento;Time;Nota;Emoji;Comentário;Enviado em");
+    expect(csv).toContain("Período;Nome;E-mail;Área;Time;Nota;Emoji;Comentário;Enviado em");
   });
 });
 

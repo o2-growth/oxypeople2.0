@@ -56,7 +56,7 @@ const NAV: Nav[] = [
   { label: "Empresa", to: "/company", Icon: Building2, group: "Gestão" },
   { label: "RH", to: "/hr", Icon: Briefcase, group: "Gestão" },
   { label: "Pesquisas", to: "/surveys", Icon: BarChart3, group: "Gestão" },
-  { label: "Equipes", to: "/teams", Icon: UsersRound, group: "Gestão" },
+  { label: "Times", to: "/teams", Icon: UsersRound, group: "Gestão" },
   { label: "Configurações", to: "/settings", Icon: Settings, group: "Gestão" },
 ];
 

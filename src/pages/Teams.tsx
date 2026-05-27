@@ -102,14 +102,14 @@ export default function Teams() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-heading font-bold text-foreground">Equipes</h1>
+            <h1 className="text-3xl font-heading font-bold text-foreground">Times</h1>
             <p className="text-muted-foreground mt-1">
               Gerencie as equipes da sua empresa
             </p>
           </div>
           <Button className="gap-2" onClick={() => setCreateDialogOpen(true)}>
             <Plus className="h-4 w-4" />
-            Nova Equipe
+            Novo Time
           </Button>
         </div>
 
@@ -136,17 +136,17 @@ export default function Teams() {
                 <Users className="h-8 w-8 text-primary" />
               </div>
               <h3 className="text-lg font-semibold text-foreground mb-1">
-                {searchQuery ? "Nenhuma equipe encontrada" : "Nenhuma equipe criada"}
+                {searchQuery ? "Nenhum time encontrado" : "Nenhum time criado"}
               </h3>
               <p className="text-muted-foreground text-center max-w-sm mb-4">
                 {searchQuery
                   ? "Tente buscar com outros termos"
-                  : "Crie sua primeira equipe para organizar os membros da empresa"}
+                  : "Crie seu primeiro time para organizar os membros da empresa"}
               </p>
               {!searchQuery && (
                 <Button onClick={() => setCreateDialogOpen(true)}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Criar Equipe
+                  Criar Time
                 </Button>
               )}
             </CardContent>

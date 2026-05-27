@@ -105,7 +105,7 @@ export function HRCollaboratorsTab() {
                 <TableRow className="bg-muted/50">
                   <TableHead>Colaborador</TableHead>
                   <TableHead>Cargo</TableHead>
-                  <TableHead>Departamento</TableHead>
+                  <TableHead>Área</TableHead>
                   <TableHead>Contratação</TableHead>
                   <TableHead>Admissão</TableHead>
                   <TableHead>Status</TableHead>

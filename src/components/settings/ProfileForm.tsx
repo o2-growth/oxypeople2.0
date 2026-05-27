@@ -199,7 +199,7 @@ export function ProfileForm({ membershipId, user }: ProfileFormProps) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="department" className="flex items-center gap-1">
-                Departamento <span className="text-[10px] text-muted-foreground font-normal">(admin)</span>
+                Área <span className="text-[10px] text-muted-foreground font-normal">(admin)</span>
               </Label>
               <Input id="department" value={user?.department ?? ""} disabled placeholder="—" />
             </div>

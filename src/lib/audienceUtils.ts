@@ -60,7 +60,7 @@ export function getAudienceLabel(arr: string[] | null): string {
     .map((s) => s.replace("dept:", ""));
 
   if (depts.length > 0) {
-    return depts.length === 1 ? depts[0] : `${depts.length} departamentos`;
+    return depts.length === 1 ? depts[0] : `${depts.length} áreas`;
   }
 
   const teams = arr
@@ -68,7 +68,7 @@ export function getAudienceLabel(arr: string[] | null): string {
     .map((s) => s.replace("team:", ""));
 
   if (teams.length > 0) {
-    return `${teams.length} equipe(s)`;
+    return `${teams.length} time(s)`;
   }
 
   return "Todos";

@@ -96,9 +96,9 @@ const desenvolvimentoItems: NavItem[] = [
 
 const gestaoItems: NavItem[] = [
   { title: "RH", url: "/hr", icon: Briefcase },
-  { title: "Equipes", url: "/teams", icon: UsersRound },
+  { title: "Times", url: "/teams", icon: UsersRound },
   { title: "Pesquisas", url: "/surveys", icon: BarChart3 },
-  { title: "PDI Equipe", url: "/pdi/team", icon: Users },
+  { title: "PDI do Time", url: "/pdi/team", icon: Users },
   { title: "1:1s Gestão", url: "/admin/one-on-ones-dashboard", icon: Coffee },
 ];
 

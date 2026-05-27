@@ -3,6 +3,8 @@ import { useObjectiveTree, ObjectiveWithDetails, ObjectiveType, ObjectiveStatus 
 import { useUserPermissions } from "./useUserPermissions";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOkrSettings } from "./useCheckins";
+import { useDepartmentOptions } from "./usePeopleWithBirthdays";
+import { useTeams } from "./useTeams";
 
 export type ViewMode = "company" | "department" | "my";
 
@@ -15,6 +17,7 @@ export type CommitmentFilterValue = "all" | "committed" | "aspirational";
 
 export interface ObjectivesFilterState {
   departments: string[];
+  teamIds: string[];
   responsibleIds: string[];
   periodId: string | null;
   statuses: ObjectiveStatus[];
@@ -59,6 +62,7 @@ function getQuarterDateRange(q: QuarterFilter): { start: Date; end: Date } {
 
 const defaultFilters: ObjectivesFilterState = {
   departments: [],
+  teamIds: [],
   responsibleIds: [],
   periodId: null,
   statuses: [],
@@ -111,16 +115,15 @@ export function useObjectivesFilters() {
   const { data: okrSettings } = useOkrSettings();
   const overdueDays = getOverdueDays(okrSettings?.checkin_frequency);
 
-  // Get unique departments
-  const departments = useMemo(() => {
-    const deptSet = new Set<string>();
-    flatObjectives.forEach((obj) => {
-      if (obj.department) deptSet.add(obj.department);
-      const dept = (obj.team as any)?.department;
-      if (dept) deptSet.add(dept);
-    });
-    return Array.from(deptSet).sort();
-  }, [flatObjectives]);
+  // Get departments from the departments table (always reflects the official org structure)
+  const { data: deptOptions = [] } = useDepartmentOptions();
+  const departments = useMemo(
+    () => deptOptions.map((d) => d.name),
+    [deptOptions]
+  );
+
+  // Get teams for the team filter
+  const { data: teams = [] } = useTeams();
 
   // Get unique responsible users
   const responsibleUsers = useMemo(() => {
@@ -168,10 +171,15 @@ export function useObjectivesFilters() {
         if (objDept !== userDepartment) return false;
       }
 
-      // Department filter
+      // Department (área) filter
       if (filters.departments.length > 0) {
         const objDept = obj.department || (obj.team as any)?.department;
         if (!objDept || !filters.departments.includes(objDept)) return false;
+      }
+
+      // Team filter
+      if (filters.teamIds.length > 0) {
+        if (!obj.team_id || !filters.teamIds.includes(obj.team_id)) return false;
       }
 
       // Responsible filter
@@ -261,6 +269,7 @@ export function useObjectivesFilters() {
   const hasActiveFilters = useMemo(() => {
     return (
       filters.departments.length > 0 ||
+      filters.teamIds.length > 0 ||
       filters.responsibleIds.length > 0 ||
       filters.periodId !== null ||
       filters.statuses.length > 0 ||
@@ -288,6 +297,7 @@ export function useObjectivesFilters() {
     tree,
     stats,
     departments,
+    teams,
     responsibleUsers,
     isLoading,
     viewMode,

@@ -55,7 +55,7 @@ export function CollaboratorCard({
         style={{ backgroundColor: departmentColor }}
       >
         <span className="text-sm font-medium text-white truncate">
-          {member.department_info?.name || "Sem departamento"}
+          {member.department_info?.name || "Sem área"}
         </span>
         {isAdmin && (
           <DropdownMenu>

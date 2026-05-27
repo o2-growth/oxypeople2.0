@@ -56,7 +56,7 @@ interface ConfigureAutomationDialogProps {
 const defaultTemplates: Record<string, string> = {
   birthday: "🎂 Hoje é aniversário de {name}! Desejamos um dia incrível cheio de realizações! 🎉",
   anniversary: "🎉 {name} completa {years} ano(s) de empresa hoje! Parabéns pela jornada! 🚀",
-  new_hire: "👋 Damos as boas-vindas a {name} que está chegando na equipe de {department}! Seja bem-vindo(a)!",
+  new_hire: "👋 Damos as boas-vindas a {name} que está chegando no time de {department}! Seja bem-vindo(a)!",
   reminder: "📅 Lembrete: {message}",
 };
 

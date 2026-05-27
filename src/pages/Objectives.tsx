@@ -57,6 +57,7 @@ export default function Objectives() {
     tree,
     stats,
     departments,
+    teams,
     responsibleUsers,
     isLoading,
     viewMode,
@@ -119,7 +120,7 @@ export default function Objectives() {
     if (viewMode === "department") {
       const grouped: Record<string, ObjectiveWithDetails[]> = {};
       filteredTree.forEach((obj) => {
-        const dept = obj.department || (obj.team as any)?.department || "Sem departamento";
+        const dept = obj.department || (obj.team as any)?.department || "Sem área";
         if (!grouped[dept]) grouped[dept] = [];
         grouped[dept].push(obj);
       });
@@ -209,6 +210,7 @@ export default function Objectives() {
             clearFilters={clearFilters}
             hasActiveFilters={hasActiveFilters}
             departments={departments}
+            teams={teams}
             responsibleUsers={responsibleUsers}
             viewMode={viewMode}
             setViewMode={setViewMode}

@@ -20,12 +20,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Network, Search, Download, RotateCcw, GripVertical } from "lucide-react";
+import { Loader2, Network, Search, Download, RotateCcw, GripVertical, LayoutList, Users } from "lucide-react";
 import { toPng } from "html-to-image";
 import { useOrganizationHierarchy, type HierarchyNode } from "@/hooks/useOrganizationHierarchy";
+import { useAreasTeamsHierarchy } from "@/hooks/useAreasTeamsHierarchy";
 import { useManagers } from "@/hooks/useManagers";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   buildOrgGraph,
   buildManagerHierarchy,
@@ -39,6 +41,7 @@ import { trackEvent } from "@/lib/analytics";
 
 type DepartmentOption = { id: string; name: string };
 type OrgMode = "visual" | "list";
+type ViewType = "teams" | "collaborators";
 
 interface FlowInnerProps {
   hierarchy: HierarchyNode | null;
@@ -184,14 +187,14 @@ function FlowInner({
 
 export function OrganizationChartFlow() {
   const { data: visualHierarchy, isLoading, error } = useOrganizationHierarchy();
+  const { data: teamsHierarchy, isLoading: teamsLoading } = useAreasTeamsHierarchy();
   const { members, isLoading: managersLoading, setManager } = useManagers();
   const { user } = useAuth();
   const { isAdmin } = useUserPermissions();
 
   const canDrag = isAdmin && !managersLoading;
 
-  // Default to "list" — much more legible for companies with many people
-  // and works regardless of department/team configuration.
+  const [viewType, setViewType] = useState<ViewType>("teams");
   const [mode, setMode] = useState<OrgMode>("list");
   const [search, setSearch] = useState("");
   const [departmentId, setDepartmentId] = useState<string>("all");
@@ -255,7 +258,7 @@ export function OrganizationChartFlow() {
     }
   }, [mode]);
 
-  const showLoading = isLoading || managersLoading;
+  const showLoading = isLoading || managersLoading || (viewType === "teams" && teamsLoading);
 
   if (showLoading) {
     return (
@@ -278,7 +281,7 @@ export function OrganizationChartFlow() {
           <p className="text-muted-foreground text-sm">
             {error
               ? "Não foi possível carregar a estrutura organizacional."
-              : "Configure departamentos e equipes para visualizar o organograma."}
+              : "Configure áreas e times para visualizar o organograma."}
           </p>
         </CardContent>
       </Card>
@@ -296,6 +299,21 @@ export function OrganizationChartFlow() {
             Organograma
           </CardTitle>
           <div className="flex items-center gap-2">
+            <ToggleGroup
+              type="single"
+              value={viewType}
+              onValueChange={(v) => v && setViewType(v as ViewType)}
+              className="rounded-md border"
+            >
+              <ToggleGroupItem value="teams" className="gap-1.5 px-3 h-9 text-sm">
+                <LayoutList className="h-4 w-4" />
+                Áreas e Times
+              </ToggleGroupItem>
+              <ToggleGroupItem value="collaborators" className="gap-1.5 px-3 h-9 text-sm">
+                <Users className="h-4 w-4" />
+                Colaboradores
+              </ToggleGroupItem>
+            </ToggleGroup>
             <Select value={mode} onValueChange={(v) => setMode(v as OrgMode)}>
               <SelectTrigger className="h-9 w-44">
                 <SelectValue />
@@ -323,13 +341,13 @@ export function OrganizationChartFlow() {
               className="pl-8 h-9"
             />
           </div>
-          {mode === "visual" && (
+          {viewType === "collaborators" && mode === "visual" && (
             <Select value={departmentId} onValueChange={setDepartmentId}>
               <SelectTrigger className="h-9 w-44">
-                <SelectValue placeholder="Departamento" />
+                <SelectValue placeholder="Área" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos os departamentos</SelectItem>
+                <SelectItem value="all">Todas as áreas</SelectItem>
                 {departmentOptions.map((d) => (
                   <SelectItem key={d.id} value={d.id}>
                     {d.name}
@@ -338,7 +356,7 @@ export function OrganizationChartFlow() {
               </SelectContent>
             </Select>
           )}
-          {myUserNodeId && (
+          {viewType === "collaborators" && myUserNodeId && (
             <Select value={scope} onValueChange={(v) => setScope(v as "all" | "mine")}>
               <SelectTrigger className="h-9 w-32">
                 <SelectValue />
@@ -355,7 +373,7 @@ export function OrganizationChartFlow() {
               Limpar
             </Button>
           )}
-          {canDrag && mode === "list" && (
+          {canDrag && viewType === "collaborators" && mode === "list" && (
             <span className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground">
               <GripVertical className="h-3 w-3" />
               Arraste uma pessoa sobre outra para reorganizar
@@ -364,7 +382,40 @@ export function OrganizationChartFlow() {
         </div>
       </CardHeader>
       <CardContent>
-        {mode === "list" ? (
+        {viewType === "teams" && mode === "list" ? (
+          <div className="max-h-[640px] overflow-auto rounded-md border bg-background">
+            {teamsHierarchy ? (
+              <OrgListView
+                hierarchy={teamsHierarchy}
+                search={search}
+                onSelectMember={setSelected}
+                myUserNodeId={myUserNodeId}
+                canDrag={false}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center py-16">
+                <Network className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground text-sm">Configure áreas e times para visualizar.</p>
+              </div>
+            )}
+          </div>
+        ) : viewType === "teams" && mode === "visual" ? (
+          <div ref={wrapperRef} className="h-[640px] w-full rounded-md border bg-background">
+            <ReactFlowProvider>
+              <FlowInner
+                hierarchy={teamsHierarchy ?? null}
+                search={search}
+                departmentId="all"
+                scope="all"
+                myUserNodeId={null}
+                departmentOptions={[]}
+                setSelected={setSelected}
+                wrapperRef={wrapperRef}
+                flowInstanceRef={flowInstanceRef}
+              />
+            </ReactFlowProvider>
+          </div>
+        ) : mode === "list" ? (
           <div className="max-h-[640px] overflow-auto rounded-md border bg-background">
             <OrgListView
               hierarchy={activeHierarchy}

@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { DepartmentSelector } from "./DepartmentSelector";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2 } from "lucide-react";
@@ -194,15 +195,17 @@ export function EditObjectiveDialog({ objective, open, onOpenChange }: Props) {
               )}
             />
 
-            {/* Departamento + Prazo */}
+            {/* Área + Prazo */}
             <div className="grid grid-cols-2 gap-3">
               <FormField
                 control={form.control}
                 name="department"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Departamento</FormLabel>
-                    <FormControl><Input placeholder="Ex: Marketing" {...field} /></FormControl>
+                    <FormLabel>Área</FormLabel>
+                    <FormControl>
+                      <DepartmentSelector value={field.value} onValueChange={(v) => field.onChange(v ?? "")} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
