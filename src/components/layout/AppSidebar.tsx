@@ -191,7 +191,7 @@ export function AppSidebar() {
   const { user, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
   const { isManager } = useIsManager();
-  const { isAdmin } = useUserPermissions();
+  const { isAdmin, role } = useUserPermissions();
 
   const displayName = profile?.full_name || user?.email?.split("@")[0] || "Usuário";
   const displayEmail = user?.email || "usuario@empresa.com";
