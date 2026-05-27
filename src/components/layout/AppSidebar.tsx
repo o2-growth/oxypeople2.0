@@ -242,6 +242,23 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border p-4">
+        {!collapsed && (
+          <div className="mb-3 px-1">
+            {role === "owner" ? (
+              <a
+                href="https://github.com/o2-growth/oxypeople2.0"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-[11px] text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors"
+              >
+                <span>v{__APP_VERSION__}</span>
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            ) : (
+              <span className="text-[11px] text-sidebar-foreground/40">v{__APP_VERSION__}</span>
+            )}
+          </div>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="flex w-full items-center gap-3 rounded-lg p-1 transition-colors hover:bg-sidebar-accent focus:outline-none focus:ring-2 focus:ring-sidebar-primary/20">
