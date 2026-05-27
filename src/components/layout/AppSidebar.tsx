@@ -62,6 +62,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useIsManager } from "@/hooks/useIsManager";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { O2Logo } from "@/components/o2/Logo";
+import { APP_VERSION } from "@/lib/version";
 
 interface NavItem {
   title: string;
@@ -251,11 +252,11 @@ export function AppSidebar() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 text-[11px] text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors"
               >
-                <span>v{__APP_VERSION__}</span>
+                <span>v{APP_VERSION}</span>
                 <ExternalLink className="h-3 w-3" />
               </a>
             ) : (
-              <span className="text-[11px] text-sidebar-foreground/40">v{__APP_VERSION__}</span>
+              <span className="text-[11px] text-sidebar-foreground/40">v{APP_VERSION}</span>
             )}
           </div>
         )}
