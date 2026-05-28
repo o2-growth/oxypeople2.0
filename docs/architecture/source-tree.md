@@ -54,16 +54,19 @@ src/
 │   ├── Automation.tsx
 │   ├── NotFound.tsx
 │   │
-│   ├── admin/               ← NOVO — telas admin-only
-│   │   ├── Periods.tsx              [story 1.1]
-│   │   ├── OrgStructure.tsx         [story 2.1]
-│   │   └── Pulse.tsx                [story 3.1]
-│   │
-│   └── modules/             ← NOVO — módulos do MVP
-│       ├── Feedback.tsx             [epic 5]
-│       ├── OneOnOnes.tsx            [epic 6]
-│       ├── PDI.tsx                  [epic 7]
-│       └── NineBox.tsx              [epic 4]
+│   ├── admin/               ← telas admin-only (todas protegidas por ProtectedRoute)
+│   │   ├── Periods.tsx              [story 1.1 — /admin/periods]
+│   │   ├── OkrEscalation.tsx        [story 1.5 — /admin/okr-escalation]
+│   │   ├── Invitations.tsx          [F.x — /admin/invitations]
+│   │   ├── Managers.tsx             [story 2.1 — /admin/managers]
+│   │   ├── OkrAccess.tsx            [epic 1 — /admin/okr-access]
+│   │   ├── PulseSurveys.tsx         [story 3.1 — /admin/pulse-surveys]
+│   │   ├── PulseAnalytics.tsx       [story 3.3 — /admin/pulse-surveys/:id/analytics]
+│   │   ├── NineBox.tsx              [story 4.1 — /admin/nine-box]
+│   │   ├── NineBoxEditor.tsx        [story 4.2 — /admin/nine-box/:id]
+│   │   ├── OneOnOnesDashboard.tsx   [story 6.7 — /admin/one-on-ones-dashboard]
+│   │   ├── PDIDashboard.tsx         [story 7.8 — /admin/pdi-dashboard]
+│   │   └── FeedbackAnalytics.tsx    [story 5.6 — /admin/feedback/analytics]
 │
 ├── components/
 │   ├── ui/                  ← shadcn primitives — NÃO MODIFICAR
