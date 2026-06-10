@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Loader2, BookOpen, Plus } from "lucide-react";
 import { PDIForm } from "@/components/pdi/PDIForm";
+import { QueryError } from "@/components/QueryError";
 import { usePDIList, type PDIPlan, type PDIStatus } from "@/hooks/usePDI";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -59,7 +60,7 @@ function PDICard({ plan }: { plan: PDIPlan }) {
 }
 
 export default function PDIPage() {
-  const { data: plans = [], isLoading } = usePDIList();
+  const { data: plans = [], isLoading, isError, refetch } = usePDIList();
   const [formOpen, setFormOpen] = useState(false);
 
   return (
@@ -85,6 +86,11 @@ export default function PDIPage() {
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
+        ) : isError ? (
+          <QueryError
+            message="Não foi possível carregar seus PDIs."
+            onRetry={() => refetch()}
+          />
         ) : plans.length === 0 ? (
           <div className="py-16 text-center text-muted-foreground">
             <BookOpen className="h-10 w-10 mx-auto mb-3 opacity-30" />

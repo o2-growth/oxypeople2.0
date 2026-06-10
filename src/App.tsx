@@ -54,7 +54,25 @@ const PDITeam = lazy(() => import("./pages/PDITeam"));
 const PDIDetail = lazy(() => import("./pages/PDIDetail"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Não retentar erros permanentes: 4xx HTTP (401/403/404) e erros do
+      // PostgREST/Postgres (ex.: PGRST205 = tabela ausente, 42P01 = relação
+      // inexistente). Retentar esses só prolonga o spinner sem nunca suceder.
+      retry: (failureCount, error: unknown) => {
+        const e = error as { status?: number; code?: string } | null;
+        const httpStatus = Number(e?.status);
+        if (httpStatus >= 400 && httpStatus < 500) return false;
+        const code = e?.code ?? "";
+        // Códigos do PostgREST (PGRST*) e SQLSTATE de objeto inexistente.
+        if (/^PGRST/.test(code) || /^(42P01|42703|22|23)/.test(code))
+          return false;
+        return failureCount < 2;
+      },
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
