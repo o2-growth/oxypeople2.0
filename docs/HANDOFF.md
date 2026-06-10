@@ -3,6 +3,13 @@
 **Data:** 2026-04-30
 **Contexto:** Este documento é o ponto de partida para uma nova IA dar continuidade ao desenvolvimento do oxypeople. Leia na íntegra antes de tocar em qualquer arquivo.
 
+> ⚠️ **AVISO DE DEFASAGEM (revisado em 2026-06-09).** Este handoff é um **snapshot histórico de 2026-04-30** e várias seções estão desatualizadas:
+> - As "migrations 0001–0003 staged/não-aplicadas" descritas aqui **nunca existiram com esse nome**. As migrations reais usam prefixo de timestamp (`supabase/migrations/2026...`) e somam **52 arquivos**, indo até `20260527120003_pdi_approval_guard.sql`.
+> - Os Sprints 1–4 (OKR hardening, Organograma 2.0, Pulse, Nine Box, Feedback Contínuo, 1:1s, PDI, cron) **já têm migration e código no repo** — o projeto avançou ~1 mês além deste documento.
+> - **Não trate as pendências/bloqueadores listados abaixo como estado atual.** Valide cada item contra o código, `supabase/migrations/` e o `git log` antes de agir.
+>
+> Seções ainda válidas: stack, convenções obrigatórias (§"Convenções"), regras de migration aditiva e RLS, e o contexto de produto (ferramenta interna, não-SaaS).
+
 ---
 
 ## 1. O que é este projeto
