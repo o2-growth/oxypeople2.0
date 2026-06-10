@@ -547,6 +547,7 @@ export type Database = {
           invited_by: string | null
           is_new_hire: boolean | null
           joined_at: string | null
+          pipefy_card_id: string | null
           position: string | null
           status: Database["public"]["Enums"]["membership_status"]
           updated_at: string
@@ -563,6 +564,7 @@ export type Database = {
           invited_by?: string | null
           is_new_hire?: boolean | null
           joined_at?: string | null
+          pipefy_card_id?: string | null
           position?: string | null
           status?: Database["public"]["Enums"]["membership_status"]
           updated_at?: string
@@ -579,6 +581,7 @@ export type Database = {
           invited_by?: string | null
           is_new_hire?: boolean | null
           joined_at?: string | null
+          pipefy_card_id?: string | null
           position?: string | null
           status?: Database["public"]["Enums"]["membership_status"]
           updated_at?: string
@@ -611,6 +614,113 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_off: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          days: number
+          end_date: string
+          id: string
+          manager_name: string | null
+          membership_id: string | null
+          notes: string | null
+          person_name: string
+          pipefy_card_id: string | null
+          source: string
+          start_date: string
+          status: string
+          substitute_name: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          days?: number
+          end_date: string
+          id?: string
+          manager_name?: string | null
+          membership_id?: string | null
+          notes?: string | null
+          person_name: string
+          pipefy_card_id?: string | null
+          source?: string
+          start_date: string
+          status?: string
+          substitute_name?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          days?: number
+          end_date?: string
+          id?: string
+          manager_name?: string | null
+          membership_id?: string | null
+          notes?: string | null
+          person_name?: string
+          pipefy_card_id?: string | null
+          source?: string
+          start_date?: string
+          status?: string
+          substitute_name?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_off_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_off_membership_id_fkey"
+            columns: ["membership_id"]
+            isOneToOne: false
+            referencedRelation: "company_memberships"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_off_settings: {
+        Row: {
+          alert_mode: string
+          company_id: string
+          overdue_months: number
+          soon_months: number
+          updated_at: string
+        }
+        Insert: {
+          alert_mode?: string
+          company_id: string
+          overdue_months?: number
+          soon_months?: number
+          updated_at?: string
+        }
+        Update: {
+          alert_mode?: string
+          company_id?: string
+          overdue_months?: number
+          soon_months?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_off_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
