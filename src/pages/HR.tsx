@@ -357,7 +357,8 @@ export default function HR() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   type SortCol = "name" | "position" | "department" | "role" | "status";
-  const [sortCol, setSortCol] = useState<SortCol | null>(null);
+  // Lista carrega ordenada por nome (A–Z); cabeçalhos das colunas permitem alternar.
+  const [sortCol, setSortCol] = useState<SortCol | null>("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   // Collaborators filter states
