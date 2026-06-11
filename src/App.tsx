@@ -51,6 +51,7 @@ const OneOnOnes = lazy(() => import("./pages/OneOnOnes"));
 const OneOnOneDetail = lazy(() => import("./pages/OneOnOneDetail"));
 const PDI = lazy(() => import("./pages/PDI"));
 const PDITeam = lazy(() => import("./pages/PDITeam"));
+const TimeOff = lazy(() => import("./pages/TimeOff"));
 const PDIDetail = lazy(() => import("./pages/PDIDetail"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -95,6 +96,7 @@ const App = () => (
                   <Route path="/objectives/:id" element={<ProtectedRoute><ObjectiveDetail /></ProtectedRoute>} />
                   <Route path="/surveys" element={<ProtectedRoute><Surveys /></ProtectedRoute>} />
                   <Route path="/company" element={<ProtectedRoute><Company /></ProtectedRoute>} />
+                  <Route path="/time-off" element={<ProtectedRoute><TimeOff /></ProtectedRoute>} />
                   <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                   <Route path="/automation" element={<ProtectedRoute><Automation /></ProtectedRoute>} />
                   <Route path="/teams" element={<ProtectedRoute><Teams /></ProtectedRoute>} />
