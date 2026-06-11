@@ -16,7 +16,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Palmtree, Plus, Trash2, Settings2 } from "lucide-react";
+import { Loader2, Palmtree, Plus, Trash2, Settings2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { usePeopleList } from "@/hooks/usePeopleList";
@@ -60,7 +60,7 @@ export default function TimeOffPage() {
   const list = useTimeOffList();
   const { data: settings = DEFAULT_ALERT_SETTINGS } = useTimeOffSettings();
   const { data: people = [] } = usePeopleList();
-  const { remove, saveSettings } = useTimeOffMutations();
+  const { remove, saveSettings, syncPipefy } = useTimeOffMutations();
   const [formOpen, setFormOpen] = useState(false);
 
   const records = list.data ?? [];
@@ -121,10 +121,21 @@ export default function TimeOffPage() {
               Controle de férias e suspensão de contrato (PJ) — visão administrativa.
             </p>
           </div>
-          <Button onClick={() => setFormOpen(true)} className="gap-1.5">
-            <Plus className="h-4 w-4" />
-            Novo registro
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => syncPipefy.mutate()}
+              disabled={syncPipefy.isPending}
+            >
+              <RefreshCw className={`h-4 w-4 ${syncPipefy.isPending ? "animate-spin" : ""}`} />
+              {syncPipefy.isPending ? "Sincronizando..." : "Sincronizar Pipefy"}
+            </Button>
+            <Button onClick={() => setFormOpen(true)} className="gap-1.5">
+              <Plus className="h-4 w-4" />
+              Novo registro
+            </Button>
+          </div>
         </div>
 
         <Tabs defaultValue="history">

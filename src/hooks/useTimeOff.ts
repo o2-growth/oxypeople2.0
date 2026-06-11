@@ -181,5 +181,24 @@ export function useTimeOffMutations() {
     },
   });
 
-  return { create, update, remove, saveSettings };
+  const syncPipefy = useMutation({
+    mutationFn: async () => {
+      if (!companyId) throw new Error("Empresa não identificada");
+      const { data, error } = await supabase.functions.invoke("pipefy-timeoff-sync", {
+        body: { companyId },
+      });
+      if (error) throw error;
+      return data as { total: number; matched: number; unmatched: string[] };
+    },
+    onSuccess: (data) => {
+      trackEvent("time_off_synced_pipefy", { total: data.total });
+      toast.success(`Sincronizado: ${data.total} registros (${data.matched} vinculados).`);
+      invalidate();
+    },
+    onError: (e: unknown) => {
+      toast.error(`Erro na sincronização: ${(e as Error).message}`);
+    },
+  });
+
+  return { create, update, remove, saveSettings, syncPipefy };
 }
