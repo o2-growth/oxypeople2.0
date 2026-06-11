@@ -69,14 +69,11 @@ serve(async (req) => {
 
   const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
 
-  // Autenticação do chamador
-  const authHeader = req.headers.get("authorization") ?? "";
-  const caller = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
-    global: { headers: { authorization: authHeader } },
-    auth: { persistSession: false },
-  });
-  const { data: { user }, error: authErr } = await caller.auth.getUser();
-  if (authErr || !user) return jsonResponse(401, { error: "Unauthorized" });
+  // Autenticação do chamador — valida o JWT explicitamente
+  const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+  if (!token) return jsonResponse(401, { error: "Unauthorized: sem token" });
+  const { data: { user }, error: authErr } = await admin.auth.getUser(token);
+  if (authErr || !user) return jsonResponse(401, { error: `Unauthorized: ${authErr?.message ?? "sem usuário"}` });
 
   const { companyId } = await req.json().catch(() => ({})) as { companyId?: string };
   if (!companyId) return jsonResponse(400, { error: "companyId é obrigatório" });
