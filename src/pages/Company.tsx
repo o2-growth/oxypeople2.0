@@ -13,6 +13,13 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
@@ -85,6 +92,7 @@ export default function Company() {
   const [managingDepartment, setManagingDepartment] = useState<Department | null>(null);
   const [deletingDepartmentId, setDeletingDepartmentId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortOrder, setSortOrder] = useState("az");
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
   const [detailMemberId, setDetailMemberId] = useState<string | null>(null);
 
@@ -123,17 +131,22 @@ export default function Company() {
     return members.filter((m) => m.status === "invited" || m.status === "pending");
   }, [members]);
 
-  // Search filter
+  // Search filter + ordenação alfabética
   const filteredMembers = useMemo(() => {
-    if (!searchQuery) return activeMembers;
     const query = searchQuery.toLowerCase();
-    return activeMembers.filter(
-      (member) =>
-        member.name.toLowerCase().includes(query) ||
-        member.email.toLowerCase().includes(query) ||
-        member.department.toLowerCase().includes(query)
+    const result = query
+      ? activeMembers.filter(
+          (member) =>
+            member.name.toLowerCase().includes(query) ||
+            member.email.toLowerCase().includes(query) ||
+            member.department.toLowerCase().includes(query)
+        )
+      : [...activeMembers];
+    const dir = sortOrder === "za" ? -1 : 1;
+    return result.sort((a, b) =>
+      dir * a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" })
     );
-  }, [activeMembers, searchQuery]);
+  }, [activeMembers, searchQuery, sortOrder]);
 
   // Compute dynamic stats
   const computedStats = useMemo(() => {
@@ -335,15 +348,26 @@ export default function Company() {
           </TabsList>
 
           <TabsContent value="members" className="mt-6 space-y-4">
-            {/* Search */}
-            <div className="relative max-w-md">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Buscar membros..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
+            {/* Busca + ordenação */}
+            <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar membros..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Select value={sortOrder} onValueChange={setSortOrder}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="az">Nome (A–Z)</SelectItem>
+                  <SelectItem value="za">Nome (Z–A)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {isLoadingPeople ? (

@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Coffee, Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOneOnOnes, type OneOnOneRow } from "@/hooks/useOneOnOnes";
+import { QueryError } from "@/components/QueryError";
 import { OneOnOneForm } from "@/components/one-on-ones/OneOnOneForm";
 import { OneOnOneList } from "@/components/one-on-ones/OneOnOneList";
 import { HistoryTab } from "@/components/one-on-ones/HistoryTab";
@@ -84,6 +85,11 @@ export default function OneOnOnesPage() {
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
+        ) : list.isError ? (
+          <QueryError
+            message="Não foi possível carregar as reuniões 1:1."
+            onRetry={() => list.refetch()}
+          />
         ) : (
           <Tabs defaultValue={todayRows.length > 0 ? "today" : "upcoming"}>
             <TabsList>
