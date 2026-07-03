@@ -233,7 +233,9 @@ export function useDashboardFullStats() {
         }).length;
         monthly.push({ month: format(targetDate, "MMM/yy", { locale: ptBR }), count });
       }
-      const currentCount = monthly[monthly.length - 1]?.count || 0;
+      // Current headcount must count EVERY active member — even those without a
+      // hire_date (which are excluded from the historical monthly series above).
+      const currentCount = (membershipsRes.data || []).filter((m) => m.status === "active").length;
       const sixMonthsAgo = monthly[5]?.count || 0;
       const growthPercent6m = sixMonthsAgo > 0 ? Math.round(((currentCount - sixMonthsAgo) / sixMonthsAgo) * 100) : 0;
 

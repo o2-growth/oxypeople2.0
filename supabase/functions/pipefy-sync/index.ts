@@ -130,6 +130,40 @@ function parseDate(dateStr: string | null): string | null {
 }
 
 /**
+ * Fetch ALL auth users (paginated). listUsers() returns only the first page
+ * (50 users) by default — with 50+ employees that silently drops people,
+ * making existing users look "new" and breaking the sync. This walks every page.
+ */
+async function fetchAllAuthUsers(supabase: any): Promise<Map<string, any>> {
+  const byEmail = new Map<string, any>();
+  let page = 1;
+  const perPage = 1000;
+  while (true) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
+    if (error) throw new Error(`Failed to list auth users: ${error.message}`);
+    const users = data?.users || [];
+    for (const u of users) {
+      if (u.email) byEmail.set(u.email.toLowerCase().trim(), u);
+    }
+    if (users.length < perPage) break;
+    page++;
+  }
+  return byEmail;
+}
+
+/**
+ * Generate a strong random password. The old hardcoded '123456' fails whenever
+ * the project enforces a minimum password length/complexity, silently skipping
+ * every new user. Users receive access via invite/reset flow, not this password.
+ */
+function generateStrongPassword(): string {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  const b64 = btoa(String.fromCharCode(...bytes)).replace(/[^a-zA-Z0-9]/g, '');
+  return `Aa1!${b64}`;
+}
+
+/**
  * Check if hire date is within 30 days (new hire)
  */
 function isNewHire(hireDate: string | null): boolean {
@@ -175,13 +209,17 @@ serve(async (req) => {
     let recordsUpdated = 0;
     let recordsSkipped = 0;
     let recordsSynced = 0;
+    const skipReasons: Array<{ email: string | null; reason: string }> = [];
 
     try {
       const token = await getPipefyToken();
-      
+
+      // Build a complete email -> auth user lookup ONCE (paginated).
+      const authUsersByEmail = await fetchAllAuthUsers(supabase);
+
       let hasMore = true;
       let cursor: string | undefined;
-      
+
       while (hasMore) {
         const result = await fetchTableRecords(token, tableId, cursor);
         const records = result?.edges || [];
@@ -208,8 +246,9 @@ serve(async (req) => {
           const email = sanitizeEmail(rawEmail);
 
           if (!email) {
-            console.log('Skipping record without email');
+            console.log(`Skipping record without email (title: ${record.title})`);
             recordsSkipped++;
+            skipReasons.push({ email: null, reason: `no email (title: ${record.title})` });
             continue;
           }
 
@@ -252,15 +291,13 @@ serve(async (req) => {
             }
           }
 
-          // Check if user already exists in auth.users by email
-          const { data: existingAuthUsers } = await supabase.auth.admin.listUsers();
-          const existingAuthUser = existingAuthUsers?.users?.find(
-            u => u.email?.toLowerCase() === normalizedEmail
-          );
+          // Check if user already exists in auth.users by email (from the
+          // pre-built paginated map — no per-record listUsers cap).
+          const existingAuthUser = authUsersByEmail.get(normalizedEmail);
+          let userId: string | null = existingAuthUser?.id ?? null;
 
           if (existingAuthUser) {
             // User already exists in auth - update their data
-            const userId = existingAuthUser.id;
             console.log(`User ${normalizedEmail} already exists, updating...`);
             
             // Update user metadata
@@ -336,7 +373,7 @@ serve(async (req) => {
             
             const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
               email: normalizedEmail,
-              password: '123456',
+              password: generateStrongPassword(),
               email_confirm: true, // Auto-confirm email for immediate access
               user_metadata: {
                 full_name: fullName || normalizedEmail.split('@')[0],
@@ -346,10 +383,13 @@ serve(async (req) => {
             if (authError) {
               console.error(`Error creating auth user ${normalizedEmail}:`, authError);
               recordsSkipped++;
+              skipReasons.push({ email: normalizedEmail, reason: `createUser failed: ${authError.message}` });
               continue;
             }
 
-            const userId = authUser.user.id;
+            userId = authUser.user.id;
+            // Keep the map in sync so later records for the same email are found.
+            authUsersByEmail.set(normalizedEmail, authUser.user);
             console.log(`Created auth user ${normalizedEmail} with ID ${userId}`);
 
             // The trigger handle_new_user should create public.users automatically
@@ -415,9 +455,8 @@ serve(async (req) => {
 
           // Handle team if specified
           if (teamName) {
-            const userId = existingAuthUser?.id;
             if (!userId) continue;
-            
+
             const { data: team } = await supabase
               .from('teams')
               .select('id')
@@ -491,6 +530,7 @@ serve(async (req) => {
           records_created: recordsCreated,
           records_updated: recordsUpdated,
           records_skipped: recordsSkipped,
+          details: { skipReasons },
         })
         .eq('id', logId);
 
