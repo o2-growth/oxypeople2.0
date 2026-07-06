@@ -364,7 +364,7 @@ export default function HR() {
   // Collaborators filter states
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("active");
   const [birthdayFilter, setBirthdayFilter] = useState("all");
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
 
