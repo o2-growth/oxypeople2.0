@@ -25,12 +25,18 @@ export function useSubmitPulseResponse() {
       const userId = user?.id;
       if (!userId) throw new Error("Usuário não autenticado.");
 
-      // Pulse anônimo: marca ack local ANTES do INSERT pra evitar dupla submissão
-      // mesmo que a chamada falhe e o usuário tente de novo (fail-closed para anti-fadiga).
-      if (input.anonymous && typeof window !== "undefined") {
-        window.localStorage.setItem(pulseAckKey(input.pulseSurveyId, input.periodStart), "1");
-      }
+      // 1. Registra a PARTICIPAÇÃO no servidor (fonte de verdade, persistente).
+      //    Guarda anti-dupla via UNIQUE (pulse, user, period): se já participou,
+      //    o INSERT falha e tratamos como "já respondeu". O user_id fica aqui,
+      //    NÃO na resposta — o anonimato da NOTA é preservado em pulse_responses.
+      const { error: partError } = await supabase.from("pulse_participants").insert({
+        pulse_survey_id: input.pulseSurveyId,
+        user_id: userId,
+        period_start: input.periodStart,
+      });
+      if (partError) throw partError;
 
+      // 2. Grava a resposta (anônima -> user_id null; identificada -> user_id).
       const { error } = await supabase.from("pulse_responses").insert({
         pulse_survey_id: input.pulseSurveyId,
         user_id: input.anonymous ? null : userId,
@@ -41,11 +47,20 @@ export function useSubmitPulseResponse() {
       });
 
       if (error) {
-        // Em caso de erro, libera o ack local pra usuário poder tentar de novo
-        if (input.anonymous && typeof window !== "undefined") {
-          window.localStorage.removeItem(pulseAckKey(input.pulseSurveyId, input.periodStart));
-        }
+        // Rollback da participação pra pessoa poder tentar de novo.
+        await supabase
+          .from("pulse_participants")
+          .delete()
+          .eq("pulse_survey_id", input.pulseSurveyId)
+          .eq("user_id", userId)
+          .eq("period_start", input.periodStart);
         throw error;
+      }
+
+      // Ack local (anônimo): esconde o widget na hora, sem esperar refetch.
+      // Identificado esconde via checagem no servidor (pulse_participants).
+      if (input.anonymous && typeof window !== "undefined") {
+        window.localStorage.setItem(pulseAckKey(input.pulseSurveyId, input.periodStart), "1");
       }
 
       return input;

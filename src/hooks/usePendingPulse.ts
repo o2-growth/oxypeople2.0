@@ -74,14 +74,26 @@ export function usePendingPulse() {
           new Date(s.created_at),
         );
 
-        // Anti-duplicação anônima via localStorage (decisão MVP — story 3.2 AC5/Notes)
+        // Fonte de verdade: participação registrada no servidor (persistente,
+        // vale entre dispositivos, para pulse anônimo e identificado).
+        const { data: participated } = await supabase
+          .from("pulse_participants")
+          .select("id")
+          .eq("pulse_survey_id", s.id)
+          .eq("user_id", userId)
+          .eq("period_start", periodStart)
+          .maybeSingle();
+        if (participated) continue;
+
+        // Fallbacks para respostas feitas ANTES desta feature:
         if (s.anonymous) {
+          // ack local (localStorage) — anti-duplicação anônima legada
           const ackKey = pulseAckKey(s.id, periodStart);
           if (typeof window !== "undefined" && window.localStorage.getItem(ackKey)) {
             continue;
           }
         } else {
-          // Pulse identificado: verifica em pulse_responses
+          // pulse identificado: resposta já em pulse_responses
           const { data: existing, error: checkErr } = await supabase
             .from("pulse_responses")
             .select("id")
