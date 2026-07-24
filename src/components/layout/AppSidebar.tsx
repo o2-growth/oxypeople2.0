@@ -28,6 +28,7 @@ import {
   BookOpen,
   BarChart3,
   Palmtree,
+  TrendingUp,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { NavLink } from "@/components/NavLink";
@@ -97,6 +98,7 @@ const desenvolvimentoItems: NavItem[] = [
 ];
 
 const gestaoItems: NavItem[] = [
+  { title: "Acompanhamento OKR", url: "/okr-overview", icon: TrendingUp },
   { title: "RH", url: "/hr", icon: Briefcase },
   { title: "Times", url: "/teams", icon: UsersRound },
   { title: "Pesquisas", url: "/surveys", icon: BarChart3 },

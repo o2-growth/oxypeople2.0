@@ -21,6 +21,7 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Recognition = lazy(() => import("./pages/Recognition"));
 const Objectives = lazy(() => import("./pages/Objectives"));
 const ObjectiveDetail = lazy(() => import("./pages/ObjectiveDetail"));
+const OkrOverview = lazy(() => import("./pages/OkrOverview"));
 const Surveys = lazy(() => import("./pages/Surveys"));
 const Company = lazy(() => import("./pages/Company"));
 const Settings = lazy(() => import("./pages/Settings"));
@@ -94,6 +95,7 @@ const App = () => (
                   <Route path="/recognition" element={<ProtectedRoute><Recognition /></ProtectedRoute>} />
                   <Route path="/objectives" element={<ProtectedRoute><Objectives /></ProtectedRoute>} />
                   <Route path="/objectives/:id" element={<ProtectedRoute><ObjectiveDetail /></ProtectedRoute>} />
+                  <Route path="/okr-overview" element={<ProtectedRoute><OkrOverview /></ProtectedRoute>} />
                   <Route path="/surveys" element={<ProtectedRoute><Surveys /></ProtectedRoute>} />
                   <Route path="/company" element={<ProtectedRoute><Company /></ProtectedRoute>} />
                   <Route path="/time-off" element={<ProtectedRoute><TimeOff /></ProtectedRoute>} />
