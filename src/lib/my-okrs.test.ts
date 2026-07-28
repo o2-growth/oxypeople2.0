@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
   collectMyKrs,
-  krProgress,
   ownsActiveKr,
   isObjectiveActive,
   DEFAULT_CHECKIN_OVERDUE_DAYS,
@@ -49,32 +48,6 @@ function makeObj(over: Partial<ObjectiveWithDetails> = {}): ObjectiveWithDetails
     ...over,
   } as unknown as ObjectiveWithDetails;
 }
-
-describe("krProgress", () => {
-  it("up: proporcional entre initial e target", () => {
-    expect(krProgress(makeKr({ initial_value: 0, current_value: 50, target_value: 100 }))).toBe(50);
-    expect(krProgress(makeKr({ initial_value: 20, current_value: 60, target_value: 100 }))).toBe(50);
-  });
-
-  it("clampa entre 0 e 100", () => {
-    expect(krProgress(makeKr({ initial_value: 0, current_value: -10, target_value: 100 }))).toBe(0);
-    expect(krProgress(makeKr({ initial_value: 0, current_value: 200, target_value: 100 }))).toBe(100);
-  });
-
-  it("down: progride quando o valor cai em direção à meta", () => {
-    expect(krProgress(makeKr({ direction: "down", initial_value: 100, current_value: 50, target_value: 0 }))).toBe(50);
-  });
-
-  it("binary: 100 só quando atinge a meta", () => {
-    expect(krProgress(makeKr({ kr_type: "binary", current_value: 0, target_value: 1 }))).toBe(0);
-    expect(krProgress(makeKr({ kr_type: "binary", current_value: 1, target_value: 1 }))).toBe(100);
-  });
-
-  it("span zero: 100 se já atingiu, senão 0", () => {
-    expect(krProgress(makeKr({ initial_value: 100, current_value: 100, target_value: 100 }))).toBe(100);
-    expect(krProgress(makeKr({ initial_value: 100, current_value: 50, target_value: 100 }))).toBe(0);
-  });
-});
 
 describe("isObjectiveActive", () => {
   it("exclui concluídos e cancelados", () => {

@@ -1,33 +1,17 @@
 import type { ObjectiveWithDetails } from "@/hooks/useObjectives";
 import type { Database } from "@/integrations/supabase/types";
+import { krProgress } from "./kr-progress";
 
 type KeyResultRow = Database["public"]["Tables"]["key_results"]["Row"];
+
+// Reexporta o cálculo canônico de progresso de KR (home em `kr-progress.ts`)
+// para os consumidores desta lib (MyOkrsView/CompanyOkrsList) sem trocar imports.
+export { krProgress };
 
 /** Tolerância padrão (dias) entre check-ins quando não há config da empresa. */
 export const DEFAULT_CHECKIN_OVERDUE_DAYS = 7;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-/**
- * Progresso de um KR (0-100), respeitando tipo (`binary`) e direção (`down`).
- * É cálculo de KR — NÃO passa pelo rollup canônico (`objective-rollup.ts`), que
- * é exclusivamente para o progresso AGREGADO de um objetivo.
- */
-export function krProgress(kr: Pick<KeyResultRow, "target_value" | "current_value" | "initial_value" | "kr_type" | "direction">): number {
-  const target = Number(kr.target_value ?? 0);
-  const current = Number(kr.current_value ?? 0);
-  const initial = Number(kr.initial_value ?? 0);
-  const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
-  if (kr.kr_type === "binary") return current >= target ? 100 : 0;
-  if (kr.direction === "down") {
-    const span = initial - target;
-    if (span === 0) return current <= target ? 100 : 0;
-    return clamp(((initial - current) / span) * 100);
-  }
-  const span = target - initial;
-  if (span === 0) return current >= target ? 100 : 0;
-  return clamp(((current - initial) / span) * 100);
-}
 
 /** Objetivo "ativo": não concluído nem cancelado (mesma regra de `useMyDay`). */
 export function isObjectiveActive(obj: Pick<ObjectiveWithDetails, "status">): boolean {
