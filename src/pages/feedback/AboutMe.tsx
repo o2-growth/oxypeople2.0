@@ -2,11 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatDate } from "@/lib/formatters";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, MessageSquare, Eye, ShieldCheck } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { QueryError } from "@/components/QueryError";
+import { MessageSquare, Eye, ShieldCheck } from "lucide-react";
 import { useFeedbackAboutMe, useFeedbackForTeam } from "@/hooks/useFeedbackAboutMe";
 import { CompetencyStatsCard } from "@/components/feedback/CompetencyStatsCard";
 import { FeedbackVisibilityBadge } from "@/components/feedback/FeedbackVisibilityBadge";
@@ -14,6 +18,17 @@ import { UserCell } from "@/components/feedback/UserCell";
 import { trackEvent } from "@/lib/analytics";
 
 type View = "me" | "team";
+
+/** Skeleton local dos cards de feedback (cabeçalho já visível via PageHeader). */
+function AboutMeListSkeleton() {
+  return (
+    <div className="space-y-3">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <Skeleton key={i} className="h-40 w-full rounded-xl" />
+      ))}
+    </div>
+  );
+}
 
 export default function FeedbackAboutMePage() {
   const navigate = useNavigate();
@@ -29,7 +44,10 @@ export default function FeedbackAboutMePage() {
     () => (view === "me" ? meQuery.data ?? [] : teamQuery.data ?? []),
     [view, meQuery.data, teamQuery.data],
   );
+  // Estados vêm da query da aba ativa — erro nunca é mascarado como vazio.
   const isLoading = view === "me" ? meQuery.isLoading : teamQuery.isLoading;
+  const isError = view === "me" ? meQuery.isError : teamQuery.isError;
+  const refetch = view === "me" ? meQuery.refetch : teamQuery.refetch;
   const showTeam = (teamQuery.data ?? []).length > 0;
 
   const stats = useMemo(
@@ -44,16 +62,15 @@ export default function FeedbackAboutMePage() {
   return (
     <AppLayout>
       <div className="mx-auto max-w-5xl space-y-4 py-2">
-        <header className="space-y-1">
-          <h1 className="flex items-center gap-2 text-2xl font-bold">
-            <MessageSquare className="h-6 w-6" />
-            Feedbacks sobre {view === "me" ? "mim" : "meu time"}
-          </h1>
-          <p className="text-sm text-muted-foreground inline-flex items-center gap-1">
+        <PageHeader
+          title={`Feedbacks sobre ${view === "me" ? "mim" : "meu time"}`}
+          icon={MessageSquare}
+        >
+          <p className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
             <ShieldCheck className="h-4 w-4 text-success" />
             Você só vê feedbacks que foram explicitamente compartilhados.
           </p>
-        </header>
+        </PageHeader>
 
         {showTeam && (
           <Tabs value={view} onValueChange={(v) => setView(v as View)}>
@@ -64,25 +81,24 @@ export default function FeedbackAboutMePage() {
           </Tabs>
         )}
 
-        <div className="grid gap-4 md:grid-cols-[1fr_280px]">
-          <div className="space-y-3">
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="space-y-3 md:col-span-2">
             {isLoading ? (
-              <Card>
-                <CardContent className="flex justify-center py-12">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                </CardContent>
-              </Card>
+              <AboutMeListSkeleton />
+            ) : isError ? (
+              <QueryError
+                message="Não foi possível carregar os feedbacks."
+                onRetry={() => refetch()}
+              />
             ) : items.length === 0 ? (
-              <Card>
-                <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
-                  <MessageSquare className="h-10 w-10 text-muted-foreground/40" />
-                  <p className="text-sm text-muted-foreground">
-                    {view === "me"
-                      ? "Você ainda não recebeu feedbacks compartilhados."
-                      : "Ninguém do seu time recebeu feedback compartilhado com gestor."}
-                  </p>
-                </CardContent>
-              </Card>
+              <EmptyState
+                icon={MessageSquare}
+                title={
+                  view === "me"
+                    ? "Você ainda não recebeu feedbacks compartilhados"
+                    : "Ninguém do seu time recebeu feedback compartilhado com gestor"
+                }
+              />
             ) : (
               items.map((item) => (
                 <Card key={item.id}>

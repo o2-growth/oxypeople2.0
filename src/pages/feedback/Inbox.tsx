@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Loader2, Inbox as InboxIcon } from "lucide-react";
+import { Inbox as InboxIcon } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { QueryError } from "@/components/QueryError";
 import {
   useFeedbackInbox,
   type FeedbackInboxFilter,
@@ -11,25 +15,50 @@ import { FeedbackInboxItem } from "@/components/feedback/FeedbackInboxItem";
 import { RespondDialog } from "@/components/feedback/RespondDialog";
 import { DeclineDialog } from "@/components/feedback/DeclineDialog";
 
+/**
+ * Título/descrição do estado vazio por filtro. Substitui o ternário aninhado
+ * de 5 níveis por um mapa legível. O empty "Bom trabalho!" só é atingível
+ * quando NÃO há erro (o fluxo de estados checa `isError` antes do vazio).
+ */
+const EMPTY_COPY: Record<FeedbackInboxFilter, { title: string; description?: string }> = {
+  pending: {
+    title: "Nenhum feedback pendente",
+    description: "Bom trabalho! Você já respondeu tudo que estava na fila.",
+  },
+  overdue: { title: "Sem pedidos atrasados" },
+  answered: { title: "Você ainda não respondeu nenhum feedback" },
+  declined: { title: "Você ainda não recusou nenhum pedido" },
+  all: { title: "Nenhum pedido de feedback recebido" },
+};
+
+/** Skeleton local da lista (o cabeçalho já está visível via PageHeader). */
+function InboxListSkeleton() {
+  return (
+    <div className="space-y-3">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <Skeleton key={i} className="h-24 w-full rounded-xl" />
+      ))}
+    </div>
+  );
+}
+
 export default function FeedbackInboxPage() {
   const [filter, setFilter] = useState<FeedbackInboxFilter>("pending");
-  const { data: items, isLoading } = useFeedbackInbox(filter);
+  const { data: items, isLoading, isError, refetch } = useFeedbackInbox(filter);
 
   const [respondTarget, setRespondTarget] = useState<FeedbackInboxRow | null>(null);
   const [declineTarget, setDeclineTarget] = useState<FeedbackInboxRow | null>(null);
 
+  const empty = EMPTY_COPY[filter];
+
   return (
     <AppLayout>
       <div className="mx-auto max-w-3xl space-y-4 py-2">
-        <header className="space-y-1">
-          <h1 className="flex items-center gap-2 text-2xl font-bold">
-            <InboxIcon className="h-6 w-6" />
-            Inbox de feedback
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Pedidos de feedback enviados para você responder.
-          </p>
-        </header>
+        <PageHeader
+          title="Inbox de feedback"
+          description="Pedidos de feedback enviados para você responder."
+          icon={InboxIcon}
+        />
 
         <Tabs value={filter} onValueChange={(v) => setFilter(v as FeedbackInboxFilter)}>
           <TabsList className="grid w-full grid-cols-5">
@@ -41,26 +70,20 @@ export default function FeedbackInboxPage() {
           </TabsList>
           <TabsContent value={filter} className="mt-4 space-y-3">
             {isLoading ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
-            ) : (items ?? []).length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-16 text-center">
-                <InboxIcon className="h-10 w-10 text-muted-foreground/40" />
-                <p className="text-sm text-muted-foreground">
-                  {filter === "pending"
-                    ? "Nenhum feedback pendente. Bom trabalho!"
-                    : filter === "overdue"
-                      ? "Sem pedidos atrasados."
-                      : filter === "answered"
-                        ? "Você ainda não respondeu nenhum feedback."
-                        : filter === "declined"
-                          ? "Você ainda não recusou nenhum pedido."
-                          : "Nenhum pedido de feedback recebido."}
-                </p>
-              </div>
+              <InboxListSkeleton />
+            ) : isError ? (
+              <QueryError
+                message="Não foi possível carregar seu inbox de feedback."
+                onRetry={() => refetch()}
+              />
+            ) : !items?.length ? (
+              <EmptyState
+                icon={InboxIcon}
+                title={empty.title}
+                description={empty.description}
+              />
             ) : (
-              (items ?? []).map((item) => (
+              items.map((item) => (
                 <FeedbackInboxItem
                   key={item.id}
                   item={item}

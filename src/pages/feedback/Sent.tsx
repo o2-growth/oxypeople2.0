@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { formatDate } from "@/lib/formatters";
 import {
   Table,
@@ -27,7 +28,10 @@ import {
 } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Send, Trash2, Eye, Loader2, MessageSquareQuote, Plus } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { QueryError } from "@/components/QueryError";
+import { Send, Trash2, Eye, MessageSquareQuote, Plus } from "lucide-react";
 import {
   useFeedbackSent,
   type FeedbackSentRow,
@@ -38,31 +42,38 @@ import { FeedbackStatusBadge } from "@/components/feedback/FeedbackStatusBadge";
 import { FeedbackVisibilityBadge } from "@/components/feedback/FeedbackVisibilityBadge";
 import { UserCell } from "@/components/feedback/UserCell";
 
+/** Skeleton local das linhas da tabela (cabeçalho já visível via PageHeader). */
+function SentTableSkeleton() {
+  return (
+    <div className="space-y-2 p-4">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Skeleton key={i} className="h-10 w-full rounded-md" />
+      ))}
+    </div>
+  );
+}
+
 export default function FeedbackSentPage() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<FeedbackSentStatusFilter>("all");
-  const { data: items, isLoading } = useFeedbackSent(filter);
+  const { data: items, isLoading, isError, refetch } = useFeedbackSent(filter);
   const deleteReq = useDeleteFeedbackRequest();
   const [deleteTarget, setDeleteTarget] = useState<FeedbackSentRow | null>(null);
 
   return (
     <AppLayout>
       <div className="mx-auto max-w-5xl space-y-4 py-2">
-        <header className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="flex items-center gap-2 text-2xl font-bold">
-              <Send className="h-6 w-6" />
-              Pedidos enviados
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Acompanhe o status dos feedbacks que você pediu.
-            </p>
-          </div>
-          <Button onClick={() => navigate("/feedback/new")} className="gap-1.5">
-            <Plus className="h-4 w-4" />
-            Novo pedido
-          </Button>
-        </header>
+        <PageHeader
+          title="Pedidos enviados"
+          description="Acompanhe o status dos feedbacks que você pediu."
+          icon={Send}
+          actions={
+            <Button onClick={() => navigate("/feedback/new")} className="gap-1.5">
+              <Plus className="h-4 w-4" />
+              Novo pedido
+            </Button>
+          }
+        />
 
         <Tabs value={filter} onValueChange={(v) => setFilter(v as FeedbackSentStatusFilter)}>
           <TabsList className="grid w-full grid-cols-4">
@@ -76,16 +87,19 @@ export default function FeedbackSentPage() {
         <Card>
           <CardContent className="p-0">
             {isLoading ? (
-              <div className="flex justify-center py-10">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
-            ) : (items ?? []).length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-12 text-center">
-                <MessageSquareQuote className="h-10 w-10 text-muted-foreground/40" />
-                <p className="text-sm text-muted-foreground">
-                  Nenhum pedido neste filtro.
-                </p>
-              </div>
+              <SentTableSkeleton />
+            ) : isError ? (
+              <QueryError
+                message="Não foi possível carregar seus pedidos de feedback."
+                onRetry={() => refetch()}
+              />
+            ) : !items?.length ? (
+              <EmptyState
+                icon={MessageSquareQuote}
+                title="Nenhum pedido neste filtro"
+                description="Peça um feedback e acompanhe as respostas por aqui."
+                action={{ label: "Novo pedido", onClick: () => navigate("/feedback/new") }}
+              />
             ) : (
               <Table>
                 <TableHeader>
@@ -101,7 +115,7 @@ export default function FeedbackSentPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(items ?? []).map((row) => (
+                  {items.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell>
                         <UserCell user={row.respondent} />
@@ -109,11 +123,9 @@ export default function FeedbackSentPage() {
                       <TableCell>
                         <UserCell user={row.subject} />
                       </TableCell>
-                      <TableCell className="hidden md:table-cell max-w-[260px]">
-                        <span className="text-sm truncate block" title={row.question}>
-                          {row.question.length > 100
-                            ? `${row.question.slice(0, 100)}...`
-                            : row.question}
+                      <TableCell className="hidden max-w-xs md:table-cell">
+                        <span className="block truncate text-sm" title={row.question}>
+                          {row.question}
                         </span>
                       </TableCell>
                       <TableCell>
