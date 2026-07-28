@@ -59,8 +59,8 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const STATUS_CLASS: Record<string, string> = {
-  draft: "border-blue-500/40 text-blue-600",
-  finalized: "border-emerald-500/40 text-emerald-600",
+  draft: "border-primary/40 text-primary",
+  finalized: "border-success/40 text-success",
   archived: "border-muted-foreground/40 text-muted-foreground",
 };
 

@@ -66,9 +66,9 @@ function areaColor(title: string): string {
 
 function progressTone(pct: number, hasCheckin: boolean): { label: string; cls: string } {
   if (!hasCheckin) return { label: "Sem check-in", cls: "bg-muted text-muted-foreground" };
-  if (pct >= 70) return { label: "No alvo", cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" };
-  if (pct >= 40) return { label: "Atenção", cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400" };
-  return { label: "Em risco", cls: "bg-red-500/15 text-red-600 dark:text-red-400" };
+  if (pct >= 70) return { label: "No alvo", cls: "bg-success/15 text-success" };
+  if (pct >= 40) return { label: "Atenção", cls: "bg-warning/15 text-warning" };
+  return { label: "Em risco", cls: "bg-destructive/15 text-destructive" };
 }
 
 function initials(name?: string | null): string {
