@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -43,11 +43,20 @@ const FeedbackAnalyticsAdmin = lazy(() => import("./pages/admin/FeedbackAnalytic
 const OneOnOnesDashboardAdmin = lazy(() => import("./pages/admin/OneOnOnesDashboard"));
 const PDIDashboardAdmin = lazy(() => import("./pages/admin/PDIDashboard"));
 const PulsePage = lazy(() => import("./pages/Pulse"));
-const NewFeedbackRequest = lazy(() => import("./pages/feedback/NewFeedbackRequest"));
-const FeedbackInbox = lazy(() => import("./pages/feedback/Inbox"));
-const FeedbackSent = lazy(() => import("./pages/feedback/Sent"));
-const FeedbackAboutMe = lazy(() => import("./pages/feedback/AboutMe"));
+const Feedback = lazy(() => import("./pages/feedback/Feedback"));
 const FeedbackDetail = lazy(() => import("./pages/feedback/Detail"));
+
+/** Redirect legado de /feedback/new → /feedback?tab=pedir preservando o preset `?subject=`. */
+function RedirectFeedbackNew() {
+  const [params] = useSearchParams();
+  const subject = params.get("subject");
+  return (
+    <Navigate
+      to={`/feedback?tab=pedir${subject ? `&subject=${encodeURIComponent(subject)}` : ""}`}
+      replace
+    />
+  );
+}
 const OneOnOnes = lazy(() => import("./pages/OneOnOnes"));
 const OneOnOneDetail = lazy(() => import("./pages/OneOnOneDetail"));
 const PDI = lazy(() => import("./pages/PDI"));
@@ -118,10 +127,13 @@ const App = () => (
                   <Route path="/pulse/:id" element={<ProtectedRoute><PulsePage /></ProtectedRoute>} />
                   <Route path="/admin/feedback/analytics" element={<ProtectedRoute><FeedbackAnalyticsAdmin /></ProtectedRoute>} />
                   <Route path="/admin/one-on-ones-dashboard" element={<ProtectedRoute><OneOnOnesDashboardAdmin /></ProtectedRoute>} />
-                  <Route path="/feedback/new" element={<ProtectedRoute><NewFeedbackRequest /></ProtectedRoute>} />
-                  <Route path="/feedback/inbox" element={<ProtectedRoute><FeedbackInbox /></ProtectedRoute>} />
-                  <Route path="/feedback/sent" element={<ProtectedRoute><FeedbackSent /></ProtectedRoute>} />
-                  <Route path="/feedback/about-me" element={<ProtectedRoute><FeedbackAboutMe /></ProtectedRoute>} />
+                  {/* Feedback unificado (Onda 3 §3.1): 1 página com abas via ?tab= */}
+                  <Route path="/feedback" element={<ProtectedRoute><Feedback /></ProtectedRoute>} />
+                  {/* Redirects dos deep-links antigos → abas da página unificada */}
+                  <Route path="/feedback/inbox" element={<Navigate to="/feedback?tab=inbox" replace />} />
+                  <Route path="/feedback/new" element={<RedirectFeedbackNew />} />
+                  <Route path="/feedback/sent" element={<Navigate to="/feedback?tab=enviados" replace />} />
+                  <Route path="/feedback/about-me" element={<Navigate to="/feedback?tab=sobre-mim" replace />} />
                   <Route path="/feedback/:id" element={<ProtectedRoute><FeedbackDetail /></ProtectedRoute>} />
                   <Route path="/one-on-ones" element={<ProtectedRoute><OneOnOnes /></ProtectedRoute>} />
                   <Route path="/one-on-ones/:id" element={<ProtectedRoute><OneOnOneDetail /></ProtectedRoute>} />

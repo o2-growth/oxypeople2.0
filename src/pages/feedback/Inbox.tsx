@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { AppLayout } from "@/components/layout/AppLayout";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Inbox as InboxIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -42,7 +40,13 @@ function InboxListSkeleton() {
   );
 }
 
-export default function FeedbackInboxPage() {
+/**
+ * Corpo da aba "Inbox" da página unificada de Feedback (Onda 3, Lote F §3.1).
+ * Sem AppLayout/PageHeader próprios — é renderizado dentro do shell tabbed de
+ * `Feedback.tsx`. Preserva os estados (loading/erro/vazio) e o filtro interno
+ * que a Onda 2 introduziu nesta tela.
+ */
+export default function FeedbackInboxBody() {
   const [filter, setFilter] = useState<FeedbackInboxFilter>("pending");
   const { data: items, isLoading, isError, refetch } = useFeedbackInbox(filter);
 
@@ -52,49 +56,41 @@ export default function FeedbackInboxPage() {
   const empty = EMPTY_COPY[filter];
 
   return (
-    <AppLayout>
-      <div className="mx-auto max-w-3xl space-y-4 py-2">
-        <PageHeader
-          title="Inbox de feedback"
-          description="Pedidos de feedback enviados para você responder."
-          icon={InboxIcon}
-        />
-
-        <Tabs value={filter} onValueChange={(v) => setFilter(v as FeedbackInboxFilter)}>
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="pending">Pendentes</TabsTrigger>
-            <TabsTrigger value="overdue">Atrasados</TabsTrigger>
-            <TabsTrigger value="answered">Respondidos</TabsTrigger>
-            <TabsTrigger value="declined">Recusados</TabsTrigger>
-            <TabsTrigger value="all">Todos</TabsTrigger>
-          </TabsList>
-          <TabsContent value={filter} className="mt-4 space-y-3">
-            {isLoading ? (
-              <InboxListSkeleton />
-            ) : isError ? (
-              <QueryError
-                message="Não foi possível carregar seu inbox de feedback."
-                onRetry={() => refetch()}
+    <>
+      <Tabs value={filter} onValueChange={(v) => setFilter(v as FeedbackInboxFilter)}>
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="pending">Pendentes</TabsTrigger>
+          <TabsTrigger value="overdue">Atrasados</TabsTrigger>
+          <TabsTrigger value="answered">Respondidos</TabsTrigger>
+          <TabsTrigger value="declined">Recusados</TabsTrigger>
+          <TabsTrigger value="all">Todos</TabsTrigger>
+        </TabsList>
+        <TabsContent value={filter} className="mt-4 space-y-3">
+          {isLoading ? (
+            <InboxListSkeleton />
+          ) : isError ? (
+            <QueryError
+              message="Não foi possível carregar seu inbox de feedback."
+              onRetry={() => refetch()}
+            />
+          ) : !items?.length ? (
+            <EmptyState
+              icon={InboxIcon}
+              title={empty.title}
+              description={empty.description}
+            />
+          ) : (
+            items.map((item) => (
+              <FeedbackInboxItem
+                key={item.id}
+                item={item}
+                onRespond={() => setRespondTarget(item)}
+                onDecline={() => setDeclineTarget(item)}
               />
-            ) : !items?.length ? (
-              <EmptyState
-                icon={InboxIcon}
-                title={empty.title}
-                description={empty.description}
-              />
-            ) : (
-              items.map((item) => (
-                <FeedbackInboxItem
-                  key={item.id}
-                  item={item}
-                  onRespond={() => setRespondTarget(item)}
-                  onDecline={() => setDeclineTarget(item)}
-                />
-              ))
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
+            ))
+          )}
+        </TabsContent>
+      </Tabs>
 
       <RespondDialog
         open={!!respondTarget}
@@ -106,6 +102,6 @@ export default function FeedbackInboxPage() {
         onOpenChange={(open) => !open && setDeclineTarget(null)}
         item={declineTarget}
       />
-    </AppLayout>
+    </>
   );
 }
