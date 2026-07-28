@@ -1,4 +1,5 @@
 import * as React from "react";
+import NumberFlow from "@number-flow/react";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -94,9 +95,9 @@ export function StatCard({
         ) : null}
       </div>
 
-      {/* Display number */}
+      {/* Display number — NumberFlow anima transições de valor nos KPIs. */}
       <p className="mt-3 font-display font-bold leading-none text-[var(--fg)] text-[clamp(40px,6vw,64px)]">
-        {value}
+        {typeof value === "number" ? <NumberFlow value={value} /> : value}
       </p>
 
       {/* Trend */}

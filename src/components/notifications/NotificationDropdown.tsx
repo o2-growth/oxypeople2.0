@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { cn } from "@/lib/utils";
 import { useNotifications, Notification } from "@/hooks/useNotifications";
 
@@ -130,6 +131,9 @@ export function NotificationDropdown() {
     deleteNotification,
   } = useNotifications();
 
+  // Onda 1: exemplo de useAutoAnimate num container de lista (adoção ampla nas Ondas 2/3).
+  const [listRef] = useAutoAnimate<HTMLDivElement>();
+
   const handleNotificationClick = (notification: Notification) => {
     if (!notification.read_at) {
       markAsRead(notification.id);
@@ -206,15 +210,17 @@ export function NotificationDropdown() {
               </p>
             </div>
           ) : (
-            notifications.map((notification) => (
-              <NotificationItem
-                key={notification.id}
-                notification={notification}
-                onMarkAsRead={markAsRead}
-                onDelete={deleteNotification}
-                onClick={handleNotificationClick}
-              />
-            ))
+            <div ref={listRef}>
+              {notifications.map((notification) => (
+                <NotificationItem
+                  key={notification.id}
+                  notification={notification}
+                  onMarkAsRead={markAsRead}
+                  onDelete={deleteNotification}
+                  onClick={handleNotificationClick}
+                />
+              ))}
+            </div>
           )}
         </ScrollArea>
       </DropdownMenuContent>
