@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/select";
 import { ChevronRight, Target, Users, TrendingUp, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { QueryError } from "@/components/QueryError";
 import { useObjectives, usePeriods, type ObjectiveWithDetails } from "@/hooks/useObjectives";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -47,6 +49,17 @@ function avgProgress(krs: KeyResultRow[]): number {
   return Math.round(krs.reduce((s, k) => s + krProgress(k), 0) / krs.length);
 }
 
+// Progresso de um objetivo (área/time): prioriza o valor do backend
+// (`objective.progress`, a MESMA fonte que Objectives/ObjectiveDetail usam) e
+// só cai no cálculo client-side quando o backend ainda não computou (0/ausente).
+// Assim os números batem com o detalhe do objetivo, e nunca regridem para vazio
+// caso o backend esteja zerado enquanto os KRs já têm avanço.
+function objectiveProgress(obj: ObjectiveWithDetails, krs: KeyResultRow[]): number {
+  const backend = Number(obj.progress);
+  if (Number.isFinite(backend) && backend > 0) return Math.round(backend);
+  return avgProgress(krs);
+}
+
 // Todos os KRs de um objetivo, incluindo os dos filhos (recursivo).
 function collectKrs(obj: ObjectiveWithDetails): KeyResultRow[] {
   const own = obj.key_results ?? [];
@@ -54,14 +67,27 @@ function collectKrs(obj: ObjectiveWithDetails): KeyResultRow[] {
   return [...own, ...kids];
 }
 
-const AREA_COLORS: Record<string, string> = {
-  Operações: "#F97316",
-  Revenue: "#3B82F6",
-  Tech: "#6B7280",
+// Cores por área derivadas de CSS vars do design system (definidas em
+// src/index.css como `--okr-area-*`). O hex real vive no token; aqui só o
+// mapa tipado, local a esta página (não é util compartilhado). Cada área
+// conserva exatamente a cor que já tinha.
+type AreaKey = "ops" | "revenue" | "tech" | "default";
+const AREA_COLORS: Record<AreaKey, string> = {
+  ops: "var(--okr-area-ops)",
+  revenue: "var(--okr-area-revenue)",
+  tech: "var(--okr-area-tech)",
+  default: "var(--okr-area-default)",
 };
-function areaColor(title: string): string {
-  const key = Object.keys(AREA_COLORS).find((k) => title.includes(k));
-  return key ? AREA_COLORS[key] : "#10B981";
+// Casa a cor por um campo mais estável (`department`) quando disponível, com o
+// título apenas como fallback — assim renomear o título não perde a cor da área.
+// Sem um mapeamento id→cor no schema, o casamento segue textual; um campo
+// dedicado exigiria mudança de schema (fora do escopo desta onda).
+function areaColorKey(area: ObjectiveWithDetails): AreaKey {
+  const haystack = `${area.department ?? ""} ${area.title}`;
+  if (haystack.includes("Operações")) return "ops";
+  if (haystack.includes("Revenue")) return "revenue";
+  if (haystack.includes("Tech")) return "tech";
+  return "default";
 }
 
 function progressTone(pct: number, hasCheckin: boolean): { label: string; cls: string } {
@@ -79,7 +105,7 @@ function initials(name?: string | null): string {
 function TeamRow({ team }: { team: ObjectiveWithDetails }) {
   const [open, setOpen] = useState(false);
   const krs = team.key_results ?? [];
-  const pct = avgProgress(krs);
+  const pct = objectiveProgress(team, krs);
   const hasCheckin = krs.some((k) => k.last_checkin_at || Number(k.current_value ?? 0) > 0);
   const tone = progressTone(pct, hasCheckin);
   const teamName = team.team?.name || team.title.replace(/^OKR\s+/, "").replace(/\s+—.*$/, "");
@@ -125,8 +151,8 @@ function AreaCard({ area }: { area: ObjectiveWithDetails }) {
   const navigate = useNavigate();
   const teams = (area.children ?? []).filter((c) => c.type === "operational" || (c.children?.length ?? 0) === 0);
   const allKrs = collectKrs(area);
-  const pct = avgProgress(allKrs);
-  const color = areaColor(area.title);
+  const pct = objectiveProgress(area, allKrs);
+  const color = AREA_COLORS[areaColorKey(area)];
   const areaName = area.title.replace(/\s+—.*$/, "");
 
   return (
@@ -179,7 +205,7 @@ function AreaCard({ area }: { area: ObjectiveWithDetails }) {
 }
 
 export default function OkrOverview() {
-  const { data: objectives = [], isLoading } = useObjectives();
+  const { data: objectives = [], isLoading, isError, refetch } = useObjectives();
   const { data: periods = [] } = usePeriods();
   const [periodId, setPeriodId] = useState<string>("");
 
@@ -208,33 +234,35 @@ export default function OkrOverview() {
   }, [objectives, effectivePeriod]);
 
   const totals = useMemo(() => {
-    const krs = areas.flatMap(collectKrs);
     const teams = areas.reduce((s, a) => s + (a.children?.length ?? 0), 0);
-    return { objetivos: areas.length, times: teams, krs: krs.length, progresso: avgProgress(krs) };
+    const krCount = areas.reduce((s, a) => s + collectKrs(a).length, 0);
+    // Progresso médio = média do progresso (backend-first) de cada área, o que
+    // mantém o headline coerente com o número exibido em cada card.
+    const areaPcts = areas.map((a) => objectiveProgress(a, collectKrs(a)));
+    const progresso = areaPcts.length
+      ? Math.round(areaPcts.reduce((s, p) => s + p, 0) / areaPcts.length)
+      : 0;
+    return { objetivos: areas.length, times: teams, krs: krCount, progresso };
   }, [areas]);
 
   return (
     <AppLayout>
       <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="flex items-center gap-2 text-2xl font-bold">
-              <TrendingUp className="h-6 w-6 text-primary" />
-              Acompanhamento de OKRs
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Visão consolidada por área e time para gestão e cobrança.
-            </p>
-          </div>
-          <Select value={effectivePeriod} onValueChange={setPeriodId}>
-            <SelectTrigger className="w-48"><SelectValue placeholder="Período" /></SelectTrigger>
-            <SelectContent>
-              {periods.map((p) => (
-                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <PageHeader
+          title="Acompanhamento de OKRs"
+          description="Visão consolidada por área e time para gestão e cobrança."
+          icon={TrendingUp}
+          actions={
+            <Select value={effectivePeriod} onValueChange={setPeriodId}>
+              <SelectTrigger className="w-48"><SelectValue placeholder="Período" /></SelectTrigger>
+              <SelectContent>
+                {periods.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          }
+        />
 
         {/* Resumo */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -261,6 +289,15 @@ export default function OkrOverview() {
           <div className="space-y-4">
             {[1, 2, 3].map((i) => <Skeleton key={i} className="h-40 w-full" />)}
           </div>
+        ) : isError ? (
+          <Card>
+            <CardContent className="p-4">
+              <QueryError
+                message="Não foi possível carregar os OKRs."
+                onRetry={() => refetch()}
+              />
+            </CardContent>
+          </Card>
         ) : areas.length ? (
           <div className="space-y-4">
             {areas.map((area) => <AreaCard key={area.id} area={area} />)}

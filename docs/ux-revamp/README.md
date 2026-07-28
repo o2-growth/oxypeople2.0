@@ -53,3 +53,4 @@ implementador corrige → repete até APROVADO
 ## Log de decisões
 
 - 2026-07-28 — Kickoff. Orquestração direta (orquestrador + subagents com verify-loop), 4 fases, execução em 3 ondas.
+- 2026-07-28 — Princípio de tokens de cor (Onda 2): cor com **significado de domínio → token nomeado no tema** (ex.: OkrOverview `--okr-area-*` espelhando `departments.color`); cor **decorativa de rotação → const local** (ex.: `GROUP_COLORS` do board Monday em Objectives).
