@@ -9,9 +9,12 @@ import { TopRecognizedWidget } from "@/components/dashboard/TopRecognizedWidget"
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { useEffect, useRef } from "react";
 import { useUser } from "@/hooks/useUser";
 import { useIsManager } from "@/hooks/useIsManager";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { useDriverTour } from "@/hooks/useDriverTour";
+import { ONBOARDING_TOUR_ID, onboardingSteps } from "@/lib/tours";
 
 /**
  * Home por papel (Onda 3 — §3.2, padrão nº1 do benchmark).
@@ -30,6 +33,20 @@ const Index = () => {
 
   const roleLoading = isManagerLoading || permsLoading;
   const showTeamView = isManager || isAdmin;
+
+  // Tour de primeiro acesso do colaborador (§3.7): menu por papel + check-in +
+  // Pulse. Auto-start UMA vez a partir da Home (flag `tour:onboarding:v1`).
+  // Espera o papel carregar para que os grupos do menu já estejam renderizados,
+  // e dá um respiro para os widgets assíncronos (MyDay/Pulse) montarem. Passos
+  // com alvo ausente são pulados — o tour nunca bloqueia a Home.
+  const onboardingTour = useDriverTour(ONBOARDING_TOUR_ID, onboardingSteps);
+  const onboardingStarted = useRef(false);
+  useEffect(() => {
+    if (onboardingStarted.current || roleLoading) return;
+    onboardingStarted.current = true;
+    const t = window.setTimeout(() => onboardingTour.start(), 600);
+    return () => window.clearTimeout(t);
+  }, [roleLoading, onboardingTour]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
