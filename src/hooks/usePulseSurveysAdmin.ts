@@ -237,7 +237,9 @@ export function usePulseSurveysAdmin() {
   return {
     pulseSurveys: surveysQuery.data ?? [],
     isLoading: surveysQuery.isLoading,
+    isError: surveysQuery.isError,
     error: surveysQuery.error as Error | null,
+    refetch: surveysQuery.refetch,
     createPulse,
     updatePulse,
     togglePulse,
