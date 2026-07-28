@@ -12,6 +12,7 @@ import { ptBR } from "date-fns/locale";
 import { TopicsPanel } from "@/components/one-on-ones/TopicsPanel";
 import { NotesPanel } from "@/components/one-on-ones/NotesPanel";
 import { PreviousMeetings } from "@/components/one-on-ones/PreviousMeetings";
+import { LeaderObjectivesSection } from "@/components/one-on-ones/LeaderObjectivesSection";
 import { DownloadIcsButton } from "@/components/one-on-ones/DownloadIcsButton";
 import { useOneOnOneDetail } from "@/hooks/useOneOnOneDetail";
 
@@ -112,6 +113,10 @@ export default function OneOnOneDetail() {
 
         <div className="border rounded-lg p-4">
           <NotesPanel oneOnOneId={row.id} currentUserId={userId} isLeader={isLeader} />
+        </div>
+
+        <div className="border rounded-lg p-4">
+          <LeaderObjectivesSection memberId={row.member_id} memberName={memberName} />
         </div>
 
         <div className="border rounded-lg p-4">

@@ -26,6 +26,7 @@ import {
 import { useCreateCheckin, useCheckins, useOkrSettings } from "@/hooks/useCheckins";
 import { useUploadCheckinAttachments } from "@/hooks/useCheckinAttachments";
 import { AttachmentUploader } from "./AttachmentUploader";
+import { CheckinStreak } from "./CheckinStreak";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -237,6 +238,7 @@ export function CheckinDialog({ open, onOpenChange, keyResult }: CheckinDialogPr
                   <Clock className="h-4 w-4" />
                   Histórico ({checkins.length})
                 </h4>
+                <CheckinStreak checkins={checkins} className="px-0.5" />
                 <ScrollArea className="max-h-48">
                   <div className="space-y-2">
                     {checkins.map((checkin) => (
