@@ -37,7 +37,7 @@ import {
   usePulseSurveysAdmin,
   type PulseSurveyAdminRow,
 } from "@/hooks/usePulseSurveysAdmin";
-import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { useRequireAdmin } from "@/hooks/useRequireAdmin";
 import { PulseSurveyForm } from "@/components/admin/pulse/PulseSurveyForm";
 import type { PulseSurveyFormValues } from "@/lib/validation/pulseSurveySchema";
 
@@ -81,7 +81,9 @@ function isDispatchOverdue(row: PulseSurveyAdminRow): boolean {
 
 export default function PulseSurveysAdminPage() {
   const navigate = useNavigate();
-  const { isAdmin, isLoading: permsLoading } = useUserPermissions();
+  const { isAdmin, isLoading: permsLoading } = useRequireAdmin({
+    message: "Sem permissão para gerenciar pesquisas Pulse.",
+  });
   const {
     pulseSurveys,
     isLoading,
@@ -95,12 +97,6 @@ export default function PulseSurveysAdminPage() {
   const [editTarget, setEditTarget] = useState<PulseSurveyAdminRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PulseSurveyAdminRow | null>(null);
 
-  useEffect(() => {
-    if (!permsLoading && !isAdmin) {
-      toast.error("Sem permissão para gerenciar pesquisas Pulse.");
-      navigate("/", { replace: true });
-    }
-  }, [isAdmin, permsLoading, navigate]);
 
   if (permsLoading || !isAdmin) {
     return (
@@ -142,7 +138,7 @@ export default function PulseSurveysAdminPage() {
       <div className="space-y-6">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
+            <h1 className="text-2xl font-bold flex items-center gap-2">
               <Activity className="h-6 w-6" />
               Pesquisas Pulse
             </h1>

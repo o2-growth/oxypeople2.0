@@ -16,7 +16,7 @@ import {
 import { Loader2, MessageSquareQuote, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { useRequireAdmin } from "@/hooks/useRequireAdmin";
 import { useUser } from "@/hooks/useUser";
 import { useFeedbackMetrics } from "@/hooks/useFeedbackMetrics";
 import { trackEvent } from "@/lib/analytics";
@@ -47,7 +47,9 @@ interface DrilldownRow {
 
 export default function FeedbackAnalyticsPage() {
   const navigate = useNavigate();
-  const { isAdmin, isLoading: permsLoading } = useUserPermissions();
+  const { isAdmin, isLoading: permsLoading } = useRequireAdmin({
+    message: "Sem permissão para acessar analytics de feedback.",
+  });
   const { profile } = useUser();
   const companyId = profile?.primary_company_id;
 
@@ -62,12 +64,6 @@ export default function FeedbackAnalyticsPage() {
 
   const { data: metrics, isLoading } = useFeedbackMetrics(dateFrom, dateTo);
 
-  useEffect(() => {
-    if (!permsLoading && !isAdmin) {
-      toast.error("Sem permissão para acessar analytics de feedback.");
-      navigate("/", { replace: true });
-    }
-  }, [isAdmin, permsLoading, navigate]);
 
   useEffect(() => {
     if (metrics) trackEvent("feedback_analytics_viewed", { date_from: dateFrom, date_to: dateTo });
@@ -119,7 +115,7 @@ export default function FeedbackAnalyticsPage() {
       <div className="space-y-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
+            <h1 className="text-2xl font-bold flex items-center gap-2">
               <MessageSquareQuote className="h-6 w-6" />
               Analytics de Feedback
             </h1>
@@ -229,7 +225,7 @@ export default function FeedbackAnalyticsPage() {
                     </p>
                   )}
                   {row.declined_reason && (
-                    <p className="text-xs text-amber-600 italic">Motivo: {row.declined_reason}</p>
+                    <p className="text-xs text-warning italic">Motivo: {row.declined_reason}</p>
                   )}
                 </div>
               ))

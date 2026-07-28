@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { usePulseAnalytics, type PulseAnalyticsFilters } from "@/hooks/usePulseAnalytics";
-import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { useRequireAdmin } from "@/hooks/useRequireAdmin";
 import { PulseLineChart } from "@/components/admin/pulse/PulseLineChart";
 import { PulseFilters } from "@/components/admin/pulse/PulseFilters";
 import { PulseCommentsDrawer } from "@/components/admin/pulse/PulseCommentsDrawer";
@@ -56,14 +56,16 @@ function formatPeriod(value: string) {
 
 const ENPS_COLOR_CLASS: Record<string, string> = {
   destructive: "text-destructive",
-  amber: "text-amber-600",
-  emerald: "text-emerald-600",
+  amber: "text-warning",
+  emerald: "text-success",
 };
 
 export default function PulseAnalyticsPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { isAdmin, isLoading: permsLoading } = useUserPermissions();
+  const { isAdmin, isLoading: permsLoading } = useRequireAdmin({
+    message: "Sem permissão.",
+  });
 
   const [filters, setFilters] = useState<PulseAnalyticsFilters>({
     departmentIds: [],
@@ -74,12 +76,6 @@ export default function PulseAnalyticsPage() {
 
   const analytics = usePulseAnalytics(id, filters);
 
-  useEffect(() => {
-    if (!permsLoading && !isAdmin) {
-      toast.error("Sem permissão.");
-      navigate("/", { replace: true });
-    }
-  }, [isAdmin, permsLoading, navigate]);
 
   useEffect(() => {
     if (id) trackEvent("pulse_analytics_viewed", { pulse_survey_id: id });
@@ -125,8 +121,8 @@ export default function PulseAnalyticsPage() {
             <header className="flex flex-wrap items-start justify-between gap-3">
               <div className="space-y-1">
                 <div className="flex items-baseline gap-2">
-                  <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
-                    <Activity className="h-6 w-6 text-emerald-500" />
+                  <h1 className="text-2xl font-bold flex items-center gap-2">
+                    <Activity className="h-6 w-6 text-success" />
                     {pulse.name}
                   </h1>
                   {pulse.anonymous && (
@@ -215,9 +211,9 @@ export default function PulseAnalyticsPage() {
                 </div>
 
                 {blockedAnonymity ? (
-                  <Card className="border-amber-500/40 bg-amber-500/5">
+                  <Card className="border-warning/40 bg-warning/5">
                     <CardContent className="flex items-start gap-3 py-4">
-                      <ShieldAlert className="h-5 w-5 text-amber-600 mt-0.5" />
+                      <ShieldAlert className="h-5 w-5 text-warning mt-0.5" />
                       <div>
                         <p className="text-sm font-medium">Amostra muito pequena</p>
                         <p className="text-xs text-muted-foreground">

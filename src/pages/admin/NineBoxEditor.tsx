@@ -15,7 +15,7 @@ import { ArrowLeft, Loader2, Grid3X3, Lock, Info } from "lucide-react";
 import { toast } from "sonner";
 import { useNineBoxSnapshot } from "@/hooks/useNineBoxSnapshot";
 import { usePlacementMutations } from "@/hooks/usePlacementMutations";
-import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { useRequireAdmin } from "@/hooks/useRequireAdmin";
 import { NineBoxGrid } from "@/components/admin/nineBox/NineBoxGrid";
 import { NineBoxPool } from "@/components/admin/nineBox/NineBoxPool";
 
@@ -42,7 +42,9 @@ function parseDragSource(id: string | number): { type: "placement" | "pool"; raw
 export default function NineBoxEditorPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { isAdmin, isLoading: permsLoading } = useUserPermissions();
+  const { isAdmin, isLoading: permsLoading } = useRequireAdmin({
+    message: "Sem permissão.",
+  });
   const { data, isLoading } = useNineBoxSnapshot(id);
   const { updatePlacement, createPlacement, deletePlacement } = usePlacementMutations();
 
@@ -50,12 +52,6 @@ export default function NineBoxEditorPage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
 
-  useEffect(() => {
-    if (!permsLoading && !isAdmin) {
-      toast.error("Sem permissão.");
-      navigate("/", { replace: true });
-    }
-  }, [isAdmin, permsLoading, navigate]);
 
   const isLocked = useMemo(
     () => data?.snapshot ? data.snapshot.status !== "draft" : false,
@@ -163,7 +159,7 @@ export default function NineBoxEditorPage() {
           <>
             <header className="flex flex-wrap items-start justify-between gap-2">
               <div className="space-y-1">
-                <h1 className="flex items-center gap-2 text-2xl font-heading font-bold">
+                <h1 className="flex items-center gap-2 text-2xl font-bold">
                   <Grid3X3 className="h-6 w-6" />
                   {data.snapshot.name}
                 </h1>
@@ -181,9 +177,9 @@ export default function NineBoxEditorPage() {
             </header>
 
             {isLocked && (
-              <Card className="border-amber-500/40 bg-amber-500/5">
+              <Card className="border-warning/40 bg-warning/5">
                 <CardContent className="flex items-start gap-3 py-3">
-                  <Info className="h-4 w-4 text-amber-600 mt-0.5" />
+                  <Info className="h-4 w-4 text-warning mt-0.5" />
                   <p className="text-xs">
                     Este snapshot está {data.snapshot.status === "finalized" ? "finalizado" : "arquivado"}.
                     Para editar, volte e reabra como rascunho.

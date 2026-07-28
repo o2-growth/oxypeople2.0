@@ -48,7 +48,7 @@ import {
   useNineBoxSnapshots,
   type NineBoxSnapshotRow,
 } from "@/hooks/useNineBoxSnapshots";
-import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { useRequireAdmin } from "@/hooks/useRequireAdmin";
 import { CreateSnapshotDialog } from "@/components/admin/nineBox/CreateSnapshotDialog";
 import { cn } from "@/lib/utils";
 
@@ -75,7 +75,9 @@ function formatDate(value: string | null): string {
 
 export default function NineBoxPage() {
   const navigate = useNavigate();
-  const { isAdmin, isLoading: permsLoading } = useUserPermissions();
+  const { isAdmin, isLoading: permsLoading } = useRequireAdmin({
+    message: "Sem permissão para gerenciar Nine Box.",
+  });
   const {
     snapshots,
     isLoading,
@@ -89,12 +91,6 @@ export default function NineBoxPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<NineBoxSnapshotRow | null>(null);
 
-  useEffect(() => {
-    if (!permsLoading && !isAdmin) {
-      toast.error("Sem permissão para gerenciar Nine Box.");
-      navigate("/", { replace: true });
-    }
-  }, [isAdmin, permsLoading, navigate]);
 
   if (permsLoading || !isAdmin) {
     return (
@@ -117,7 +113,7 @@ export default function NineBoxPage() {
       <div className="mx-auto max-w-6xl space-y-4 py-2">
         <header className="flex items-start justify-between gap-3">
           <div>
-            <h1 className="flex items-center gap-2 text-2xl font-heading font-bold">
+            <h1 className="flex items-center gap-2 text-2xl font-bold">
               <Grid3X3 className="h-6 w-6" />
               Nine Box
             </h1>

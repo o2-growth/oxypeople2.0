@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Coffee, Download } from "lucide-react";
 import { toast } from "sonner";
-import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { useRequireAdmin } from "@/hooks/useRequireAdmin";
 import { useUser } from "@/hooks/useUser";
 import { useOneOnOnesDashboard } from "@/hooks/useOneOnOnesDashboard";
 import { trackEvent } from "@/lib/analytics";
+import { downloadCsv } from "@/lib/export-csv";
 import { FrequencyTable } from "@/components/admin/one-on-ones/FrequencyTable";
 import { TrendChart } from "@/components/admin/one-on-ones/TrendChart";
 
@@ -46,38 +47,27 @@ function KpiCard({ label, value, sub }: KpiCardProps) {
 // ─── CSV export ───────────────────────────────────────────────────────────────
 
 function exportCsv(rows: ReturnType<typeof import("@/hooks/useOneOnOnesDashboard").useOneOnOnesDashboard>["data"] extends infer D ? D extends { leaderStats: Array<infer R> } ? R[] : never : never) {
-  const header = "Gestor,Liderados,Agendadas,Completadas,% Completion,Ultima 1:1";
-  const body = rows
-    .map((r) => {
-      const lastDate = r.last_meeting_at
-        ? format(new Date(r.last_meeting_at), "yyyy-MM-dd")
-        : "";
-      const pct = r.scheduled === 0 ? "" : String(r.completion_pct);
-      return [
-        `"${r.leader_name.replace(/"/g, '""')}"`,
-        r.direct_reports,
-        r.scheduled,
-        r.completed,
-        pct,
-        lastDate,
-      ].join(",");
-    })
-    .join("\n");
-
-  const blob = new Blob([`${header}\n${body}`], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `one-on-ones-frequencia-${format(new Date(), "yyyy-MM-dd")}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
+  downloadCsv(
+    `one-on-ones-frequencia-${format(new Date(), "yyyy-MM-dd")}`,
+    ["Gestor", "Liderados", "Agendadas", "Completadas", "% Completion", "Ultima 1:1"],
+    rows.map((r) => [
+      r.leader_name,
+      r.direct_reports,
+      r.scheduled,
+      r.completed,
+      r.scheduled === 0 ? "" : String(r.completion_pct),
+      r.last_meeting_at ? format(new Date(r.last_meeting_at), "yyyy-MM-dd") : "",
+    ]),
+  );
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function OneOnOnesDashboardPage() {
   const navigate = useNavigate();
-  const { isAdmin, isLoading: permsLoading } = useUserPermissions();
+  const { isAdmin, isLoading: permsLoading } = useRequireAdmin({
+    message: "Sem permissão.",
+  });
   const { profile } = useUser();
   const companyId = profile?.primary_company_id;
 
@@ -94,12 +84,6 @@ export default function OneOnOnesDashboardPage() {
     : format(new Date(), "yyyy-MM-dd");
 
   // Admin gate
-  useEffect(() => {
-    if (!permsLoading && !isAdmin) {
-      toast.error("Sem permissão.");
-      navigate("/", { replace: true });
-    }
-  }, [isAdmin, permsLoading, navigate]);
 
   const { data, isLoading } = useOneOnOnesDashboard(companyId, dateFrom, dateTo);
 
@@ -137,7 +121,7 @@ export default function OneOnOnesDashboardPage() {
         {/* Header */}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
+            <h1 className="text-2xl font-bold flex items-center gap-2">
               <Coffee className="h-6 w-6" />
               Dashboard de Frequência — 1:1s
             </h1>

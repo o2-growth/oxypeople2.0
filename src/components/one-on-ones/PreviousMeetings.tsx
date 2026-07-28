@@ -2,14 +2,9 @@ import { useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
+import { ONE_ON_ONE_STATUS } from "@/components/shared/StatusBadge";
 import { Loader2, Clock, FileText, BookOpen, Lock, History } from "lucide-react";
 import { usePreviousMeetings } from "@/hooks/useOneOnOneHistory";
-
-const STATUS_BADGE: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
-  completed: { label: "Concluída", variant: "secondary" },
-  canceled: { label: "Cancelada", variant: "destructive" },
-  no_show: { label: "Não realizada", variant: "outline" },
-};
 
 interface Props {
   oneOnOneId: string;
@@ -40,7 +35,7 @@ export function PreviousMeetings({ oneOnOneId, leaderId, memberId, counterpartNa
       </h3>
       <div className="space-y-1">
         {items.map((row) => {
-          const status = STATUS_BADGE[row.status];
+          const status = ONE_ON_ONE_STATUS[row.status];
           return (
             <button
               key={row.id}

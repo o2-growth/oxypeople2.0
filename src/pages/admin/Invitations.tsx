@@ -37,7 +37,7 @@ import { Loader2, Mail, RotateCcw, Send, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { useInvitations, type PendingInvite } from "@/hooks/useInvitations";
 import { useDepartmentsWithDetails } from "@/hooks/useDepartmentsManager";
-import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { useRequireAdmin } from "@/hooks/useRequireAdmin";
 
 const DEPT_NONE_VALUE = "__none__";
 
@@ -51,7 +51,9 @@ function formatDateTime(value: string): string {
 
 export default function InvitationsAdminPage() {
   const navigate = useNavigate();
-  const { isAdmin, isLoading: permsLoading } = useUserPermissions();
+  const { isAdmin, isLoading: permsLoading } = useRequireAdmin({
+    message: "Sem permissão para gerenciar convites.",
+  });
   const { pendingInvites, isLoading, inviteUser, resendInvite, cancelInvite } = useInvitations();
   const { data: departments = [] } = useDepartmentsWithDetails();
 
@@ -60,12 +62,6 @@ export default function InvitationsAdminPage() {
   const [departmentId, setDepartmentId] = useState<string>(DEPT_NONE_VALUE);
   const [cancelTarget, setCancelTarget] = useState<PendingInvite | null>(null);
 
-  useEffect(() => {
-    if (!permsLoading && !isAdmin) {
-      toast.error("Sem permissão para gerenciar convites.");
-      navigate("/", { replace: true });
-    }
-  }, [isAdmin, permsLoading, navigate]);
 
   if (permsLoading || !isAdmin) {
     return (
@@ -107,7 +103,7 @@ export default function InvitationsAdminPage() {
     <AppLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
             <UserPlus className="h-6 w-6" />
             Convidar colaborador
           </h1>

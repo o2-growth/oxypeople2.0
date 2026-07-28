@@ -39,7 +39,7 @@ import {
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { useRequireAdmin } from "@/hooks/useRequireAdmin";
 import { useManagers, type ManagerMembershipRow } from "@/hooks/useManagers";
 import { MultiPersonSelector } from "@/components/objectives/MultiPersonSelector";
 
@@ -75,7 +75,9 @@ function collectSubtree(
 
 export default function ManagersAdminPage() {
   const navigate = useNavigate();
-  const { isAdmin, isLoading: permsLoading } = useUserPermissions();
+  const { isAdmin, isLoading: permsLoading } = useRequireAdmin({
+    message: "Sem permissão para gerenciar gestores.",
+  });
   const {
     members,
     directSubordinatesByUserId,
@@ -93,12 +95,6 @@ export default function ManagersAdminPage() {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkPicker, setBulkPicker] = useState<string[]>([]);
 
-  useEffect(() => {
-    if (!permsLoading && !isAdmin) {
-      toast.error("Sem permissão para gerenciar gestores.");
-      navigate("/", { replace: true });
-    }
-  }, [isAdmin, permsLoading, navigate]);
 
   const departmentOptions = useMemo(() => {
     const map = new Map<string, string>();
@@ -246,7 +242,7 @@ export default function ManagersAdminPage() {
       <div className="space-y-6">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
+            <h1 className="text-2xl font-bold flex items-center gap-2">
               <Network className="h-6 w-6" />
               Gestores
             </h1>

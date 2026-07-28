@@ -5,13 +5,14 @@ import { toast } from "sonner";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { useRequireAdmin } from "@/hooks/useRequireAdmin";
 import { useUser } from "@/hooks/useUser";
 import { usePDIDashboard } from "@/hooks/usePDIDashboard";
 import { DepartmentTable } from "@/components/admin/pdi/DepartmentTable";
 import { TopCompetencies } from "@/components/admin/pdi/TopCompetencies";
 import { AtRiskList } from "@/components/admin/pdi/AtRiskList";
 import { trackEvent } from "@/lib/analytics";
+import { downloadCsv } from "@/lib/export-csv";
 
 interface KpiCardProps {
   label: string;
@@ -37,17 +38,13 @@ function KpiCard({ label, value, icon }: KpiCardProps) {
 
 export default function PDIDashboardPage() {
   const navigate = useNavigate();
-  const { isAdmin, isLoading: permsLoading } = useUserPermissions();
+  const { isAdmin, isLoading: permsLoading } = useRequireAdmin({
+    message: "Sem permissão",
+  });
   const { profile } = useUser();
   const companyId = profile?.primary_company_id ?? "";
   const { data, isLoading } = usePDIDashboard(companyId);
 
-  useEffect(() => {
-    if (!permsLoading && !isAdmin) {
-      toast.error("Sem permissão");
-      navigate("/");
-    }
-  }, [isAdmin, permsLoading, navigate]);
 
   useEffect(() => {
     trackEvent("pdi_dashboard_viewed");
@@ -65,22 +62,18 @@ export default function PDIDashboardPage() {
 
   const exportCsv = () => {
     if (!data) return;
-    const header = "Área,Pessoas,Ativos,Concluídos,Progresso Médio,Cobertura %";
-    const rows = data.deptRows
-      .map(
-        (r) =>
-          `"${r.dept_name}",${r.people_count},${r.active_count},${r.completed_count},${r.avg_progress.toFixed(1)},${r.coverage_pct.toFixed(1)}`,
-      )
-      .join("\n");
-    const blob = new Blob([header + "\n" + rows], {
-      type: "text/csv;charset=utf-8",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "pdi-dashboard.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(
+      "pdi-dashboard",
+      ["Área", "Pessoas", "Ativos", "Concluídos", "Progresso Médio", "Cobertura %"],
+      data.deptRows.map((r) => [
+        r.dept_name,
+        r.people_count,
+        r.active_count,
+        r.completed_count,
+        r.avg_progress.toFixed(1),
+        r.coverage_pct.toFixed(1),
+      ]),
+    );
     trackEvent("pdi_dashboard_exported");
   };
 
@@ -90,7 +83,7 @@ export default function PDIDashboardPage() {
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2">
             <BookOpen className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl font-heading font-bold">PDI — Dashboard</h1>
+            <h1 className="text-2xl font-bold">PDI — Dashboard</h1>
           </div>
           <Button onClick={exportCsv} variant="outline" size="sm" disabled={!data}>
             <Download className="h-4 w-4 mr-1.5" />

@@ -5,6 +5,7 @@ import { ptBR } from "date-fns/locale";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { ONE_ON_ONE_STATUS } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -22,13 +23,6 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { OneOnOneRow } from "@/hooks/useOneOnOnes";
 import { DownloadIcsButton } from "./DownloadIcsButton";
-
-const STATUS_BADGE: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
-  scheduled: { label: "Agendada", variant: "default" },
-  completed: { label: "Concluída", variant: "secondary" },
-  canceled: { label: "Cancelada", variant: "destructive" },
-  no_show: { label: "Não compareceu", variant: "outline" },
-};
 
 const RECURRENCE_LABEL: Record<string, string> = {
   none: "",
@@ -102,7 +96,7 @@ export function OneOnOneList({ rows, currentUserId, onEdit, onCancel, onComplete
           const myRole = row.leader_id === currentUserId ? "Líder" : "Liderado";
           const isScheduled = row.status === "scheduled";
           const canComplete = isScheduled && isPast(parseISO(row.scheduled_at));
-          const status = STATUS_BADGE[row.status] ?? { label: row.status, variant: "outline" as const };
+          const status = ONE_ON_ONE_STATUS[row.status] ?? { label: row.status, variant: "outline" as const };
 
           return (
             <div key={row.id} className="flex items-start gap-4 p-4 hover:bg-muted/30 transition-colors">

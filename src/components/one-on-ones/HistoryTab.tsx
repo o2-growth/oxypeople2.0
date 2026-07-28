@@ -4,16 +4,11 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { ONE_ON_ONE_STATUS } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Search, Coffee, Clock, FileText, BookOpen, Lock } from "lucide-react";
 import { useOneOnOneHistory } from "@/hooks/useOneOnOneHistory";
-
-const STATUS_BADGE: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
-  completed: { label: "Concluída", variant: "secondary" },
-  canceled: { label: "Cancelada", variant: "destructive" },
-  no_show: { label: "Não realizada", variant: "outline" },
-};
 
 const ALL_STATUSES = ["completed", "canceled", "no_show"] as const;
 
@@ -60,7 +55,7 @@ export function HistoryTab({ currentUserId }: Props) {
         </div>
         <div className="flex gap-1.5 flex-wrap">
           {ALL_STATUSES.map((s) => {
-            const badge = STATUS_BADGE[s];
+            const badge = ONE_ON_ONE_STATUS[s];
             const active = statusFilter.includes(s);
             return (
               <Button
@@ -89,7 +84,7 @@ export function HistoryTab({ currentUserId }: Props) {
             {items.map((row) => {
               const counterpart =
                 row.leader_id === currentUserId ? row.member : row.leader;
-              const status = STATUS_BADGE[row.status];
+              const status = ONE_ON_ONE_STATUS[row.status];
 
               return (
                 <button

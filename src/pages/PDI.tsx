@@ -2,25 +2,17 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge, PDI_STATUS } from "@/components/shared/StatusBadge";
 import { Progress } from "@/components/ui/progress";
 import { Loader2, BookOpen, Plus } from "lucide-react";
 import { PDIForm } from "@/components/pdi/PDIForm";
 import { QueryError } from "@/components/QueryError";
-import { usePDIList, type PDIPlan, type PDIStatus } from "@/hooks/usePDI";
+import { usePDIList, type PDIPlan } from "@/hooks/usePDI";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-const STATUS_BADGE: Record<PDIStatus, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
-  draft: { label: "Rascunho", variant: "outline" },
-  active: { label: "Ativo", variant: "default" },
-  completed: { label: "Concluído", variant: "secondary" },
-  canceled: { label: "Cancelado", variant: "destructive" },
-};
-
 function PDICard({ plan }: { plan: PDIPlan }) {
   const navigate = useNavigate();
-  const status = STATUS_BADGE[plan.status];
 
   return (
     <div
@@ -34,9 +26,7 @@ function PDICard({ plan }: { plan: PDIPlan }) {
             <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{plan.description}</p>
           )}
         </div>
-        <Badge variant={status.variant} className="shrink-0">
-          {status.label}
-        </Badge>
+        <StatusBadge status={plan.status} map={PDI_STATUS} className="shrink-0" />
       </div>
 
       {plan.status === "active" && (
@@ -68,7 +58,7 @@ export default function PDIPage() {
       <div className="space-y-6 max-w-3xl">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
+            <h1 className="text-2xl font-bold flex items-center gap-2">
               <BookOpen className="h-6 w-6" />
               PDI
             </h1>

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { format, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { formatDateTime } from "@/lib/formatters";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,15 +12,6 @@ import { FeedbackVisibilityBadge } from "@/components/feedback/FeedbackVisibilit
 import { UserCell } from "@/components/feedback/UserCell";
 import { CreatePDIActionFromFeedback } from "@/components/feedback/CreatePDIActionFromFeedback";
 import { useAuth } from "@/contexts/AuthContext";
-
-function formatDate(v: string | null) {
-  if (!v) return "—";
-  try {
-    return format(parseISO(v), "dd MMM yyyy 'às' HH:mm", { locale: ptBR });
-  } catch {
-    return v;
-  }
-}
 
 export default function FeedbackDetailPage() {
   const navigate = useNavigate();
@@ -112,11 +102,11 @@ export default function FeedbackDetailPage() {
               )}
 
               {data.status === "answered" && data.response && (
-                <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-4">
+                <div className="rounded-md border border-success/30 bg-success/5 p-4">
                   <div className="mb-1 flex items-center justify-between">
-                    <p className="text-xs font-medium text-emerald-600">Resposta</p>
+                    <p className="text-xs font-medium text-success">Resposta</p>
                     <span className="text-xs text-muted-foreground">
-                      {formatDate(data.answered_at)}
+                      {formatDateTime(data.answered_at)}
                     </span>
                   </div>
                   <p className="text-sm whitespace-pre-line leading-relaxed">{data.response}</p>
@@ -132,12 +122,12 @@ export default function FeedbackDetailPage() {
 
               {data.status === "requested" && data.due_date && (
                 <p className="text-xs text-muted-foreground">
-                  Prazo: <strong>{formatDate(data.due_date)}</strong>
+                  Prazo: <strong>{formatDateTime(data.due_date)}</strong>
                 </p>
               )}
 
               <p className="text-xs text-muted-foreground">
-                Pedido criado em {formatDate(data.created_at)}.
+                Pedido criado em {formatDateTime(data.created_at)}.
               </p>
 
               {data.status === "answered" && (

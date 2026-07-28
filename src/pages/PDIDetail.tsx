@@ -2,10 +2,12 @@ import { useParams, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PDI_STATUS } from "@/components/shared/StatusBadge";
+import { TabCountBadge } from "@/components/shared/TabCountBadge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, BookOpen, ArrowLeft, UserCheck } from "lucide-react";
-import { usePDIDetail, useActivatePDI, useRefetchPDIDetail, useCompletePDI, type PDIStatus } from "@/hooks/usePDI";
+import { usePDIDetail, useActivatePDI, useRefetchPDIDetail, useCompletePDI } from "@/hooks/usePDI";
 import { usePDICompetencies } from "@/hooks/usePDICompetencies";
 import { usePDIActions } from "@/hooks/usePDIActions";
 import { CompetenciesList } from "@/components/pdi/CompetenciesList";
@@ -17,13 +19,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useNavigate as useNav } from "react-router-dom";
-
-const STATUS_BADGE: Record<PDIStatus, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
-  draft: { label: "Rascunho", variant: "outline" },
-  active: { label: "Ativo", variant: "default" },
-  completed: { label: "Concluído", variant: "secondary" },
-  canceled: { label: "Cancelado", variant: "destructive" },
-};
 
 export default function PDIDetail() {
   const { id } = useParams<{ id: string }>();
@@ -71,7 +66,7 @@ export default function PDIDetail() {
     );
   }
 
-  const status = STATUS_BADGE[plan.status];
+  const status = PDI_STATUS[plan.status];
   const isOwner = plan.user_id === userId;
   const canActivate = plan.status === "draft" && competencies.length >= 1 && isOwner;
   const canComplete = plan.status === "active" && plan.progress === 100 && isOwner;
@@ -90,7 +85,7 @@ export default function PDIDetail() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-heading font-bold flex items-center gap-2 flex-wrap">
+            <h1 className="text-xl font-bold flex items-center gap-2 flex-wrap">
               <BookOpen className="h-5 w-5 shrink-0" />
               {plan.title}
             </h1>
@@ -138,7 +133,7 @@ export default function PDIDetail() {
         </div>
 
         {plan.review_comment && (
-          <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <div className="rounded-md border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
             <strong>Ajustes solicitados pelo gestor:</strong>
             <p className="mt-1">{plan.review_comment}</p>
           </div>
@@ -165,19 +160,11 @@ export default function PDIDetail() {
           <TabsList>
             <TabsTrigger value="competencies">
               Competências
-              {competencies.length > 0 && (
-                <span className="ml-1.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold leading-none">
-                  {competencies.length}
-                </span>
-              )}
+              <TabCountBadge count={competencies.length} />
             </TabsTrigger>
             <TabsTrigger value="actions">
               Ações
-              {actions.length > 0 && (
-                <span className="ml-1.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold leading-none">
-                  {actions.length}
-                </span>
-              )}
+              <TabCountBadge count={actions.length} />
             </TabsTrigger>
             {competencies.length >= 3 && (
               <TabsTrigger value="radar">Mapa de Competências</TabsTrigger>
@@ -185,9 +172,7 @@ export default function PDIDetail() {
             {evidences.length > 0 && (
               <TabsTrigger value="evidences">
                 Evidências
-                <span className="ml-1.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold leading-none">
-                  {evidences.length}
-                </span>
+                <TabCountBadge count={evidences.length} />
               </TabsTrigger>
             )}
           </TabsList>

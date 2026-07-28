@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button as O2Button } from "@/components/o2/Button";
 import { O2Logo } from "@/components/o2/Logo";
+import { AuthBrandingPanel } from "@/components/auth/AuthBrandingPanel";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -153,36 +154,14 @@ const ResetPassword = () => {
   return (
     <div className="min-h-screen flex animate-fade-in">
       {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-hero relative overflow-hidden">
-        <div className="absolute inset-0 opacity-20" style={{
-          backgroundImage: `
-            linear-gradient(rgba(34, 197, 94, 0.1) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(34, 197, 94, 0.1) 1px, transparent 1px)
-          `,
-          backgroundSize: '50px 50px'
-        }} />
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl" />
-
-        <div className="relative z-10 flex flex-col justify-center px-12 lg:px-16">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-accent-glow p-2.5">
-              <O2Logo variant="icon" forceTheme="dark" className="h-full w-full" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-heading font-bold text-white">Oxy People</h1>
-              <p className="text-white/70">by O2 Inc</p>
-            </div>
-          </div>
-
-          <h2 className="text-4xl lg:text-5xl font-heading font-bold text-white leading-tight mb-6">
+      <AuthBrandingPanel
+        headline={
+          <>
             Defina sua <span className="text-primary">nova senha</span>
-          </h2>
-
-          <p className="text-lg text-white/80 max-w-md">
-            Use uma senha forte e única para proteger sua conta.
-          </p>
-        </div>
-      </div>
+          </>
+        }
+        description="Use uma senha forte e única para proteger sua conta."
+      />
 
       {/* Right Side - Form */}
       <div className="flex-1 flex items-center justify-center p-6 lg:p-12 bg-background">
@@ -191,12 +170,12 @@ const ResetPassword = () => {
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-accent-glow p-2">
               <O2Logo variant="icon" forceTheme="dark" className="h-full w-full" />
             </div>
-            <span className="text-2xl font-heading font-bold">Oxy People</span>
+            <span className="text-2xl font-bold">Oxy People</span>
           </div>
 
           <Card className="border-0 shadow-xl animate-slide-up">
             <CardHeader className="space-y-1 pb-6">
-              <CardTitle className="text-2xl font-heading">Nova senha</CardTitle>
+              <CardTitle className="text-2xl">Nova senha</CardTitle>
               <CardDescription>
                 {linkInvalid
                   ? invalidReason === "expired"

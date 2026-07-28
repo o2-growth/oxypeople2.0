@@ -27,7 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2, Loader2, CalendarRange } from "lucide-react";
 import { toast } from "sonner";
 import { usePeriodsAdmin, type PeriodAdminRow } from "@/hooks/usePeriodsAdmin";
-import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { useRequireAdmin } from "@/hooks/useRequireAdmin";
 import { PeriodFormDialog } from "@/components/admin/periods/PeriodFormDialog";
 
 function formatPeriodDate(value: string): string {
@@ -40,19 +40,15 @@ function formatPeriodDate(value: string): string {
 
 export default function PeriodsAdminPage() {
   const navigate = useNavigate();
-  const { isAdmin, isLoading: permsLoading } = useUserPermissions();
+  const { isAdmin, isLoading: permsLoading } = useRequireAdmin({
+    message: "Sem permissão para gerenciar períodos.",
+  });
   const { periods, isLoading, createPeriod, updatePeriod, deletePeriod } = usePeriodsAdmin();
 
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<PeriodAdminRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PeriodAdminRow | null>(null);
 
-  useEffect(() => {
-    if (!permsLoading && !isAdmin) {
-      toast.error("Sem permissão para gerenciar períodos.");
-      navigate("/", { replace: true });
-    }
-  }, [isAdmin, permsLoading, navigate]);
 
   if (permsLoading || !isAdmin) {
     return (
@@ -94,7 +90,7 @@ export default function PeriodsAdminPage() {
       <div className="space-y-6">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
+            <h1 className="text-2xl font-bold flex items-center gap-2">
               <CalendarRange className="h-6 w-6" />
               Períodos
             </h1>

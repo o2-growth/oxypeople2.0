@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ONE_ON_ONE_STATUS } from "@/components/shared/StatusBadge";
 import { Loader2, Coffee, ArrowLeft, MapPin, Clock, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,13 +14,6 @@ import { NotesPanel } from "@/components/one-on-ones/NotesPanel";
 import { PreviousMeetings } from "@/components/one-on-ones/PreviousMeetings";
 import { DownloadIcsButton } from "@/components/one-on-ones/DownloadIcsButton";
 import type { OneOnOneRow } from "@/hooks/useOneOnOnes";
-
-const STATUS_BADGE: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
-  scheduled: { label: "Agendada", variant: "default" },
-  completed: { label: "Concluída", variant: "secondary" },
-  canceled: { label: "Cancelada", variant: "destructive" },
-  no_show: { label: "Não realizada", variant: "outline" },
-};
 
 export default function OneOnOneDetail() {
   const { id } = useParams<{ id: string }>();
@@ -76,7 +70,7 @@ export default function OneOnOneDetail() {
   const leaderName = row.leader?.full_name ?? "Líder";
   const memberName = row.member?.full_name ?? "Liderado";
   const dateStr = format(parseISO(row.scheduled_at), "EEEE, d 'de' MMMM yyyy 'às' HH:mm", { locale: ptBR });
-  const status = STATUS_BADGE[row.status] ?? { label: row.status, variant: "outline" as const };
+  const status = ONE_ON_ONE_STATUS[row.status] ?? { label: row.status, variant: "outline" as const };
 
   return (
     <AppLayout>
@@ -86,7 +80,7 @@ export default function OneOnOneDetail() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-heading font-bold flex items-center gap-2 flex-wrap">
+            <h1 className="text-xl font-bold flex items-center gap-2 flex-wrap">
               <Coffee className="h-5 w-5 shrink-0" />
               {leaderName} × {memberName}
             </h1>

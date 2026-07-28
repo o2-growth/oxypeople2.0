@@ -17,7 +17,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle, Bell, Clock, Loader2, Play, Siren } from "lucide-react";
 import { toast } from "sonner";
 import { useOkrEscalation, type OkrEscalationReport } from "@/hooks/useOkrEscalation";
-import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { useRequireAdmin } from "@/hooks/useRequireAdmin";
 
 interface RunHistoryEntry {
   ranAt: Date;
@@ -30,19 +30,15 @@ interface RunHistoryEntry {
 
 export default function OkrEscalationPage() {
   const navigate = useNavigate();
-  const { isAdmin, isLoading: permsLoading } = useUserPermissions();
+  const { isAdmin, isLoading: permsLoading } = useRequireAdmin({
+    message: "Sem permissão para acessar escalação automática.",
+  });
   const escalation = useOkrEscalation();
 
   const [history, setHistory] = useState<RunHistoryEntry[]>([]);
   const [lastReport, setLastReport] = useState<OkrEscalationReport | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!permsLoading && !isAdmin) {
-      toast.error("Sem permissão para acessar escalação automática.");
-      navigate("/", { replace: true });
-    }
-  }, [isAdmin, permsLoading, navigate]);
 
   const handleRun = async () => {
     setLastError(null);
@@ -87,7 +83,7 @@ export default function OkrEscalationPage() {
     <AppLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
             <Siren className="h-6 w-6" />
             Escalação automática de OKRs
           </h1>

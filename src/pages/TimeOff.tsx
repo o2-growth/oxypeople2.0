@@ -25,6 +25,7 @@ import {
 } from "@/hooks/useTimeOff";
 import { TimeOffForm } from "@/components/time-off/TimeOffForm";
 import { QueryError } from "@/components/QueryError";
+import { TabCountBadge } from "@/components/shared/TabCountBadge";
 import {
   computeAlert, ALERT_MODE_LABELS, type AlertMode, type AlertSettings,
   type AlertLevel, DEFAULT_ALERT_SETTINGS,
@@ -113,7 +114,7 @@ export default function TimeOffPage() {
       <div className="space-y-6">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
+            <h1 className="text-2xl font-bold flex items-center gap-2">
               <Palmtree className="h-6 w-6" />
               Férias / Ausências
             </h1>
@@ -142,14 +143,10 @@ export default function TimeOffPage() {
           <TabsList>
             <TabsTrigger value="history">Histórico</TabsTrigger>
             <TabsTrigger value="overdue">
-              Falta tirar{overdue.length > 0 && (
-                <span className="ml-1.5 rounded-full bg-destructive/15 px-1.5 py-0.5 text-[10px] font-semibold leading-none">{overdue.length}</span>
-              )}
+              Falta tirar<TabCountBadge count={overdue.length} tone="destructive" />
             </TabsTrigger>
             <TabsTrigger value="soon">
-              Próximos{soon.length > 0 && (
-                <span className="ml-1.5 rounded-full bg-warning/15 px-1.5 py-0.5 text-[10px] font-semibold leading-none">{soon.length}</span>
-              )}
+              Próximos<TabCountBadge count={soon.length} tone="warning" />
             </TabsTrigger>
           </TabsList>
 

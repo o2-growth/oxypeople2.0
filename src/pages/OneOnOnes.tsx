@@ -7,19 +7,11 @@ import { Loader2, Coffee, Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOneOnOnes, type OneOnOneRow } from "@/hooks/useOneOnOnes";
 import { QueryError } from "@/components/QueryError";
+import { TabCountBadge } from "@/components/shared/TabCountBadge";
 import { OneOnOneForm } from "@/components/one-on-ones/OneOnOneForm";
 import { OneOnOneList } from "@/components/one-on-ones/OneOnOneList";
 import { HistoryTab } from "@/components/one-on-ones/HistoryTab";
 import type { OneOnOneFormValues } from "@/lib/validation/oneOnOneSchema";
-
-function tabCount(n: number) {
-  if (n === 0) return null;
-  return (
-    <span className="ml-1.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold leading-none">
-      {n}
-    </span>
-  );
-}
 
 export default function OneOnOnesPage() {
   const { user } = useAuth();
@@ -67,7 +59,7 @@ export default function OneOnOnesPage() {
       <div className="space-y-6">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
+            <h1 className="text-2xl font-bold flex items-center gap-2">
               <Coffee className="h-6 w-6" />
               1:1s
             </h1>
@@ -94,10 +86,10 @@ export default function OneOnOnesPage() {
           <Tabs defaultValue={todayRows.length > 0 ? "today" : "upcoming"}>
             <TabsList>
               <TabsTrigger value="upcoming">
-                Próximas{tabCount(upcomingRows.length)}
+                Próximas<TabCountBadge count={upcomingRows.length} />
               </TabsTrigger>
               <TabsTrigger value="today">
-                Hoje{tabCount(todayRows.length)}
+                Hoje<TabCountBadge count={todayRows.length} />
               </TabsTrigger>
               <TabsTrigger value="history">Histórico</TabsTrigger>
             </TabsList>

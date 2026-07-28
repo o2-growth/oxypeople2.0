@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Search, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
-import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { useRequireAdmin } from "@/hooks/useRequireAdmin";
 import {
   useOkrAccessLevels,
   useUpdateOkrAccessLevel,
@@ -53,18 +53,14 @@ const LEVEL_VARIANT: Record<OkrAccessLevel, "default" | "secondary" | "outline">
 
 export default function OkrAccessAdminPage() {
   const navigate = useNavigate();
-  const { isAdmin, isLoading: permsLoading } = useUserPermissions();
+  const { isAdmin, isLoading: permsLoading } = useRequireAdmin({
+    message: "Sem permissão para gerenciar acesso a OKR.",
+  });
   const { rows, isLoading } = useOkrAccessLevels();
   const updateLevel = useUpdateOkrAccessLevel();
 
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    if (!permsLoading && !isAdmin) {
-      toast.error("Sem permissão para gerenciar acesso a OKR.");
-      navigate("/", { replace: true });
-    }
-  }, [isAdmin, permsLoading, navigate]);
 
   const counts = useMemo(() => {
     const c = { manager: 0, contributor: 0, restricted: 0 };
@@ -104,7 +100,7 @@ export default function OkrAccessAdminPage() {
     <AppLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
             <ShieldCheck className="h-6 w-6" />
             Acesso a OKR
           </h1>
