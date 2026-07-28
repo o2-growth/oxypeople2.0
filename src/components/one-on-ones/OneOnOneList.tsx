@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { format, parseISO, isPast } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQueryClient } from "@tanstack/react-query";
@@ -52,6 +53,7 @@ export function OneOnOneList({ rows, currentUserId, onEdit, onCancel, onComplete
   const [isStoppingSeries, setIsStoppingSeries] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [listRef] = useAutoAnimate<HTMLDivElement>();
 
   if (rows.length === 0) {
     return (
@@ -89,7 +91,7 @@ export function OneOnOneList({ rows, currentUserId, onEdit, onCancel, onComplete
 
   return (
     <>
-      <div className="divide-y divide-border rounded-lg border">
+      <div ref={listRef} className="divide-y divide-border rounded-lg border">
         {rows.map((row) => {
           const counterpart =
             row.leader_id === currentUserId ? row.member : row.leader;
@@ -167,7 +169,7 @@ export function OneOnOneList({ rows, currentUserId, onEdit, onCancel, onComplete
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8 text-green-600 hover:text-green-700"
+                        className="h-8 w-8 text-success hover:text-success/80"
                         onClick={() => onComplete(row.id)}
                         disabled={isMutating}
                         title="Marcar como concluída"
@@ -199,7 +201,7 @@ export function OneOnOneList({ rows, currentUserId, onEdit, onCancel, onComplete
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8 text-muted-foreground hover:text-orange-600"
+                        className="h-8 w-8 text-muted-foreground hover:text-warning"
                         onClick={() => setStopSeriesTarget(row)}
                         disabled={isMutating}
                         title="Parar série"

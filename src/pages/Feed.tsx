@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { useCompanyEvents, type CompanyEvent } from "@/hooks/useCompanyEvents";
 import { useHRCalendar } from "@/hooks/useHRCalendar";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
@@ -26,15 +27,11 @@ const Feed = () => {
   return (
     <AppLayout>
       <div className="mx-auto max-w-7xl space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold mb-1">Mural da Empresa</h1>
-            <p className="text-muted-foreground text-sm">
-              Eventos, comunicados e tudo que está acontecendo
-            </p>
-          </div>
-          {isAdmin && <CreateEventDialog />}
-        </div>
+        <PageHeader
+          title="Mural da Empresa"
+          description="Eventos, comunicados e tudo que está acontecendo"
+          actions={isAdmin ? <CreateEventDialog /> : undefined}
+        />
 
         <section>
           <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">

@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { isToday, parseISO, isFuture } from "date-fns";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Coffee, Plus } from "lucide-react";
+import { Coffee, Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOneOnOnes, type OneOnOneRow } from "@/hooks/useOneOnOnes";
 import { QueryError } from "@/components/QueryError";
@@ -56,26 +58,24 @@ export default function OneOnOnesPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Coffee className="h-6 w-6" />
-              1:1s
-            </h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Reuniões recorrentes entre líder e liderado.
-            </p>
-          </div>
-          <Button onClick={openCreate} className="gap-1.5">
-            <Plus className="h-4 w-4" />
-            Agendar 1:1
-          </Button>
-        </div>
+      <div className="space-y-6 max-w-3xl">
+        <PageHeader
+          icon={Coffee}
+          title="1:1s"
+          description="Reuniões recorrentes entre líder e liderado."
+          actions={
+            <Button onClick={openCreate} className="gap-1.5">
+              <Plus className="h-4 w-4" />
+              Agendar 1:1
+            </Button>
+          }
+        />
 
         {list.isLoading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-20 w-full rounded-lg" />
+            ))}
           </div>
         ) : list.isError ? (
           <QueryError
