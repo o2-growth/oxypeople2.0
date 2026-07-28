@@ -43,7 +43,7 @@ export function usePerformanceCycles() {
   const queryClient = useQueryClient();
   const companyId = profile?.primary_company_id;
 
-  const { data: cycles, isLoading, error } = useQuery({
+  const { data: cycles, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["performance-cycles", companyId],
     queryFn: async () => {
       if (!companyId) return [];
@@ -137,7 +137,9 @@ export function usePerformanceCycles() {
   return {
     cycles: cycles || [],
     isLoading,
+    isError,
     error,
+    refetch,
     createCycle,
     updateCycle,
     deleteCycle,

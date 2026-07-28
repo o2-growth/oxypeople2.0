@@ -52,7 +52,7 @@ export function useEvaluations(cycleId?: string) {
   const companyId = profile?.primary_company_id;
 
   // Avaliações do admin (todas do ciclo ou empresa)
-  const { data: allEvaluations, isLoading: isLoadingAll } = useQuery({
+  const { data: allEvaluations, isLoading: isLoadingAll, isError: isErrorAll, refetch: refetchAll } = useQuery({
     queryKey: ["evaluations", "all", companyId, cycleId],
     queryFn: async () => {
       if (!companyId) return [];
@@ -80,7 +80,7 @@ export function useEvaluations(cycleId?: string) {
   });
 
   // Avaliações do usuário atual (pendentes e histórico)
-  const { data: myEvaluations, isLoading: isLoadingMy } = useQuery({
+  const { data: myEvaluations, isLoading: isLoadingMy, isError: isErrorMy, refetch: refetchMy } = useQuery({
     queryKey: ["evaluations", "my", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
@@ -166,6 +166,11 @@ export function useEvaluations(cycleId?: string) {
     pendingEvaluations,
     completedEvaluations,
     isLoading: isLoadingAll || isLoadingMy,
+    isError: isErrorAll || isErrorMy,
+    refetch: () => {
+      refetchAll();
+      refetchMy();
+    },
     createEvaluation,
     updateEvaluation,
   };
