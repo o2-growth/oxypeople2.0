@@ -93,11 +93,12 @@ export function usePeopleStats() {
         return { total: 0, active: 0, newThisMonth: 0, departments: 0 };
       }
 
-      // Get total and active count
+      // Get total and active count — "Total" reflete o quadro atual (exclui desligados)
       const { count: total } = await supabase
         .from("company_memberships")
         .select("*", { count: "exact", head: true })
-        .eq("company_id", companyId);
+        .eq("company_id", companyId)
+        .neq("status", "inactive");
 
       const { count: active } = await supabase
         .from("company_memberships")
