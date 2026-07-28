@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart3, Award } from "lucide-react";
 import { CreateNPSSurveyCard } from "@/components/surveys/CreateNPSSurveyCard";
 import { NPSSurveyCard } from "@/components/surveys/NPSSurveyCard";
@@ -9,12 +9,12 @@ import { NPSResponseDialog } from "@/components/surveys/NPSResponseDialog";
 import { CreateGPTWSurveyCard } from "@/components/surveys/CreateGPTWSurveyCard";
 import { GPTWSurveyCard } from "@/components/surveys/GPTWSurveyCard";
 import { GPTWResponseDialog } from "@/components/surveys/GPTWResponseDialog";
+import { SurveyTab } from "@/components/surveys/SurveyTab";
 import {
   useNPSSurveys,
   useActiveNPSSurveys,
   useMyNPSResponses,
   NPSSurvey,
-  calculateNPSMetrics,
 } from "@/hooks/useNPSSurveys";
 import {
   useGPTWSurveys,
@@ -26,169 +26,90 @@ import {
 } from "@/hooks/useGPTWSurveys";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 
-function ENPSTab() {
-  const [selectedSurvey, setSelectedSurvey] = useState<NPSSurvey | null>(null);
-  const [responseDialogOpen, setResponseDialogOpen] = useState(false);
-  const { isAdmin } = useUserPermissions();
-  const { data: allNPSSurveys } = useNPSSurveys();
-  const { data: activeSurveys } = useActiveNPSSurveys();
-  const { data: myResponses } = useMyNPSResponses();
+/** Elemento das respostas do usuário (linha da resposta + pesquisa embutida), tipado a partir do hook. */
+type MyNPSResponse = NonNullable<ReturnType<typeof useMyNPSResponses>["data"]>[number];
+type MyGPTWResponse = NonNullable<ReturnType<typeof useMyGPTWResponses>["data"]>[number];
 
-  const handleRespond = (survey: NPSSurvey) => {
-    setSelectedSurvey(survey);
-    setResponseDialogOpen(true);
-  };
+function ENPSTab() {
+  const { isAdmin, isLoading: permissionsLoading } = useUserPermissions();
+  const allSurveys = useNPSSurveys();
+  const activeSurveys = useActiveNPSSurveys();
+  const myResponses = useMyNPSResponses();
+  const navigate = useNavigate();
 
   return (
-    <div className="space-y-6">
-      {isAdmin && <CreateNPSSurveyCard />}
-
-      {activeSurveys && activeSurveys.length > 0 && (
-        <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-accent/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary" />
-              Pesquisas Pendentes para Responder
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {activeSurveys.map((survey) => (
-                <NPSSurveyCard
-                  key={survey.id}
-                  survey={survey}
-                  onRespond={() => handleRespond(survey)}
-                  hasResponded={false}
-                />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+    <SurveyTab<NPSSurvey, MyNPSResponse>
+      icon={BarChart3}
+      isAdmin={isAdmin}
+      permissionsLoading={permissionsLoading}
+      allSurveys={allSurveys}
+      activeSurveys={activeSurveys}
+      myResponses={myResponses}
+      labels={{
+        createdSectionTitle: "Pesquisas e-NPS Criadas",
+        myResponsesSectionTitle: "Minhas Respostas NPS",
+        emptyTitle: "Nenhuma pesquisa e-NPS no momento",
+        emptyDescription:
+          "Quando o RH publicar uma pesquisa e-NPS direcionada a você, ela aparecerá aqui para resposta.",
+      }}
+      renderCreate={() => <CreateNPSSurveyCard />}
+      renderActiveCard={(survey, onRespond) => (
+        <NPSSurveyCard survey={survey} onRespond={onRespond} hasResponded={false} />
       )}
-
-      {isAdmin && allNPSSurveys && allNPSSurveys.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Pesquisas e-NPS Criadas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {allNPSSurveys.map((survey) => (
-                <NPSSurveyCard
-                  key={survey.id}
-                  survey={survey}
-                  showAdminActions
-                  onViewResults={() => (window.location.href = "/hr")}
-                />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+      renderAdminCard={(survey) => (
+        <NPSSurveyCard survey={survey} showAdminActions onViewResults={() => navigate("/hr")} />
       )}
-
-      {!isAdmin && myResponses && myResponses.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Minhas Respostas NPS</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {myResponses.map((response: any) => (
-                <NPSSurveyCard key={response.id} survey={response.survey} hasResponded />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+      renderResponseCard={(response) => (
+        <NPSSurveyCard survey={response.survey} hasResponded />
       )}
-
-      <NPSResponseDialog
-        survey={selectedSurvey}
-        open={responseDialogOpen}
-        onOpenChange={setResponseDialogOpen}
-      />
-    </div>
+      renderResponseDialog={({ survey, open, onOpenChange }) => (
+        <NPSResponseDialog survey={survey} open={open} onOpenChange={onOpenChange} />
+      )}
+    />
   );
 }
 
 function GPTWTab() {
-  const [selectedSurvey, setSelectedSurvey] = useState<GPTWSurvey | null>(null);
-  const [responseDialogOpen, setResponseDialogOpen] = useState(false);
-  const { isAdmin } = useUserPermissions();
-  const { data: allSurveys } = useGPTWSurveys();
-  const { data: activeSurveys } = useActiveGPTWSurveys();
-  const { data: myResponses } = useMyGPTWResponses();
-
-  const handleRespond = (survey: GPTWSurvey) => {
-    setSelectedSurvey(survey);
-    setResponseDialogOpen(true);
-  };
+  const { isAdmin, isLoading: permissionsLoading } = useUserPermissions();
+  const allSurveys = useGPTWSurveys();
+  const activeSurveys = useActiveGPTWSurveys();
+  const myResponses = useMyGPTWResponses();
 
   return (
-    <div className="space-y-6">
-      {isAdmin && <CreateGPTWSurveyCard />}
-
-      {activeSurveys && activeSurveys.length > 0 && (
-        <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-accent/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Award className="h-5 w-5 text-primary" />
-              Pesquisas Pendentes para Responder
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {activeSurveys.map((survey) => (
-                <GPTWSurveyCard
-                  key={survey.id}
-                  survey={survey}
-                  onRespond={() => handleRespond(survey)}
-                  hasResponded={false}
-                />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+    <SurveyTab<GPTWSurvey, MyGPTWResponse>
+      icon={Award}
+      isAdmin={isAdmin}
+      permissionsLoading={permissionsLoading}
+      allSurveys={allSurveys}
+      activeSurveys={activeSurveys}
+      myResponses={myResponses}
+      labels={{
+        createdSectionTitle: "Pesquisas GPTW Criadas",
+        myResponsesSectionTitle: "Minhas Respostas GPTW",
+        emptyTitle: "Nenhuma pesquisa GPTW no momento",
+        emptyDescription:
+          "Quando o RH publicar uma pesquisa GPTW direcionada a você, ela aparecerá aqui para resposta.",
+      }}
+      renderCreate={() => <CreateGPTWSurveyCard />}
+      renderActiveCard={(survey, onRespond) => (
+        <GPTWSurveyCard survey={survey} onRespond={onRespond} hasResponded={false} />
       )}
-
-      {isAdmin && allSurveys && allSurveys.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Pesquisas GPTW Criadas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {allSurveys.map((survey) => (
-                <GPTWSurveyCardWithMetrics key={survey.id} survey={survey} />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+      renderAdminCard={(survey) => <GPTWSurveyCardWithMetrics survey={survey} />}
+      renderResponseCard={(response) => (
+        <GPTWSurveyCard survey={response.survey} hasResponded />
       )}
-
-      {!isAdmin && myResponses && myResponses.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Minhas Respostas GPTW</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {myResponses.map((response: any) => (
-                <GPTWSurveyCard key={response.id} survey={response.survey} hasResponded />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+      renderResponseDialog={({ survey, open, onOpenChange }) => (
+        <GPTWResponseDialog survey={survey} open={open} onOpenChange={onOpenChange} />
       )}
-
-      <GPTWResponseDialog
-        survey={selectedSurvey}
-        open={responseDialogOpen}
-        onOpenChange={setResponseDialogOpen}
-      />
-    </div>
+    />
   );
 }
 
+/**
+ * Card de pesquisa GPTW (admin) que busca as respostas e calcula as métricas.
+ * A lógica de cálculo (`calculateGPTWMetrics`) permanece no hook — aqui só
+ * conectamos o resultado ao card.
+ */
 function GPTWSurveyCardWithMetrics({ survey }: { survey: GPTWSurvey }) {
   const { data: responses } = useGPTWSurveyResponses(survey.id);
   const metrics = responses ? calculateGPTWMetrics(responses) : undefined;
@@ -201,14 +122,14 @@ export default function Surveys() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Pesquisas</h1>
-          <p className="text-muted-foreground mt-1">
-            {isAdmin
+        <PageHeader
+          title="Pesquisas"
+          description={
+            isAdmin
               ? "Crie pesquisas e acompanhe os resultados"
-              : "Participe das pesquisas e acompanhe suas respostas"}
-          </p>
-        </div>
+              : "Participe das pesquisas e acompanhe suas respostas"
+          }
+        />
 
         <Tabs defaultValue="enps" className="w-full">
           <TabsList>
