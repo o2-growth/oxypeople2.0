@@ -14,6 +14,7 @@ import { useCheckins, useOkrSettings } from "@/hooks/useCheckins";
 import { useOkrTier } from "@/hooks/useOkrTier";
 import { useAuth } from "@/contexts/AuthContext";
 import { collectMyKrs, krProgress, DEFAULT_CHECKIN_OVERDUE_DAYS, type MyKr } from "@/lib/my-okrs";
+import { formatKrValue } from "@/lib/kr-progress";
 
 /** Um KR meu: título, contexto, barra, valor→meta, streak e check-in em 1 clique. */
 function MyKrCard({ item, canCheckin }: { item: MyKr; canCheckin: boolean }) {
@@ -52,13 +53,19 @@ function MyKrCard({ item, canCheckin }: { item: MyKr; canCheckin: boolean }) {
 
             <div className="flex items-center gap-3">
               <Progress value={pct} className="h-2 flex-1" />
-              <span className="w-10 shrink-0 text-right text-xs font-semibold tabular-nums">{pct}%</span>
+              <span className="w-10 shrink-0 text-right text-sm font-bold tabular-nums">{pct}%</span>
               <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground tabular-nums">
-                {Number(kr.current_value)} / {Number(kr.target_value)} {kr.unit || ""}
+                {kr.kr_type === "binary"
+                  ? (done ? "Concluído" : "Não concluído")
+                  : `${formatKrValue(kr.current_value, kr.kr_type, kr.unit)} / ${formatKrValue(kr.target_value, kr.kr_type, kr.unit)}`}
               </span>
             </div>
 
-            <CheckinStreak checkins={checkins} lastCheckinAt={kr.last_checkin_at} />
+            {kr.last_checkin_at || checkins.length ? (
+              <CheckinStreak checkins={checkins} lastCheckinAt={kr.last_checkin_at} />
+            ) : (
+              <p className="text-xs text-muted-foreground">Ainda sem check-in</p>
+            )}
           </div>
 
           {canCheckin && (
@@ -87,6 +94,8 @@ function MyKrCard({ item, canCheckin }: { item: MyKr; canCheckin: boolean }) {
             initial_value: Number(kr.initial_value),
             unit: kr.unit,
             objective_id: kr.objective_id,
+            kr_type: kr.kr_type,
+            direction: kr.direction,
           }}
         />
       )}

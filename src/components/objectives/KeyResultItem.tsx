@@ -47,6 +47,7 @@ import { useCheckins } from "@/hooks/useCheckins";
 import { useActions, useCreateAction, getWeekBucket, formatWeekLabel } from "@/hooks/useActions";
 import { useDeleteKeyResult } from "@/hooks/useObjectives";
 import { useAuth } from "@/contexts/AuthContext";
+import { krProgress } from "@/lib/kr-progress";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -95,11 +96,15 @@ export function KeyResultItem({ keyResult, canEdit = false, canCheckin = false, 
   const [expanded, setExpanded] = useState(false);
   const deleteKR = useDeleteKeyResult();
 
-  const initialValue = keyResult.initial_value || 0;
-  const range = keyResult.target_value - initialValue;
-  const progress = range > 0
-    ? Math.min(Math.max(0, ((keyResult.current_value - initialValue) / range) * 100), 100)
-    : 0;
+  // Progresso via lib canônica de KR — respeita tipo (binary) e direção (down),
+  // que a fórmula inline anterior ignorava (down ficava travado em 0%).
+  const progress = krProgress({
+    target_value: keyResult.target_value,
+    current_value: keyResult.current_value,
+    initial_value: keyResult.initial_value,
+    kr_type: keyResult.kr_type,
+    direction: keyResult.direction,
+  });
   const isComplete = progress >= 100;
 
   const isOverdue = (() => {
@@ -229,6 +234,8 @@ export function KeyResultItem({ keyResult, canEdit = false, canCheckin = false, 
             initial_value: keyResult.initial_value,
             unit: keyResult.unit,
             objective_id: keyResult.objective_id,
+            kr_type: keyResult.kr_type,
+            direction: keyResult.direction,
           }}
         />
       )}
