@@ -53,6 +53,40 @@ describe("krProgressForValue (preview ao vivo antes→depois)", () => {
   });
 });
 
+describe("consistência entre visões — MESMA função em todo lugar", () => {
+  // Cada visão (MyOkrsView, OkrOverview/CTO, board via KeyResultItem, export,
+  // ProgressChart) e o preview do CheckinDialog computam o % do MESMO estado do
+  // KR pela lib canônica. Estes casos travam a não-divergência entre elas.
+  const cases = [
+    { name: "up/numeric", kr: { kr_type: "numeric", direction: "up", initial_value: 0, target_value: 1166 }, value: 350 },
+    { name: "down", kr: { kr_type: "numeric", direction: "down", initial_value: 100, target_value: 20 }, value: 60 },
+    { name: "percent", kr: { kr_type: "percent", direction: "up", initial_value: 0, target_value: 100 }, value: 42 },
+    { name: "currency", kr: { kr_type: "currency", direction: "up", initial_value: 1000, target_value: 5000 }, value: 3000 },
+    { name: "binary", kr: { kr_type: "binary", direction: "up", initial_value: 0, target_value: 1 }, value: 1 },
+  ];
+
+  it.each(cases)(
+    "preview do CheckinDialog === % canônico exibido nos mapas, mesmo estado ($name)",
+    ({ kr, value }) => {
+      // Preview do diálogo para o valor:
+      const preview = krProgressForValue(value, kr);
+      // Headline que MyOkrsView/OkrOverview/board/export mostram para o KR:
+      const mapa = krProgress({ ...kr, current_value: value });
+      expect(preview).toBe(mapa);
+    },
+  );
+
+  it("o afterPct do preview é EXATAMENTE o % que o mapa mostrará após o check-in", () => {
+    const kr = { kr_type: "numeric", direction: "up", initial_value: 0, target_value: 200 };
+    const before = krProgressForValue(50, kr); // 25
+    const after = krProgressForValue(100, kr); // 50
+    expect(after - before).toBe(25);
+    // pós-check-in (current_value := novo valor), o mapa canônico bate com o preview
+    expect(krProgress({ ...kr, current_value: 50 })).toBe(before);
+    expect(krProgress({ ...kr, current_value: 100 })).toBe(after);
+  });
+});
+
 describe("formatKrValue", () => {
   it("currency: prefixo R$ em pt-BR", () => {
     expect(formatKrValue(1166, "currency")).toBe("R$ 1.166");
