@@ -116,7 +116,12 @@ export function ObjectiveCard({ objective, onEdit }: ObjectiveCardProps) {
     title: kr.title,
     current_value: Number(kr.current_value),
     target_value: Number(kr.target_value),
+    initial_value: Number(kr.initial_value ?? 0),
     unit: kr.unit,
+    // Repassa tipo/direção para o KeyResultItem calcular o MESMO % das demais
+    // visões (down/binary via lib canônica), sem divergência.
+    kr_type: kr.kr_type,
+    direction: kr.direction,
   }));
 
   return (

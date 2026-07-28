@@ -195,6 +195,8 @@ export function ObjectiveHero({
                 initialValue={Number(firstKr?.initial_value || 0)}
                 expectedProgress={Number(objective.expected_progress || 0)}
                 unit={firstKr?.unit}
+                krType={firstKr?.kr_type}
+                direction={firstKr?.direction}
                 periodStart={periodStart}
                 periodEnd={periodEnd}
               />

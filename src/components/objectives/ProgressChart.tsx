@@ -14,6 +14,7 @@ import { TrendingUp } from "lucide-react";
 import { format, differenceInDays, addDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Checkin } from "@/hooks/useCheckins";
+import { krProgressForValue } from "@/lib/kr-progress";
 
 interface ProgressChartProps {
   checkins: Checkin[];
@@ -21,6 +22,9 @@ interface ProgressChartProps {
   initialValue: number;
   expectedProgress?: number;
   unit?: string | null;
+  /** Tipo/direção do KR — para o % de cada ponto usar a lib canônica (binary/down). */
+  krType?: string | null;
+  direction?: string | null;
   /** Period start/end to build the expected curve */
   periodStart?: string;
   periodEnd?: string;
@@ -32,12 +36,15 @@ export function ProgressChart({
   initialValue,
   expectedProgress,
   unit,
+  krType,
+  direction,
   periodStart,
   periodEnd,
 }: ProgressChartProps) {
   const chartData = useMemo(() => {
-    const range = targetValue - initialValue;
-    if (range <= 0) return [];
+    // Sem faixa mensurável (meta == início) não há o que plotar. KRs "down"
+    // (meta < início) seguem válidos — o % de cada ponto vem da lib canônica.
+    if (targetValue === initialValue && krType !== "binary") return [];
 
     // Build expected curve points
     const expectedPoints: { date: Date; expected: number }[] = [];
@@ -63,7 +70,12 @@ export function ProgressChart({
     );
 
     const actualPoints = sorted.map((c) => {
-      const progress = Math.min(100, Math.max(0, Math.round(((Number(c.new_value) - initialValue) / range) * 100)));
+      const progress = krProgressForValue(Number(c.new_value), {
+        target_value: targetValue,
+        initial_value: initialValue,
+        kr_type: krType,
+        direction,
+      });
       return {
         date: new Date(c.created_at),
         actual: progress,
@@ -129,7 +141,7 @@ export function ProgressChart({
       expected,
       actual,
     }));
-  }, [checkins, targetValue, initialValue, periodStart, periodEnd, expectedProgress]);
+  }, [checkins, targetValue, initialValue, krType, direction, periodStart, periodEnd, expectedProgress]);
 
   if (chartData.length === 0) {
     return (

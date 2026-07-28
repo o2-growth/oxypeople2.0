@@ -625,6 +625,8 @@ function OperationalContent({
               initialValue={Number((objective.key_results[0] as any)?.initial_value || 0)}
               expectedProgress={Number((objective as any).expected_progress || 0)}
               unit={objective.key_results[0]?.unit}
+              krType={objective.key_results[0]?.kr_type}
+              direction={objective.key_results[0]?.direction}
               periodStart={period?.start_date}
               periodEnd={period?.end_date}
             />
@@ -659,6 +661,8 @@ function OperationalContent({
             initial_value: kr.initial_value,
             unit: kr.unit,
             objective_id: objective.id,
+            kr_type: kr.kr_type,
+            direction: kr.direction,
           }))}
         />
       )}

@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Download, FileSpreadsheet, FileText } from "lucide-react";
 import { ObjectiveWithDetails } from "@/hooks/useObjectives";
+import { krProgress } from "@/lib/kr-progress";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -98,18 +99,13 @@ export function ObjectivesExport({ objectives }: ObjectivesExportProps) {
         ]);
       } else {
         obj.key_results.forEach((kr) => {
-          const krProgress =
-            kr.target_value > 0
-              ? Math.round((Number(kr.current_value) / Number(kr.target_value)) * 100)
-              : 0;
-
           rows.push([
             obj.title,
             kr.title,
             String(kr.current_value),
             String(kr.target_value),
             kr.unit || "",
-            `${krProgress}%`,
+            `${krProgress(kr)}%`,
             obj.status,
             obj.owner?.full_name || obj.owner?.email || "",
             obj.team?.name || "",

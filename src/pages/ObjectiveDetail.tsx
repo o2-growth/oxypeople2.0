@@ -261,6 +261,8 @@ export default function ObjectiveDetail() {
             initial_value: kr.initial_value,
             unit: kr.unit,
             objective_id: objective.id,
+            kr_type: kr.kr_type,
+            direction: kr.direction,
           }))}
         />
       )}

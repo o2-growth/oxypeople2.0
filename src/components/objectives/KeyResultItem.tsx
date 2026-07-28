@@ -361,6 +361,8 @@ function KeyResultDetailPanel({ krId, kr }: { krId: string; kr: KeyResult }) {
               targetValue={kr.target_value}
               initialValue={kr.initial_value || 0}
               unit={kr.unit}
+              krType={kr.kr_type}
+              direction={kr.direction}
               periodStart={kr.periodStart}
               periodEnd={kr.periodEnd}
             />

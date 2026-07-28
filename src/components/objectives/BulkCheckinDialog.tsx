@@ -15,6 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle2, AlertCircle, ClipboardList } from "lucide-react";
 import { useCreateCheckin, useOkrSettings } from "@/hooks/useCheckins";
+import { krProgressForValue } from "@/lib/kr-progress";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +27,8 @@ interface KRData {
   initial_value: number;
   unit: string | null;
   objective_id: string;
+  kr_type?: string | null;
+  direction?: string | null;
 }
 
 interface BulkCheckinDialogProps {
@@ -148,10 +151,7 @@ export function BulkCheckinDialog({
               const entry = entries[kr.id];
               if (!entry) return null;
 
-              const progress =
-                kr.target_value - kr.initial_value !== 0
-                  ? Math.min(100, Math.round(((entry.newValue - kr.initial_value) / (kr.target_value - kr.initial_value)) * 100))
-                  : 0;
+              const progress = krProgressForValue(entry.newValue, kr);
 
               return (
                 <div key={kr.id} className={cn(

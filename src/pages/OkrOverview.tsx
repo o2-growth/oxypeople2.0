@@ -25,6 +25,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { QueryError } from "@/components/QueryError";
 import { useObjectives, usePeriods, type ObjectiveWithDetails } from "@/hooks/useObjectives";
 import { rollup, type WeightOf } from "@/lib/objective-rollup";
+import { krProgress } from "@/lib/kr-progress";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { useDriverTour } from "@/hooks/useDriverTour";
 import { OKR_OVERVIEW_TOUR_ID, okrOverviewSteps } from "@/lib/tours";
@@ -33,22 +34,8 @@ import type { Database } from "@/integrations/supabase/types";
 
 type KeyResultRow = Database["public"]["Tables"]["key_results"]["Row"];
 
-// Progresso de um KR (0-100), respeitando direção e tipo.
-function krProgress(kr: KeyResultRow): number {
-  const target = Number(kr.target_value ?? 0);
-  const current = Number(kr.current_value ?? 0);
-  const initial = Number(kr.initial_value ?? 0);
-  const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
-  if (kr.kr_type === "binary") return current >= target ? 100 : 0;
-  if (kr.direction === "down") {
-    const span = initial - target;
-    if (span === 0) return current <= target ? 100 : 0;
-    return clamp(((initial - current) / span) * 100);
-  }
-  const span = target - initial;
-  if (span === 0) return current >= target ? 100 : 0;
-  return clamp(((current - initial) / span) * 100);
-}
+// Progresso de KR: fonte única em `@/lib/kr-progress` (mesmo número em TODAS as
+// visões — lista pessoal, check-in, board e este painel). Ver import acima.
 
 // Pesos dos vínculos pai→filho (`objective_relations`). Uma única query
 // (dedup por react-query) alimenta o rollup ponderado. Se o RLS retornar vazio
