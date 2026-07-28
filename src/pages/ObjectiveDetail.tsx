@@ -231,7 +231,7 @@ export default function ObjectiveDetail() {
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h1 className="text-2xl lg:text-3xl font-heading font-bold text-foreground leading-tight">
+                    <h1 className="text-2xl lg:text-3xl font-bold text-foreground leading-tight">
                       {objective.title}
                     </h1>
                     <CommitmentTypeBadge value={(objective as { commitment_type?: string }).commitment_type} />

@@ -28,7 +28,7 @@ const Feed = () => {
       <div className="mx-auto max-w-7xl space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-heading font-bold mb-1">Mural da Empresa</h1>
+            <h1 className="text-2xl font-bold mb-1">Mural da Empresa</h1>
             <p className="text-muted-foreground text-sm">
               Eventos, comunicados e tudo que está acontecendo
             </p>

@@ -45,7 +45,7 @@ export default function Recognition() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-heading font-bold text-foreground">Reconhecimentos</h1>
+          <h1 className="text-2xl font-bold text-foreground">Reconhecimentos</h1>
           <p className="text-muted-foreground mt-1">
             Celebre as conquistas e reconheça seus colegas
           </p>

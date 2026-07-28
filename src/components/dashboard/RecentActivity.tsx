@@ -9,7 +9,7 @@ export function RecentActivity() {
   return (
     <Card className="h-full">
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg font-heading">Atividade Recente</CardTitle>
+        <CardTitle className="text-lg">Atividade Recente</CardTitle>
       </CardHeader>
       <CardContent className="space-y-1">
         {isLoading ? (

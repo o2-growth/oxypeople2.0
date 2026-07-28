@@ -122,7 +122,7 @@ export function FeedbackFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle className="text-xl font-heading">
+          <DialogTitle className="text-xl">
             Feedback de Integração - 30 Dias
           </DialogTitle>
           <DialogDescription>

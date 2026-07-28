@@ -294,7 +294,7 @@ export function OrganizationChartFlow() {
     <Card>
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <CardTitle className="text-lg font-heading flex items-center gap-2">
+          <CardTitle className="text-lg flex items-center gap-2">
             <Network className="h-5 w-5" />
             Organograma
           </CardTitle>

@@ -94,7 +94,7 @@ const Index = () => {
       <div className="space-y-6">
         {/* Hero Welcome */}
         <div className="hero-header">
-          <h1 className="text-2xl lg:text-3xl font-heading font-bold text-white">
+          <h1 className="text-2xl lg:text-3xl font-bold text-white">
             {getGreeting()}{userName ? `, ${userName}` : ""}! 👋
           </h1>
           <p className="text-white/70 mt-2 text-base">
@@ -184,7 +184,7 @@ const Index = () => {
             <div className="floating-panel sticky top-20 p-0 overflow-hidden">
               {/* Panel Header */}
               <div className="px-5 py-4">
-                <h2 className="text-sm font-heading font-semibold uppercase tracking-wider text-muted-foreground">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                   Insights
                 </h2>
               </div>

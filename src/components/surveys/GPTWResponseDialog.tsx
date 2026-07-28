@@ -80,7 +80,7 @@ export function GPTWResponseDialog({ survey, open, onOpenChange }: GPTWResponseD
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-heading flex items-center gap-2">
+          <DialogTitle className="text-xl flex items-center gap-2">
             <Award className="h-5 w-5 text-primary" />
             Pesquisa de Clima GPTW
           </DialogTitle>

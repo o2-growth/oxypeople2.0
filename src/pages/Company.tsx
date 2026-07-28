@@ -156,9 +156,9 @@ export default function Company() {
 
     return [
       { label: "Total de Membros", value: stats?.total || 0, icon: Users, color: "text-primary" },
-      { label: "Administradores", value: adminCount, icon: Shield, color: "text-red-500" },
-      { label: "Gestores", value: managerCount, icon: Users, color: "text-blue-500" },
-      { label: "Convites Pendentes", value: pendingCount, icon: Clock, color: "text-yellow-500" },
+      { label: "Administradores", value: adminCount, icon: Shield, color: "text-destructive" },
+      { label: "Gestores", value: managerCount, icon: Users, color: "text-primary" },
+      { label: "Convites Pendentes", value: pendingCount, icon: Clock, color: "text-warning" },
     ];
   }, [stats, members, invitedMembers]);
 
@@ -227,7 +227,7 @@ export default function Company() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-heading font-bold text-foreground">Empresa</h1>
+            <h1 className="text-2xl font-bold text-foreground">Empresa</h1>
             <p className="text-muted-foreground mt-1">
               Gerencie seu workspace e membros da equipe
             </p>

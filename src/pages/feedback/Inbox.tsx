@@ -22,7 +22,7 @@ export default function FeedbackInboxPage() {
     <AppLayout>
       <div className="mx-auto max-w-3xl space-y-4 py-2">
         <header className="space-y-1">
-          <h1 className="flex items-center gap-2 text-2xl font-heading font-bold">
+          <h1 className="flex items-center gap-2 text-2xl font-bold">
             <InboxIcon className="h-6 w-6" />
             Inbox de feedback
           </h1>

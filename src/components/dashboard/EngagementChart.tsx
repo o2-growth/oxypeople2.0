@@ -56,7 +56,7 @@ export function EngagementChart() {
   return (
     <Card className="h-full">
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg font-heading">Engajamento Mensal</CardTitle>
+        <CardTitle className="text-lg">Engajamento Mensal</CardTitle>
       </CardHeader>
       <CardContent>
         {isLoading ? (

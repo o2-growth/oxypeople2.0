@@ -139,7 +139,7 @@ function AreaCard({ area }: { area: ObjectiveWithDetails }) {
               onClick={() => navigate(`/objectives/${area.id}`)}
               className="group flex items-center gap-2 text-left"
             >
-              <h2 className="truncate text-lg font-heading font-bold">{areaName}</h2>
+              <h2 className="truncate text-lg font-bold">{areaName}</h2>
               <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
             </button>
             <div className="mt-1 flex items-center gap-3 text-sm text-muted-foreground">
@@ -218,7 +218,7 @@ export default function OkrOverview() {
       <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="flex items-center gap-2 text-2xl font-heading font-bold">
+            <h1 className="flex items-center gap-2 text-2xl font-bold">
               <TrendingUp className="h-6 w-6 text-primary" />
               Acompanhamento de OKRs
             </h1>

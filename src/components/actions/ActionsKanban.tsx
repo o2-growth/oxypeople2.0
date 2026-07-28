@@ -160,7 +160,7 @@ export function ActionsKanban() {
     <Card>
       <CardHeader className="pb-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle className="text-lg font-heading flex items-center gap-2">
+          <CardTitle className="text-lg flex items-center gap-2">
             <ListTodo className="h-5 w-5" />
             Ações
           </CardTitle>

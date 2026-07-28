@@ -226,7 +226,7 @@ export function AppSidebar() {
           </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="text-lg font-heading font-bold text-sidebar-foreground">Oxy People</span>
+              <span className="text-lg font-bold text-sidebar-foreground">Oxy People</span>
               <span className="text-xs text-sidebar-foreground/60">by O2 Inc</span>
             </div>
           )}

@@ -11,7 +11,7 @@ export default function Gamification() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold font-heading flex items-center gap-3">
+          <h1 className="text-2xl font-bold flex items-center gap-3">
             <Gamepad2 className="h-8 w-8 text-primary" />
             Gamificação
           </h1>

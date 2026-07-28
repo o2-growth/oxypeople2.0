@@ -705,7 +705,7 @@ export default function HR() {
 
             <Card>
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg font-heading mb-4">Colaboradores</CardTitle>
+                <CardTitle className="text-lg mb-4">Colaboradores</CardTitle>
                 <CollaboratorsFilters
                   searchQuery={searchQuery}
                   onSearchChange={setSearchQuery}

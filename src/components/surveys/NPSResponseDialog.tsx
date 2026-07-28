@@ -62,7 +62,7 @@ export function NPSResponseDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-xl font-heading">
+          <DialogTitle className="text-xl">
             Pesquisa e-NPS
           </DialogTitle>
           <DialogDescription>

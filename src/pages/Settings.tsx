@@ -76,7 +76,7 @@ export default function Settings() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-heading font-bold text-foreground">Configurações</h1>
+          <h1 className="text-2xl font-bold text-foreground">Configurações</h1>
           <p className="text-muted-foreground mt-1">
             Gerencie suas preferências e configurações de conta
           </p>
@@ -305,7 +305,7 @@ export default function Settings() {
                     </div>
                     <div>
                       <p className="font-medium text-foreground">Google Calendar</p>
-                      <p className="text-sm text-green-500">Conectado</p>
+                      <p className="text-sm text-success">Conectado</p>
                     </div>
                   </div>
                   <Button variant="destructive" size="sm">Desconectar</Button>
