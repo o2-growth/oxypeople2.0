@@ -1,17 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { Button as O2Button } from "@/components/o2/Button";
 import { O2Logo } from "@/components/o2/Logo";
 import { AuthBrandingPanel } from "@/components/auth/AuthBrandingPanel";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Sparkles, Mail, Lock, User, ArrowRight, Loader2 } from "lucide-react";
+import { Mail, Lock, User, ArrowRight, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -25,11 +22,17 @@ const Auth = () => {
   const location = useLocation();
   const { toast } = useToast();
 
-  // Redirect if already logged in
+  // Redireciona se já estiver logado (efeito colateral fora do render).
   const from = (location.state as { from?: Location })?.from?.pathname || "/";
-  
+
+  useEffect(() => {
+    if (user) {
+      navigate(from, { replace: true });
+    }
+  }, [user, from, navigate]);
+
   if (user) {
-    navigate(from, { replace: true });
+    // Não renderiza o formulário para quem já está autenticado.
     return null;
   }
 
@@ -97,25 +100,7 @@ const Auth = () => {
           </>
         }
         description="A plataforma completa para gestão de pessoas, cultura organizacional e engajamento de colaboradores."
-      >
-        <div className="mt-8 flex items-center gap-4">
-          <div className="flex -space-x-3">
-            {[1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                className="h-10 w-10 rounded-full border-2 border-background/20 bg-cover bg-center"
-                style={{
-                  backgroundImage: `url(https://api.dicebear.com/7.x/avataaars/svg?seed=user${i})`,
-                }}
-              />
-            ))}
-          </div>
-          <div>
-            <p className="text-white font-medium">+1000 empresas</p>
-            <p className="text-white/60 text-sm">já confiam em nós</p>
-          </div>
-        </div>
-      </AuthBrandingPanel>
+      />
 
       {/* Right Side - Auth Form */}
       <div className="flex-1 flex items-center justify-center p-6 lg:p-12 bg-background">
@@ -199,7 +184,9 @@ const Auth = () => {
                       className="pl-10"
                       disabled={isLoading}
                       required
-                      minLength={6}
+                      // No cadastro exige senha forte (8+, igual ao ResetPassword);
+                      // no login não impõe tamanho para não bloquear senhas legadas.
+                      minLength={isLogin ? undefined : 8}
                     />
                   </div>
                 </div>

@@ -68,26 +68,38 @@ const ResetPassword = () => {
         return;
       }
 
-      // 3) Fluxo implícito: #access_token=...&type=recovery
-      const isRecoveryHash =
-        hashParams.get("type") === "recovery" && !!hashParams.get("access_token");
-      if (isRecoveryHash) {
-        // O SDK processa o hash e dispara PASSWORD_RECOVERY/SIGNED_IN.
-        setTimeout(async () => {
-          if (cancelled) return;
-          const { data: { session } } = await supabase.auth.getSession();
-          if (cancelled) return;
-          if (session) {
-            setReady(true);
-          } else {
-            setLinkInvalid(true);
-            setInvalidReason("invalid");
-          }
-        }, 1500);
+      // 3) Fluxo implícito (#access_token=...&type=recovery) ou sessão já ativa.
+      // O SDK (detectSessionInUrl) processa o hash e dispara PASSWORD_RECOVERY/
+      // SIGNED_IN, capturado pela subscription acima — essa é a fonte de verdade.
+      // Como o evento pode ter disparado ANTES do subscribe, checamos a sessão
+      // atual de forma síncrona (substitui o setTimeout mágico, que marcava link
+      // válido como inválido em conexões lentas).
+      const { data: { session } } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (session) {
+        setReady(true);
         return;
       }
 
-      // 4) Sessão pré-existente (usuário já autenticado abriu o link)
+      // 4) Sem sessão ainda: se há hash de recovery, aguardamos o evento do SDK
+      // (não marcamos inválido para não descartar um link legítimo). Caso
+      // contrário, não há token algum a validar — link inválido de fato.
+      const isRecoveryHash =
+        hashParams.get("type") === "recovery" && !!hashParams.get("access_token");
+      if (!isRecoveryHash) {
+        setLinkInvalid(true);
+        setInvalidReason("invalid");
+      }
+    };
+
+    init();
+
+    // Escape hatch: se em 10s nada resolveu (evento do SDK nunca disparou para
+    // um hash de recovery — conexão muito lenta ou hash malformado), re-checa a
+    // sessão e decide, evitando o usuário preso em "Validando link…". Idempotente:
+    // se algum caminho já marcou ready/inválido, isto vira no-op.
+    const fallback = setTimeout(async () => {
+      if (cancelled) return;
       const { data: { session } } = await supabase.auth.getSession();
       if (cancelled) return;
       if (session) {
@@ -96,13 +108,12 @@ const ResetPassword = () => {
         setLinkInvalid(true);
         setInvalidReason("invalid");
       }
-    };
-
-    init();
+    }, 10000);
 
     return () => {
       cancelled = true;
       subscription.unsubscribe();
+      clearTimeout(fallback);
     };
   }, []);
 
