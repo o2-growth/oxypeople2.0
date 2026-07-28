@@ -86,6 +86,53 @@ export function useTeamMembers(teamId: string | null) {
   });
 }
 
+/**
+ * Contagem de membros por time em UMA única query agregada.
+ *
+ * Substitui o antigo N+1 (um `count` do Supabase por time, dentro de um loop).
+ * Busca todas as linhas de `team_members` dos times informados numa só ida ao
+ * banco (`.in("team_id", ...)`) e agrega por `team_id` no cliente.
+ *
+ * As mesmas policies de RLS de `team_members` continuam valendo, então cada
+ * contagem é IDÊNTICA à do `count: "exact"` filtrado por time (mesmo conjunto
+ * de linhas visíveis). Times sem membros ficam em 0 (pré-inicializados), assim
+ * como o `count` retornava 0.
+ *
+ * Sem mudança de schema — apenas leitura.
+ */
+export function useTeamMemberCounts(teamIds: string[]) {
+  // Chave estável independente da ordem de `teamIds`.
+  const sortedIds = [...teamIds].sort();
+
+  return useQuery({
+    queryKey: ["team-member-counts", sortedIds],
+    queryFn: async (): Promise<Record<string, number>> => {
+      const counts: Record<string, number> = {};
+      // Pré-inicializa todos os times em 0 para não faltar chave no consumidor.
+      for (const id of teamIds) counts[id] = 0;
+
+      if (teamIds.length === 0) return counts;
+
+      const { data, error } = await supabase
+        .from("team_members")
+        .select("team_id")
+        .in("team_id", teamIds);
+
+      if (error) {
+        console.error("Error fetching team member counts:", error);
+        throw error;
+      }
+
+      for (const row of data ?? []) {
+        if (row.team_id) counts[row.team_id] = (counts[row.team_id] ?? 0) + 1;
+      }
+
+      return counts;
+    },
+    enabled: teamIds.length > 0,
+  });
+}
+
 export function useCreateTeam() {
   const queryClient = useQueryClient();
   const { profile } = useUser();
