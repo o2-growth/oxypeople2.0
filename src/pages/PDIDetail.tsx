@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PDI_STATUS } from "@/components/shared/StatusBadge";
 import { TabCountBadge } from "@/components/shared/TabCountBadge";
+import { QueryError } from "@/components/QueryError";
+import { DetailPageSkeleton } from "@/components/ui/page-skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, BookOpen, ArrowLeft, UserCheck } from "lucide-react";
@@ -18,7 +20,6 @@ import { ApprovalActions } from "@/components/pdi/ApprovalActions";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useNavigate as useNav } from "react-router-dom";
 
 export default function PDIDetail() {
   const { id } = useParams<{ id: string }>();
@@ -26,7 +27,7 @@ export default function PDIDetail() {
   const { user } = useAuth();
   const userId = user?.id ?? "";
 
-  const { data: plan, isLoading } = usePDIDetail(id ?? "");
+  const { data: plan, isLoading, isError, refetch } = usePDIDetail(id ?? "");
   const { list: competenciesList } = usePDICompetencies(id ?? "");
   const { list: actionsList } = usePDIActions(id ?? "");
   const activatePDI = useActivatePDI(id ?? "");
@@ -40,9 +41,15 @@ export default function PDIDetail() {
   if (isLoading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        <DetailPageSkeleton className="max-w-5xl" />
+      </AppLayout>
+    );
+  }
+
+  if (isError) {
+    return (
+      <AppLayout>
+        <QueryError message="Não foi possível carregar o PDI." onRetry={() => refetch()} />
       </AppLayout>
     );
   }
@@ -85,7 +92,7 @@ export default function PDIDetail() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl font-display font-bold leading-tight flex items-center gap-2 flex-wrap">
               <BookOpen className="h-5 w-5 shrink-0" />
               {plan.title}
             </h1>
