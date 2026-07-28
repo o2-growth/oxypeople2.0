@@ -38,10 +38,11 @@ import { useOkrTier } from "@/hooks/useOkrTier";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { toastDbError } from "@/lib/db-errors";
-import { Plus, Trash2, Crosshair, Layers, Zap, Rocket, CheckCircle2, Loader2 } from "lucide-react";
+import { Plus, Trash2, Crosshair, Layers, Zap, Rocket, CheckCircle2, Loader2, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const keyResultSchema = z.object({
   title: z.string().min(1, "Título obrigatório"),
@@ -489,6 +490,13 @@ export function CreateObjectiveDialog({
                   />
                 </div>
 
+                {/* Opções avançadas (colapsável) */}
+                <Collapsible className="rounded-lg border border-dashed">
+                  <CollapsibleTrigger className="group flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+                    <span>Opções avançadas</span>
+                    <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-4 px-3 pb-3 pt-1">
                 {/* Collaborators */}
                 <div className="grid grid-cols-2 gap-3">
                   <FormField
@@ -565,6 +573,8 @@ export function CreateObjectiveDialog({
                     )}
                   />
                 </div>
+                  </CollapsibleContent>
+                </Collapsible>
               </TabsContent>
 
               <TabsContent value="keyresults" className="space-y-4 mt-4">
