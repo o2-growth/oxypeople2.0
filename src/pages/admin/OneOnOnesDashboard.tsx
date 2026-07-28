@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { format, subDays } from "date-fns";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Coffee, Download } from "lucide-react";
-import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Coffee, Download } from "lucide-react";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { QueryError } from "@/components/QueryError";
+import { EmptyState } from "@/components/ui/empty-state";
+import { CardsPageSkeleton } from "@/components/ui/page-skeleton";
 import { useRequireAdmin } from "@/hooks/useRequireAdmin";
 import { useUser } from "@/hooks/useUser";
 import { useOneOnOnesDashboard } from "@/hooks/useOneOnOnesDashboard";
@@ -24,7 +27,7 @@ const PERIOD_OPTIONS = [
   { label: "90 dias", days: 90 },
 ] as const;
 
-// ─── KPI Card ─────────────────────────────────────────────────────────────────
+// ─── KPI Card (local, tokenizado) ───────────────────────────────────────────────
 
 interface KpiCardProps {
   label: string;
@@ -44,12 +47,28 @@ function KpiCard({ label, value, sub }: KpiCardProps) {
   );
 }
 
+// ─── Skeleton do corpo (sob o header) ───────────────────────────────────────────
+
+function DashboardBodySkeleton() {
+  return (
+    <>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 w-full rounded-xl" />
+        ))}
+      </div>
+      <Skeleton className="h-72 w-full rounded-xl" />
+      <Skeleton className="h-64 w-full rounded-xl" />
+    </>
+  );
+}
+
 // ─── CSV export ───────────────────────────────────────────────────────────────
 
 function exportCsv(rows: ReturnType<typeof import("@/hooks/useOneOnOnesDashboard").useOneOnOnesDashboard>["data"] extends infer D ? D extends { leaderStats: Array<infer R> } ? R[] : never : never) {
   downloadCsv(
     `one-on-ones-frequencia-${format(new Date(), "yyyy-MM-dd")}`,
-    ["Gestor", "Liderados", "Agendadas", "Completadas", "% Completion", "Ultima 1:1"],
+    ["Gestor", "Liderados", "Agendadas", "Completadas", "% Conclusão", "Última 1:1"],
     rows.map((r) => [
       r.leader_name,
       r.direct_reports,
@@ -64,9 +83,8 @@ function exportCsv(rows: ReturnType<typeof import("@/hooks/useOneOnOnesDashboard
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function OneOnOnesDashboardPage() {
-  const navigate = useNavigate();
   const { isAdmin, isLoading: permsLoading } = useRequireAdmin({
-    message: "Sem permissão.",
+    message: "Sem permissão para acessar esta página.",
   });
   const { profile } = useUser();
   const companyId = profile?.primary_company_id;
@@ -83,9 +101,11 @@ export default function OneOnOnesDashboardPage() {
     ? customTo
     : format(new Date(), "yyyy-MM-dd");
 
-  // Admin gate
-
-  const { data, isLoading } = useOneOnOnesDashboard(companyId, dateFrom, dateTo);
+  const { data, isLoading, isError, refetch } = useOneOnOnesDashboard(
+    companyId,
+    dateFrom,
+    dateTo,
+  );
 
   // Track filter changes
   useEffect(() => {
@@ -105,32 +125,40 @@ export default function OneOnOnesDashboardPage() {
     trackEvent("one_on_one_dashboard_exported");
   }
 
+  // Enquanto valida permissão, mostra skeleton (redireciona no efeito do gate).
   if (permsLoading || !isAdmin) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        <CardsPageSkeleton cards={4} />
       </AppLayout>
     );
   }
 
+  // Enquanto o perfil carrega (companyId indefinido), a query fica desabilitada:
+  // trata como loading para não cair em empty falso.
+  const isLoadingData = isLoading || !companyId;
+
   return (
     <AppLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Coffee className="h-6 w-6" />
-              Dashboard de Frequência — 1:1s
-            </h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Acompanhe a frequência de reuniões 1:1 por gestor.
-            </p>
-          </div>
-
-          {/* Period selector */}
+        <PageHeader
+          title="Frequência de 1:1s"
+          description="Acompanhe a frequência de reuniões 1:1 por gestor."
+          icon={Coffee}
+          actions={
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleExport}
+              disabled={!data || isLoadingData}
+              className="gap-1.5"
+            >
+              <Download className="h-4 w-4" />
+              Exportar CSV
+            </Button>
+          }
+        >
+          {/* Seletor de período */}
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex gap-1">
               {PERIOD_OPTIONS.map((opt) => (
@@ -164,23 +192,22 @@ export default function OneOnOnesDashboardPage() {
                 />
               </div>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleExport}
-              disabled={!data || isLoading}
-              className="gap-1.5"
-            >
-              <Download className="h-4 w-4" />
-              Exportar CSV
-            </Button>
           </div>
-        </div>
+        </PageHeader>
 
-        {isLoading || !data ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
+        {isLoadingData ? (
+          <DashboardBodySkeleton />
+        ) : isError ? (
+          <QueryError
+            message="Não foi possível carregar o dashboard de 1:1s."
+            onRetry={() => refetch()}
+          />
+        ) : !data || data.totalMeetings === 0 ? (
+          <EmptyState
+            icon={Coffee}
+            title="Nenhuma 1:1 no período"
+            description="Não há reuniões 1:1 registradas no intervalo selecionado. Ajuste o período para ver os dados."
+          />
         ) : (
           <>
             {/* KPI Cards */}
@@ -188,14 +215,14 @@ export default function OneOnOnesDashboardPage() {
               <KpiCard
                 label="Total de 1:1s"
                 value={String(data.totalMeetings)}
-                sub={`nos últimos ${useCustom ? "período custom" : `${periodDays} dias`}`}
+                sub={useCustom ? "no período selecionado" : `nos últimos ${periodDays} dias`}
               />
               <KpiCard
                 label="% Completadas"
                 value={`${data.completedPct}%`}
               />
               <KpiCard
-                label="% Canceladas / No-show"
+                label="% Canceladas / Faltas"
                 value={`${data.canceledOrNoShowPct}%`}
               />
               <KpiCard

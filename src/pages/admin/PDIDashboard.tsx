@@ -1,10 +1,13 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Loader2, Download, BookOpen } from "lucide-react";
-import { toast } from "sonner";
+import { Download, BookOpen } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { CardsPageSkeleton } from "@/components/ui/page-skeleton";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { QueryError } from "@/components/QueryError";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useRequireAdmin } from "@/hooks/useRequireAdmin";
 import { useUser } from "@/hooks/useUser";
 import { usePDIDashboard } from "@/hooks/usePDIDashboard";
@@ -13,6 +16,8 @@ import { TopCompetencies } from "@/components/admin/pdi/TopCompetencies";
 import { AtRiskList } from "@/components/admin/pdi/AtRiskList";
 import { trackEvent } from "@/lib/analytics";
 import { downloadCsv } from "@/lib/export-csv";
+
+// ─── KPI Card (local, tokenizado) ───────────────────────────────────────────────
 
 interface KpiCardProps {
   label: string;
@@ -36,26 +41,44 @@ function KpiCard({ label, value, icon }: KpiCardProps) {
   );
 }
 
+// ─── Skeleton do corpo (sob o header) ───────────────────────────────────────────
+
+function DashboardBodySkeleton() {
+  return (
+    <>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 w-full rounded-xl" />
+        ))}
+      </div>
+      <Skeleton className="h-64 w-full rounded-xl" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Skeleton className="h-56 w-full rounded-xl" />
+        <Skeleton className="h-56 w-full rounded-xl" />
+      </div>
+    </>
+  );
+}
+
+// ─── Page ───────────────────────────────────────────────────────────────────────
+
 export default function PDIDashboardPage() {
-  const navigate = useNavigate();
   const { isAdmin, isLoading: permsLoading } = useRequireAdmin({
-    message: "Sem permissão",
+    message: "Sem permissão para acessar esta página.",
   });
   const { profile } = useUser();
   const companyId = profile?.primary_company_id ?? "";
-  const { data, isLoading } = usePDIDashboard(companyId);
-
+  const { data, isLoading, isError, refetch } = usePDIDashboard(companyId);
 
   useEffect(() => {
     trackEvent("pdi_dashboard_viewed");
   }, []);
 
+  // Enquanto valida permissão, mostra skeleton (redireciona no efeito do gate).
   if (permsLoading || !isAdmin) {
     return (
       <AppLayout>
-        <div className="flex justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        <CardsPageSkeleton cards={4} />
       </AppLayout>
     );
   }
@@ -77,26 +100,38 @@ export default function PDIDashboardPage() {
     trackEvent("pdi_dashboard_exported");
   };
 
+  // Enquanto o perfil carrega (companyId vazio), a query fica desabilitada:
+  // trata como loading para não cair em empty falso.
+  const isLoadingData = isLoading || !companyId;
+
   return (
     <AppLayout>
       <div className="space-y-6 max-w-6xl">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <BookOpen className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl font-bold">PDI — Dashboard</h1>
-          </div>
-          <Button onClick={exportCsv} variant="outline" size="sm" disabled={!data}>
-            <Download className="h-4 w-4 mr-1.5" />
-            Exportar CSV
-          </Button>
-        </div>
+        <PageHeader
+          title="Dashboard de PDIs"
+          description="Acompanhe a evolução dos Planos de Desenvolvimento Individual por área."
+          icon={BookOpen}
+          actions={
+            <Button onClick={exportCsv} variant="outline" size="sm" disabled={!data}>
+              <Download className="h-4 w-4 mr-1.5" />
+              Exportar CSV
+            </Button>
+          }
+        />
 
-        {isLoading || !data ? (
-          <Card>
-            <CardContent className="flex justify-center py-12">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </CardContent>
-          </Card>
+        {isLoadingData ? (
+          <DashboardBodySkeleton />
+        ) : isError ? (
+          <QueryError
+            message="Não foi possível carregar o dashboard de PDIs."
+            onRetry={() => refetch()}
+          />
+        ) : !data || data.deptRows.length === 0 ? (
+          <EmptyState
+            icon={BookOpen}
+            title="Sem dados de PDI ainda"
+            description="Assim que houver Planos de Desenvolvimento Individual nesta empresa, os indicadores aparecerão aqui."
+          />
         ) : (
           <>
             {/* KPI Cards */}

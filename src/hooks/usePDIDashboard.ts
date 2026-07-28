@@ -296,5 +296,7 @@ export function usePDIDashboard(companyId: string) {
   return {
     data: query.data ?? null,
     isLoading: query.isLoading,
+    isError: query.isError,
+    refetch: query.refetch,
   };
 }
