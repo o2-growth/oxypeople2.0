@@ -16,8 +16,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Mail, Briefcase, Building2, Users, ShieldCheck, ShieldOff, Loader2, Network, Save } from "lucide-react";
+import { Mail, Briefcase, Building2, Users, ShieldCheck, ShieldOff, Loader2, Network, Save, History } from "lucide-react";
 import type { HierarchyNode } from "@/hooks/useOrganizationHierarchy";
+import { PersonTimeline } from "@/components/people/PersonTimeline";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import {
   useOkrAccessLevels,
@@ -216,7 +217,7 @@ export function OrgMemberDrawer({ node, onOpenChange }: OrgMemberDrawerProps) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-md">
+      <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-md">
         {node && (
           <>
             <SheetHeader className="space-y-4">
@@ -314,6 +315,17 @@ export function OrgMemberDrawer({ node, onOpenChange }: OrgMemberDrawerProps) {
                     {node.children.length}{" "}
                     {node.type === "team" || node.type === "department" ? "membros" : "subordinados"}
                   </span>
+                </div>
+              )}
+
+              {/* Jornada — timeline unificada (§3.5) */}
+              {node.type === "member" && memberUserId && (
+                <div className="border-t border-border/60 pt-4">
+                  <div className="mb-3 flex items-center gap-2 text-foreground">
+                    <History className="h-4 w-4 shrink-0" />
+                    <span className="font-medium">Jornada</span>
+                  </div>
+                  <PersonTimeline userId={memberUserId} />
                 </div>
               )}
             </div>
