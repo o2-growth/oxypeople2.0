@@ -314,5 +314,12 @@ export function usePulseAnalytics(pulseId: string | undefined, filters: PulseAna
     filters.periodsBack,
   ]);
 
-  return result;
+  return {
+    ...result,
+    isError: pulseQuery.isError || responsesQuery.isError,
+    refetch: () => {
+      void pulseQuery.refetch();
+      void responsesQuery.refetch();
+    },
+  };
 }

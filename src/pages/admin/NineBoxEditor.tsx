@@ -3,19 +3,30 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   DndContext,
   PointerSensor,
+  KeyboardSensor,
   useSensor,
   useSensors,
+  closestCorners,
+  getFirstCollision,
+  KeyboardCode,
   type DragEndEvent,
+  type Announcements,
+  type DroppableContainer,
+  type KeyboardCoordinateGetter,
 } from "@dnd-kit/core";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Loader2, Grid3X3, Lock, Info } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ArrowLeft, Grid3X3, Lock, Info } from "lucide-react";
 import { toast } from "sonner";
 import { useNineBoxSnapshot } from "@/hooks/useNineBoxSnapshot";
 import { usePlacementMutations } from "@/hooks/usePlacementMutations";
 import { useRequireAdmin } from "@/hooks/useRequireAdmin";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { QueryError } from "@/components/QueryError";
+import { EmptyState } from "@/components/ui/empty-state";
 import { NineBoxGrid } from "@/components/admin/nineBox/NineBoxGrid";
 import { NineBoxPool } from "@/components/admin/nineBox/NineBoxPool";
 
@@ -23,6 +34,84 @@ const STATUS_LABEL: Record<string, string> = {
   draft: "Rascunho",
   finalized: "Finalizado — somente leitura",
   archived: "Arquivado — somente leitura",
+};
+
+const KEYBOARD_DIRECTIONS: string[] = [
+  KeyboardCode.Down,
+  KeyboardCode.Right,
+  KeyboardCode.Up,
+  KeyboardCode.Left,
+];
+
+/**
+ * Getter de coordenadas para navegação por teclado na matriz Nine Box.
+ *
+ * O @dnd-kit só traz o `PointerSensor` por padrão (mouse/touch). Este getter
+ * habilita o `KeyboardSensor`: as setas movem o card focado para a célula (ou
+ * pool) adjacente na direção pressionada — em vez do passo fixo de 25px do
+ * getter padrão —, centralizando-o no alvo. Espaço/Enter pega e solta; Esc cancela.
+ */
+const nineBoxKeyboardCoordinates: KeyboardCoordinateGetter = (
+  event,
+  { context: { active, droppableRects, droppableContainers, collisionRect } },
+) => {
+  if (!KEYBOARD_DIRECTIONS.includes(event.code)) return undefined;
+  event.preventDefault();
+  if (!active || !collisionRect) return undefined;
+
+  const candidates: DroppableContainer[] = [];
+  droppableContainers.getEnabled().forEach((entry) => {
+    if (!entry || entry.disabled) return;
+    const rect = droppableRects.get(entry.id);
+    if (!rect) return;
+    switch (event.code) {
+      case KeyboardCode.Down:
+        if (collisionRect.top < rect.top) candidates.push(entry);
+        break;
+      case KeyboardCode.Up:
+        if (collisionRect.top > rect.top) candidates.push(entry);
+        break;
+      case KeyboardCode.Left:
+        if (collisionRect.left > rect.left) candidates.push(entry);
+        break;
+      case KeyboardCode.Right:
+        if (collisionRect.left < rect.left) candidates.push(entry);
+        break;
+    }
+  });
+
+  const collisions = closestCorners({
+    active,
+    collisionRect,
+    droppableRects,
+    droppableContainers: candidates,
+    pointerCoordinates: null,
+  });
+  const closestId = getFirstCollision(collisions, "id");
+  if (closestId == null) return undefined;
+
+  const newRect = droppableContainers.get(closestId)?.rect.current;
+  if (!newRect) return undefined;
+
+  return {
+    x: newRect.left + (newRect.width - collisionRect.width) / 2,
+    y: newRect.top + (newRect.height - collisionRect.height) / 2,
+  };
+};
+
+const dndAnnouncements: Announcements = {
+  onDragStart() {
+    return "Card selecionado. Use as setas para mover entre as células e Espaço para soltar.";
+  },
+  onDragOver() {
+    return "Movendo o card pela matriz.";
+  },
+  onDragEnd() {
+    return "Card reposicionado.";
+  },
+  onDragCancel() {
+    return "Movimento cancelado.";
+  },
 };
 
 function parseDropTarget(id: string | number): { type: "cell" | "pool"; perf?: number; pot?: number } | null {
@@ -45,11 +134,12 @@ export default function NineBoxEditorPage() {
   const { isAdmin, isLoading: permsLoading } = useRequireAdmin({
     message: "Sem permissão.",
   });
-  const { data, isLoading } = useNineBoxSnapshot(id);
+  const { data, isLoading, isError, refetch } = useNineBoxSnapshot(id);
   const { updatePlacement, createPlacement, deletePlacement } = usePlacementMutations();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: nineBoxKeyboardCoordinates }),
   );
 
 
@@ -120,8 +210,12 @@ export default function NineBoxEditorPage() {
   if (permsLoading || !isAdmin) {
     return (
       <AppLayout>
-        <div className="flex justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <div className="mx-auto max-w-7xl space-y-4 py-2">
+          <Skeleton className="h-9 w-40" />
+          <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
+            <Skeleton className="h-[480px] w-full rounded-md" />
+            <Skeleton className="h-[480px] w-full rounded-md" />
+          </div>
         </div>
       </AppLayout>
     );
@@ -141,40 +235,46 @@ export default function NineBoxEditorPage() {
         </Button>
 
         {isLoading ? (
+          <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
+            <Skeleton className="h-[480px] w-full rounded-md" />
+            <Skeleton className="h-[480px] w-full rounded-md" />
+          </div>
+        ) : isError ? (
           <Card>
-            <CardContent className="flex justify-center py-12">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </CardContent>
+            <QueryError
+              message="Não foi possível carregar este snapshot."
+              onRetry={refetch}
+            />
           </Card>
         ) : !data?.snapshot ? (
           <Card>
-            <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
-              <Grid3X3 className="h-10 w-10 text-muted-foreground/40" />
-              <p className="text-sm text-muted-foreground">
-                Snapshot não encontrado.
-              </p>
-            </CardContent>
+            <EmptyState
+              icon={Grid3X3}
+              title="Snapshot não encontrado"
+              description="Ele pode ter sido removido. Volte para a lista para ver os snapshots disponíveis."
+              action={{
+                label: "Voltar para lista",
+                onClick: () => navigate("/admin/nine-box"),
+              }}
+            />
           </Card>
         ) : (
           <>
-            <header className="flex flex-wrap items-start justify-between gap-2">
-              <div className="space-y-1">
-                <h1 className="flex items-center gap-2 text-2xl font-bold">
-                  <Grid3X3 className="h-6 w-6" />
-                  {data.snapshot.name}
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                  {data.snapshot.cycle_name
-                    ? `Ciclo: ${data.snapshot.cycle_name}`
-                    : "Sem ciclo vinculado"}{" "}
-                  · {data.placements.length} colaboradores
-                </p>
-              </div>
-              <Badge variant="outline" className="gap-1">
-                {isLocked && <Lock className="h-3 w-3" />}
-                {STATUS_LABEL[data.snapshot.status]}
-              </Badge>
-            </header>
+            <PageHeader
+              icon={Grid3X3}
+              title={data.snapshot.name}
+              description={`${
+                data.snapshot.cycle_name
+                  ? `Ciclo: ${data.snapshot.cycle_name}`
+                  : "Sem ciclo vinculado"
+              } · ${data.placements.length} colaboradores`}
+              actions={
+                <Badge variant="outline" className="gap-1">
+                  {isLocked && <Lock className="h-3 w-3" />}
+                  {STATUS_LABEL[data.snapshot.status]}
+                </Badge>
+              }
+            />
 
             {isLocked && (
               <Card className="border-warning/40 bg-warning/5">
@@ -188,7 +288,11 @@ export default function NineBoxEditorPage() {
               </Card>
             )}
 
-            <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+            <DndContext
+              sensors={sensors}
+              onDragEnd={handleDragEnd}
+              accessibility={{ announcements: dndAnnouncements }}
+            >
               <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
                 <div>
                   <NineBoxGrid

@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import {
   Table,
@@ -15,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -35,13 +37,17 @@ import {
   Network,
   Search,
   UserCog,
-  X,
   Users,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRequireAdmin } from "@/hooks/useRequireAdmin";
 import { useManagers, type ManagerMembershipRow } from "@/hooks/useManagers";
 import { MultiPersonSelector } from "@/components/objectives/MultiPersonSelector";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { ListPageSkeleton } from "@/components/ui/page-skeleton";
+import { QueryError } from "@/components/QueryError";
+import { EmptyState } from "@/components/ui/empty-state";
 
 function getInitials(name: string): string {
   return name
@@ -74,7 +80,7 @@ function collectSubtree(
 }
 
 export default function ManagersAdminPage() {
-  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { isAdmin, isLoading: permsLoading } = useRequireAdmin({
     message: "Sem permissão para gerenciar gestores.",
   });
@@ -82,6 +88,7 @@ export default function ManagersAdminPage() {
     members,
     directSubordinatesByUserId,
     isLoading,
+    error,
     setManager,
     bulkSetManager,
     isMutating,
@@ -95,6 +102,8 @@ export default function ManagersAdminPage() {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkPicker, setBulkPicker] = useState<string[]>([]);
 
+  const [cardsRef] = useAutoAnimate<HTMLDivElement>();
+  const [tbodyRef] = useAutoAnimate<HTMLTableSectionElement>();
 
   const departmentOptions = useMemo(() => {
     const map = new Map<string, string>();
@@ -230,26 +239,18 @@ export default function ManagersAdminPage() {
   if (permsLoading || !isAdmin) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        <ListPageSkeleton />
       </AppLayout>
     );
   }
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Network className="h-6 w-6" />
-              Gestores
-            </h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Defina quem responde a quem. Ciclos são bloqueados pelo banco.
-            </p>
-          </div>
+      <PageHeader
+        icon={Network}
+        title="Gestores"
+        description="Defina quem responde a quem. Ciclos são bloqueados pelo banco."
+        actions={
           <Button
             onClick={openBulkPicker}
             disabled={selectedRows.size === 0 || isMutating}
@@ -258,97 +259,104 @@ export default function ManagersAdminPage() {
             <Users className="h-4 w-4" />
             Definir mesmo gestor ({selectedRows.size})
           </Button>
-        </div>
+        }
+      />
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Pessoas da empresa</CardTitle>
-            <div className="flex flex-wrap items-center gap-2 pt-2">
-              <div className="relative min-w-[200px] flex-1 max-w-sm">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por nome, e-mail, cargo..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-8 h-9"
-                />
-              </div>
-              <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-                <SelectTrigger className="h-9 w-56">
-                  <SelectValue placeholder="Área" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as áreas</SelectItem>
-                  {departmentOptions.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>
-                      {d.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Pessoas da empresa</CardTitle>
+          <div className="flex flex-wrap items-center gap-2 pt-2">
+            <div className="relative min-w-[200px] flex-1 max-w-sm">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome, e-mail, cargo..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8 h-9"
+              />
             </div>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex items-center justify-center py-10">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
-            ) : filteredMembers.length === 0 ? (
-              <div className="text-center py-10 text-muted-foreground text-sm">
-                Nenhuma pessoa encontrada.
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-10">
-                      <Checkbox
-                        checked={allFilteredSelected}
-                        onCheckedChange={handleToggleAll}
-                        aria-label="Selecionar todos"
-                      />
-                    </TableHead>
-                    <TableHead>Pessoa</TableHead>
-                    <TableHead>Cargo</TableHead>
-                    <TableHead>Área</TableHead>
-                    <TableHead>Gestor atual</TableHead>
-                    <TableHead className="w-32 text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+              <SelectTrigger className="h-9 w-56">
+                <SelectValue placeholder="Área" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as áreas</SelectItem>
+                {departmentOptions.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full rounded-lg" />
+              ))}
+            </div>
+          ) : error ? (
+            <QueryError
+              message="Não foi possível carregar as pessoas da empresa."
+              onRetry={() => queryClient.invalidateQueries({ queryKey: ["managers-admin"] })}
+            />
+          ) : members.length === 0 ? (
+            <EmptyState
+              icon={Users}
+              title="Nenhuma pessoa na empresa"
+              description="Convide colaboradores para poder definir a hierarquia de gestão."
+            />
+          ) : filteredMembers.length === 0 ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              Nenhuma pessoa encontrada para os filtros atuais.
+            </p>
+          ) : (
+            <>
+              {/* Mobile: cards (colapso da tabela) */}
+              <div className="md:hidden">
+                <label className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
+                  <Checkbox
+                    checked={allFilteredSelected}
+                    onCheckedChange={handleToggleAll}
+                    aria-label="Selecionar todos"
+                  />
+                  Selecionar todos ({filteredMembers.length})
+                </label>
+                <div ref={cardsRef} className="space-y-3">
                   {filteredMembers.map((m) => (
-                    <TableRow key={m.id}>
-                      <TableCell>
+                    <div key={m.id} className="rounded-lg border p-4 space-y-3">
+                      <div className="flex items-center gap-2">
                         <Checkbox
                           checked={selectedRows.has(m.user_id)}
                           onCheckedChange={() => handleToggleRow(m.user_id)}
                           aria-label={`Selecionar ${m.full_name}`}
                         />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={m.avatar_url ?? undefined} alt={m.full_name} />
-                            <AvatarFallback className="text-[10px]">
-                              {getInitials(m.full_name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium truncate">{m.full_name}</p>
-                            <p className="text-xs text-muted-foreground truncate">{m.email}</p>
-                          </div>
+                        <Avatar className="h-9 w-9">
+                          <AvatarImage src={m.avatar_url ?? undefined} alt={m.full_name} />
+                          <AvatarFallback className="text-[10px]">
+                            {getInitials(m.full_name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">{m.full_name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{m.email}</p>
                         </div>
-                      </TableCell>
-                      <TableCell className="text-sm">{m.position || "—"}</TableCell>
-                      <TableCell className="text-sm">{m.department_name || "—"}</TableCell>
-                      <TableCell className="text-sm">
-                        {m.manager_name ? (
-                          <Badge variant="secondary">{m.manager_name}</Badge>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
+                      </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <span>Cargo: {m.position || "—"}</span>
+                        <span>Área: {m.department_name || "—"}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 border-t pt-2">
+                        <span className="text-xs text-muted-foreground">
+                          Gestor:{" "}
+                          {m.manager_name ? (
+                            <Badge variant="secondary">{m.manager_name}</Badge>
+                          ) : (
+                            "—"
+                          )}
+                        </span>
                         <Button
                           size="sm"
                           variant="outline"
@@ -359,15 +367,85 @@ export default function ManagersAdminPage() {
                           <UserCog className="h-4 w-4" />
                           Definir gestor
                         </Button>
-                      </TableCell>
-                    </TableRow>
+                      </div>
+                    </div>
                   ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                </div>
+              </div>
+
+              {/* Desktop: tabela completa */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={allFilteredSelected}
+                          onCheckedChange={handleToggleAll}
+                          aria-label="Selecionar todos"
+                        />
+                      </TableHead>
+                      <TableHead>Pessoa</TableHead>
+                      <TableHead>Cargo</TableHead>
+                      <TableHead>Área</TableHead>
+                      <TableHead>Gestor atual</TableHead>
+                      <TableHead className="w-32 text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody ref={tbodyRef}>
+                    {filteredMembers.map((m) => (
+                      <TableRow key={m.id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedRows.has(m.user_id)}
+                            onCheckedChange={() => handleToggleRow(m.user_id)}
+                            aria-label={`Selecionar ${m.full_name}`}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={m.avatar_url ?? undefined} alt={m.full_name} />
+                              <AvatarFallback className="text-[10px]">
+                                {getInitials(m.full_name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium truncate">{m.full_name}</p>
+                              <p className="text-xs text-muted-foreground truncate">{m.email}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm">{m.position || "—"}</TableCell>
+                        <TableCell className="text-sm">{m.department_name || "—"}</TableCell>
+                        <TableCell className="text-sm">
+                          {m.manager_name ? (
+                            <Badge variant="secondary">{m.manager_name}</Badge>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5"
+                            onClick={() => openSinglePicker(m)}
+                            disabled={isMutating}
+                          >
+                            <UserCog className="h-4 w-4" />
+                            Definir gestor
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Single-row picker */}
       <Dialog

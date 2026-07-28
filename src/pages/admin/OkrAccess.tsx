@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import {
   Table,
@@ -13,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -20,9 +22,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Search, ShieldCheck } from "lucide-react";
-import { toast } from "sonner";
+import { Search, ShieldCheck, Users } from "lucide-react";
 import { useRequireAdmin } from "@/hooks/useRequireAdmin";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { ListPageSkeleton } from "@/components/ui/page-skeleton";
+import { QueryError } from "@/components/QueryError";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   useOkrAccessLevels,
   useUpdateOkrAccessLevel,
@@ -40,9 +45,9 @@ function getInitials(name: string): string {
 }
 
 const LEVEL_LABEL: Record<OkrAccessLevel, string> = {
-  manager: "Manager",
-  contributor: "Contributor",
-  restricted: "Restricted",
+  manager: "Gestor",
+  contributor: "Contribuidor",
+  restricted: "Restrito",
 };
 
 const LEVEL_VARIANT: Record<OkrAccessLevel, "default" | "secondary" | "outline"> = {
@@ -51,16 +56,20 @@ const LEVEL_VARIANT: Record<OkrAccessLevel, "default" | "secondary" | "outline">
   restricted: "outline",
 };
 
+const LEVEL_ORDER: OkrAccessLevel[] = ["manager", "contributor", "restricted"];
+
 export default function OkrAccessAdminPage() {
-  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { isAdmin, isLoading: permsLoading } = useRequireAdmin({
     message: "Sem permissão para gerenciar acesso a OKR.",
   });
-  const { rows, isLoading } = useOkrAccessLevels();
+  const { rows, isLoading, error } = useOkrAccessLevels();
   const updateLevel = useUpdateOkrAccessLevel();
 
   const [search, setSearch] = useState("");
 
+  const [cardsRef] = useAutoAnimate<HTMLDivElement>();
+  const [tbodyRef] = useAutoAnimate<HTMLTableSectionElement>();
 
   const counts = useMemo(() => {
     const c = { manager: 0, contributor: 0, restricted: 0 };
@@ -89,58 +98,55 @@ export default function OkrAccessAdminPage() {
   if (permsLoading || !isAdmin) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        <ListPageSkeleton />
       </AppLayout>
     );
   }
 
+  const levelSelect = (r: (typeof filteredRows)[number], fullWidth = false) => (
+    <Select
+      value={r.okr_access_level}
+      onValueChange={(v) => handleChange(r.id, v as OkrAccessLevel)}
+      disabled={updateLevel.isPending}
+    >
+      <SelectTrigger
+        className={fullWidth ? "h-9 w-full" : "h-9 w-40"}
+        aria-label={`Nível de acesso de ${r.full_name}`}
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {LEVEL_ORDER.map((level) => (
+          <SelectItem key={level} value={level}>
+            {LEVEL_LABEL[level]}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <ShieldCheck className="h-6 w-6" />
-            Acesso a OKR
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Defina quem pode criar OKRs (Manager), contribuir (Contributor) ou apenas ler
-            quando marcado (Restricted).
-          </p>
-        </div>
+      <PageHeader
+        icon={ShieldCheck}
+        title="Acesso a OKR"
+        description="Defina quem pode criar OKRs (Gestor), contribuir (Contribuidor) ou apenas visualizar quando marcado (Restrito)."
+      />
 
+      <div className="space-y-6">
         <div className="grid gap-3 md:grid-cols-3">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Manager
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold">{counts.manager}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Contributor
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold">{counts.contributor}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Restricted
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold">{counts.restricted}</p>
-            </CardContent>
-          </Card>
+          {LEVEL_ORDER.map((level) => (
+            <Card key={level}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {LEVEL_LABEL[level]}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold">{counts[level]}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
         <Card>
@@ -160,70 +166,100 @@ export default function OkrAccessAdminPage() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="flex items-center justify-center py-10">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              <div className="space-y-3">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full rounded-lg" />
+                ))}
               </div>
+            ) : error ? (
+              <QueryError
+                message="Não foi possível carregar as pessoas da empresa."
+                onRetry={() => queryClient.invalidateQueries({ queryKey: ["okr-access-levels"] })}
+              />
+            ) : rows.length === 0 ? (
+              <EmptyState
+                icon={Users}
+                title="Nenhuma pessoa na empresa"
+                description="Convide colaboradores para poder definir o nível de acesso a OKR de cada um."
+              />
             ) : filteredRows.length === 0 ? (
-              <div className="text-center py-10 text-muted-foreground text-sm">
-                Nenhuma pessoa encontrada.
-              </div>
+              <p className="py-10 text-center text-sm text-muted-foreground">
+                Nenhuma pessoa encontrada para "{search}".
+              </p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Pessoa</TableHead>
-                    <TableHead>Cargo</TableHead>
-                    <TableHead>Área</TableHead>
-                    <TableHead className="w-56">Nível</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+              <>
+                {/* Mobile: cards (colapso da tabela) */}
+                <div ref={cardsRef} className="space-y-3 md:hidden">
                   {filteredRows.map((r) => (
-                    <TableRow key={r.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={r.avatar_url ?? undefined} alt={r.full_name} />
-                            <AvatarFallback className="text-[10px]">
-                              {getInitials(r.full_name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium truncate">{r.full_name}</p>
-                            <p className="text-xs text-muted-foreground truncate">{r.email}</p>
-                          </div>
+                    <div key={r.id} className="rounded-lg border p-4 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-9 w-9">
+                          <AvatarImage src={r.avatar_url ?? undefined} alt={r.full_name} />
+                          <AvatarFallback className="text-[10px]">
+                            {getInitials(r.full_name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">{r.full_name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{r.email}</p>
                         </div>
-                      </TableCell>
-                      <TableCell className="text-sm">{r.position || "—"}</TableCell>
-                      <TableCell className="text-sm">{r.department || "—"}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Select
-                            value={r.okr_access_level}
-                            onValueChange={(v) => handleChange(r.id, v as OkrAccessLevel)}
-                            disabled={updateLevel.isPending}
-                          >
-                            <SelectTrigger
-                              className="h-9 w-40"
-                              aria-label={`Nível de acesso de ${r.full_name}`}
-                            >
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="manager">Manager</SelectItem>
-                              <SelectItem value="contributor">Contributor</SelectItem>
-                              <SelectItem value="restricted">Restricted</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Badge variant={LEVEL_VARIANT[r.okr_access_level]}>
-                            {LEVEL_LABEL[r.okr_access_level]}
-                          </Badge>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                        <Badge variant={LEVEL_VARIANT[r.okr_access_level]}>
+                          {LEVEL_LABEL[r.okr_access_level]}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <span>Cargo: {r.position || "—"}</span>
+                        <span>Área: {r.department || "—"}</span>
+                      </div>
+                      {levelSelect(r, true)}
+                    </div>
                   ))}
-                </TableBody>
-              </Table>
+                </div>
+
+                {/* Desktop: tabela completa */}
+                <div className="hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Pessoa</TableHead>
+                        <TableHead>Cargo</TableHead>
+                        <TableHead>Área</TableHead>
+                        <TableHead className="w-56">Nível</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody ref={tbodyRef}>
+                      {filteredRows.map((r) => (
+                        <TableRow key={r.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage src={r.avatar_url ?? undefined} alt={r.full_name} />
+                                <AvatarFallback className="text-[10px]">
+                                  {getInitials(r.full_name)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium truncate">{r.full_name}</p>
+                                <p className="text-xs text-muted-foreground truncate">{r.email}</p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm">{r.position || "—"}</TableCell>
+                          <TableCell className="text-sm">{r.department || "—"}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {levelSelect(r)}
+                              <Badge variant={LEVEL_VARIANT[r.okr_access_level]}>
+                                {LEVEL_LABEL[r.okr_access_level]}
+                              </Badge>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
