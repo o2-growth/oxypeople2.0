@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -23,6 +24,11 @@ import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { QueryError } from "@/components/QueryError";
 import { useObjectives, usePeriods, type ObjectiveWithDetails } from "@/hooks/useObjectives";
+import { rollup, type WeightOf } from "@/lib/objective-rollup";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { useDriverTour } from "@/hooks/useDriverTour";
+import { OKR_OVERVIEW_TOUR_ID, okrOverviewSteps } from "@/lib/tours";
+import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
 type KeyResultRow = Database["public"]["Tables"]["key_results"]["Row"];
@@ -44,20 +50,28 @@ function krProgress(kr: KeyResultRow): number {
   return clamp(((current - initial) / span) * 100);
 }
 
-function avgProgress(krs: KeyResultRow[]): number {
-  if (!krs.length) return 0;
-  return Math.round(krs.reduce((s, k) => s + krProgress(k), 0) / krs.length);
-}
-
-// Progresso de um objetivo (área/time): prioriza o valor do backend
-// (`objective.progress`, a MESMA fonte que Objectives/ObjectiveDetail usam) e
-// só cai no cálculo client-side quando o backend ainda não computou (0/ausente).
-// Assim os números batem com o detalhe do objetivo, e nunca regridem para vazio
-// caso o backend esteja zerado enquanto os KRs já têm avanço.
-function objectiveProgress(obj: ObjectiveWithDetails, krs: KeyResultRow[]): number {
-  const backend = Number(obj.progress);
-  if (Number.isFinite(backend) && backend > 0) return Math.round(backend);
-  return avgProgress(krs);
+// Pesos dos vínculos pai→filho (`objective_relations`). Uma única query
+// (dedup por react-query) alimenta o rollup ponderado. Se o RLS retornar vazio
+// ou a query falhar, o mapa fica vazio e `weightedMean` cai para média simples
+// — o painel nunca quebra por ausência de pesos.
+function useObjectiveWeights(): WeightOf {
+  const { data } = useQuery({
+    queryKey: ["objective-relations-weights"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("objective_relations")
+        .select("child_objective_id, weight_percentage");
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 60_000,
+  });
+  const byChild = useMemo(() => {
+    const m = new Map<string, number>();
+    (data ?? []).forEach((r) => m.set(r.child_objective_id, Number(r.weight_percentage) || 0));
+    return m;
+  }, [data]);
+  return useCallback((childId: string) => byChild.get(childId) ?? 0, [byChild]);
 }
 
 // Todos os KRs de um objetivo, incluindo os dos filhos (recursivo).
@@ -102,10 +116,48 @@ function initials(name?: string | null): string {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 }
 
-function TeamRow({ team }: { team: ObjectiveWithDetails }) {
+// Barra de progresso REAL com marcador do ESPERADO (barra dupla — §3.4). O
+// preenchimento é o progresso real; o traço vertical marca o esperado do pace.
+// Atrás do esperado → marcador em tom de alerta (`warning`); no alvo/à frente →
+// marcador neutro. Mantém track/altura/gradiente iguais aos da <Progress> do
+// design system (tudo via token, sem cor hardcoded).
+function DualProgress({ value, expected, className }: { value: number; expected: number; className?: string }) {
+  const behind = value < expected;
+  return (
+    <div
+      className={cn("relative w-full overflow-hidden rounded-full bg-secondary", className)}
+      role="progressbar"
+      aria-valuenow={value}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label={`Progresso ${value}%, esperado ${expected}%`}
+      title={`Real ${value}% · Esperado ${expected}%`}
+    >
+      <div
+        className="h-full rounded-full transition-all duration-500 ease-out"
+        style={{ width: `${value}%`, backgroundImage: "var(--gradient-progress)" }}
+      />
+      <span
+        aria-hidden
+        className={cn("absolute top-0 h-full w-0.5 -translate-x-1/2", behind ? "bg-warning" : "bg-foreground/40")}
+        style={{ left: `${expected}%` }}
+      />
+    </div>
+  );
+}
+
+// Barra do nó: dupla quando há esperado > 0, simples caso contrário.
+function NodeProgress({ value, expected, className }: { value: number; expected: number; className?: string }) {
+  return expected > 0
+    ? <DualProgress value={value} expected={expected} className={className} />
+    : <Progress value={value} className={className} />;
+}
+
+function TeamRow({ team, weightOf }: { team: ObjectiveWithDetails; weightOf: WeightOf }) {
   const [open, setOpen] = useState(false);
   const krs = team.key_results ?? [];
-  const pct = objectiveProgress(team, krs);
+  const { progress: pct, expected } = rollup(team, weightOf);
+  const behind = expected > 0 && pct < expected;
   const hasCheckin = krs.some((k) => k.last_checkin_at || Number(k.current_value ?? 0) > 0);
   const tone = progressTone(pct, hasCheckin);
   const teamName = team.team?.name || team.title.replace(/^OKR\s+/, "").replace(/\s+—.*$/, "");
@@ -120,8 +172,8 @@ function TeamRow({ team }: { team: ObjectiveWithDetails }) {
           <span className="text-xs text-muted-foreground">{krs.length} KR{krs.length !== 1 ? "s" : ""}</span>
           <Badge variant="outline" className={cn("border-0 text-xs font-medium", tone.cls)}>{tone.label}</Badge>
           <div className="hidden w-40 items-center gap-2 sm:flex">
-            <Progress value={pct} className="h-2" />
-            <span className="w-9 text-right text-xs font-semibold tabular-nums">{pct}%</span>
+            <NodeProgress value={pct} expected={expected} className="h-2" />
+            <span className={cn("w-9 text-right text-xs font-semibold tabular-nums", behind && "text-warning")}>{pct}%</span>
           </div>
         </button>
       </CollapsibleTrigger>
@@ -147,16 +199,26 @@ function TeamRow({ team }: { team: ObjectiveWithDetails }) {
   );
 }
 
-function AreaCard({ area }: { area: ObjectiveWithDetails }) {
+function AreaCard({
+  area,
+  weightOf,
+  isTourAnchor = false,
+}: {
+  area: ObjectiveWithDetails;
+  weightOf: WeightOf;
+  /** Marca ESTE card como âncora do tour (§3.7). Só o primeiro card recebe. */
+  isTourAnchor?: boolean;
+}) {
   const navigate = useNavigate();
   const teams = (area.children ?? []).filter((c) => c.type === "operational" || (c.children?.length ?? 0) === 0);
   const allKrs = collectKrs(area);
-  const pct = objectiveProgress(area, allKrs);
+  const { progress: pct, expected } = rollup(area, weightOf);
+  const behind = expected > 0 && pct < expected;
   const color = AREA_COLORS[areaColorKey(area)];
   const areaName = area.title.replace(/\s+—.*$/, "");
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden" data-tour={isTourAnchor ? "okr-area" : undefined}>
       <div className="h-1.5" style={{ backgroundColor: color }} />
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-4">
@@ -184,10 +246,18 @@ function AreaCard({ area }: { area: ObjectiveWithDetails }) {
           </div>
           <div className="flex shrink-0 flex-col items-end">
             <span className="text-2xl font-bold tabular-nums" style={{ color }}>{pct}%</span>
-            <span className="text-xs text-muted-foreground">progresso</span>
+            {expected > 0 ? (
+              <span className={cn("text-xs", behind ? "text-warning" : "text-muted-foreground")}>
+                esperado {expected}%{behind ? " · atrás" : ""}
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground">progresso</span>
+            )}
           </div>
         </div>
-        <Progress value={pct} className="mt-2 h-2" />
+        <div className="mt-2" data-tour={isTourAnchor ? "okr-progress" : undefined}>
+          <NodeProgress value={pct} expected={expected} className="h-2" />
+        </div>
       </CardHeader>
       <CardContent className="pt-0">
         <div className="space-y-0.5">
@@ -195,7 +265,7 @@ function AreaCard({ area }: { area: ObjectiveWithDetails }) {
             .slice()
             .sort((a, b) => (b.key_results?.length ?? 0) - (a.key_results?.length ?? 0))
             .map((team) => (
-              <TeamRow key={team.id} team={team} />
+              <TeamRow key={team.id} team={team} weightOf={weightOf} />
             ))}
           {!teams.length && <p className="py-2 text-sm text-muted-foreground">Nenhum time neste objetivo.</p>}
         </div>
@@ -207,7 +277,17 @@ function AreaCard({ area }: { area: ObjectiveWithDetails }) {
 export default function OkrOverview() {
   const { data: objectives = [], isLoading, isError, refetch } = useObjectives();
   const { data: periods = [] } = usePeriods();
+  const weightOf = useObjectiveWeights();
   const [periodId, setPeriodId] = useState<string>("");
+
+  // Tour de primeiro acesso (§3.7). Aditivo ao painel do §3.4 — só dispara o
+  // trigger e usa os `data-tour` mínimos; não altera o cálculo de rollup.
+  const { isAdmin, isTeamLeader, canManageOkrCascade, isLoading: permsLoading } =
+    useUserPermissions();
+  const okrTour = useDriverTour(OKR_OVERVIEW_TOUR_ID, okrOverviewSteps);
+  const okrTourStarted = useRef(false);
+  // Gate por papel: gestores (líderes de time / acesso manager) e admins.
+  const canSeeOkrTour = isAdmin || isTeamLeader || canManageOkrCascade;
 
   // período default: o que engloba hoje, senão o mais recente com objetivos.
   const effectivePeriod = useMemo(() => {
@@ -236,14 +316,26 @@ export default function OkrOverview() {
   const totals = useMemo(() => {
     const teams = areas.reduce((s, a) => s + (a.children?.length ?? 0), 0);
     const krCount = areas.reduce((s, a) => s + collectKrs(a).length, 0);
-    // Progresso médio = média do progresso (backend-first) de cada área, o que
-    // mantém o headline coerente com o número exibido em cada card.
-    const areaPcts = areas.map((a) => objectiveProgress(a, collectKrs(a)));
+    // Progresso médio = média do rollup (§3.4) de cada área, mantendo o headline
+    // coerente com o número exibido em cada card.
+    const areaPcts = areas.map((a) => rollup(a, weightOf).progress);
     const progresso = areaPcts.length
       ? Math.round(areaPcts.reduce((s, p) => s + p, 0) / areaPcts.length)
       : 0;
     return { objetivos: areas.length, times: teams, krs: krCount, progresso };
-  }, [areas]);
+  }, [areas, weightOf]);
+
+  // Auto-start UMA vez: gestor/admin, dados carregados e com áreas na tela
+  // (garante que os alvos period/summary/area já montaram). A flag por tour
+  // (`tour:okr-overview:v1`) impede repetição; o tour é 100% skipável.
+  useEffect(() => {
+    if (okrTourStarted.current) return;
+    if (permsLoading || isLoading) return;
+    if (!canSeeOkrTour || areas.length === 0) return;
+    okrTourStarted.current = true;
+    const t = window.setTimeout(() => okrTour.start(), 350);
+    return () => window.clearTimeout(t);
+  }, [permsLoading, isLoading, canSeeOkrTour, areas.length, okrTour]);
 
   return (
     <AppLayout>
@@ -254,7 +346,7 @@ export default function OkrOverview() {
           icon={TrendingUp}
           actions={
             <Select value={effectivePeriod} onValueChange={setPeriodId}>
-              <SelectTrigger className="w-48"><SelectValue placeholder="Período" /></SelectTrigger>
+              <SelectTrigger className="w-48" data-tour="okr-period"><SelectValue placeholder="Período" /></SelectTrigger>
               <SelectContent>
                 {periods.map((p) => (
                   <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
@@ -265,7 +357,7 @@ export default function OkrOverview() {
         />
 
         {/* Resumo */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4" data-tour="okr-summary">
           {[
             { label: "Áreas", value: totals.objetivos, icon: Target },
             { label: "Times", value: totals.times, icon: Users },
@@ -300,7 +392,9 @@ export default function OkrOverview() {
           </Card>
         ) : areas.length ? (
           <div className="space-y-4">
-            {areas.map((area) => <AreaCard key={area.id} area={area} />)}
+            {areas.map((area, i) => (
+              <AreaCard key={area.id} area={area} weightOf={weightOf} isTourAnchor={i === 0} />
+            ))}
           </div>
         ) : (
           <Card><CardContent className="p-8 text-center text-muted-foreground">

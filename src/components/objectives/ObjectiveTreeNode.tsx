@@ -1,4 +1,4 @@
-import { useState, useEffect, type CSSProperties } from "react";
+import { useState, useEffect, useMemo, useCallback, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -39,10 +39,11 @@ import { OverdueBadge } from "./OverdueBadge";
 import { BreakdownObjectiveDialog } from "./BreakdownObjectiveDialog";
 import { EditObjectiveDialog } from "./EditObjectiveDialog";
 import { ObjectiveWithDetails, useDeleteObjective, ObjectiveType } from "@/hooks/useObjectives";
+import { rollup, type WeightOf } from "@/lib/objective-rollup";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { useOkrTier } from "@/hooks/useOkrTier";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -95,6 +96,11 @@ const boardCtaVars = {
   "--board-cta-hover": BOARD_CTA.hover,
 } as CSSProperties;
 
+// Marcador do "esperado" na barra dupla (§3.4). Segue a convenção deste
+// componente (hex inline, não token): tom de alerta quando o nó está ATRÁS do
+// esperado; neutro (slate) quando no alvo/à frente.
+const EXPECTED_MARKER = { behind: PROGRESS_COLOR.warn, ontrack: "#64748b" } as const;
+
 const childTypeMap: Record<ObjectiveType, ObjectiveType | null> = {
   strategic: "tactical",
   tactical: "operational",
@@ -103,6 +109,31 @@ const childTypeMap: Record<ObjectiveType, ObjectiveType | null> = {
   team: null,
   individual: null,
 };
+
+// Rollup (§3.4) — cálculo compartilhado em @/lib/objective-rollup (fonte única).
+
+// Pesos pai→filho (`objective_relations`) em UMA query — dedup por react-query,
+// então as N instâncias recursivas do nó compartilham o mesmo cache/fetch.
+// RLS vazio ou erro → mapa vazio → `weightedMean` cai para média simples.
+function useWeightOf(): WeightOf {
+  const { data } = useQuery({
+    queryKey: ["objective-relations-weights"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("objective_relations")
+        .select("child_objective_id, weight_percentage");
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 60_000,
+  });
+  const byChild = useMemo(() => {
+    const m = new Map<string, number>();
+    (data ?? []).forEach((r) => m.set(r.child_objective_id, Number(r.weight_percentage) || 0));
+    return m;
+  }, [data]);
+  return useCallback((childId: string) => byChild.get(childId) ?? 0, [byChild]);
+}
 
 export function ObjectiveTreeNode({ objective, depth = 0, onCreateChild, onSelectObjective, weightPercentage }: ObjectiveTreeNodeProps) {
   const navigate = useNavigate();
@@ -115,6 +146,7 @@ export function ObjectiveTreeNode({ objective, depth = 0, onCreateChild, onSelec
   const { canEditObjective, canDeleteObjective } = useUserPermissions();
   const { canManageRelations } = useOkrTier();
   const deleteObjective = useDeleteObjective();
+  const weightOf = useWeightOf();
 
   // Child weights state
   const [childWeights, setChildWeights] = useState<Record<string, number>>({});
@@ -235,7 +267,10 @@ export function ObjectiveTreeNode({ objective, depth = 0, onCreateChild, onSelec
     direction: (kr as any).direction,
   }));
 
-  const progress = Math.round(Math.min(Math.max(0, objective.progress), 100));
+  // §3.4 — rollup ponderado (pai = média ponderada dos filhos) + presença do
+  // backend; barra dupla real vs esperado quando há esperado > 0.
+  const { progress, expected } = rollup(objective, weightOf);
+  const behind = expected > 0 && progress < expected;
   const progressColor = progress >= 70 ? PROGRESS_COLOR.good : progress >= 40 ? PROGRESS_COLOR.warn : PROGRESS_COLOR.bad;
 
   return (
@@ -308,15 +343,28 @@ export function ObjectiveTreeNode({ objective, depth = 0, onCreateChild, onSelec
               )}
             </div>
 
-            {/* Progress bar */}
+            {/* Progress bar — dupla (real vs esperado) quando há esperado > 0 */}
             <div className="w-[130px] flex items-center gap-2 px-3">
-              <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
+              <div
+                className="relative flex-1 h-2 bg-secondary rounded-full overflow-hidden"
+                title={expected > 0 ? `Real ${progress}% · Esperado ${expected}%` : undefined}
+              >
                 <div
                   className="h-full rounded-full transition-all duration-500 ease-out"
                   style={{ width: `${progress}%`, backgroundColor: progressColor }}
                 />
+                {expected > 0 && (
+                  <span
+                    aria-hidden
+                    className="absolute top-0 h-full w-0.5 -translate-x-1/2"
+                    style={{ left: `${expected}%`, backgroundColor: behind ? EXPECTED_MARKER.behind : EXPECTED_MARKER.ontrack }}
+                  />
+                )}
               </div>
-              <span className="text-[11px] font-bold text-muted-foreground w-8 text-right tabular-nums">
+              <span
+                className="text-[11px] font-bold text-muted-foreground w-8 text-right tabular-nums"
+                style={behind ? { color: EXPECTED_MARKER.behind } : undefined}
+              >
                 {progress}%
               </span>
             </div>
