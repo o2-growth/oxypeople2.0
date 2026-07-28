@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PDI_STATUS } from "@/components/shared/StatusBadge";
+import { PDI_STATUS, PDI_ACTION_STATUS, StatusBadge } from "@/components/shared/StatusBadge";
 import { TabCountBadge } from "@/components/shared/TabCountBadge";
 import { QueryError } from "@/components/QueryError";
 import { DetailPageSkeleton } from "@/components/ui/page-skeleton";
@@ -216,11 +216,11 @@ export default function PDIDetail() {
                       {action.evidence_url!.split("/").pop()}
                     </p>
                   </div>
-                  <Badge variant="outline" className="text-xs shrink-0">
-                    {action.status === "done" ? "Concluída" :
-                     action.status === "doing" ? "Em andamento" :
-                     action.status === "blocked" ? "Bloqueada" : "A fazer"}
-                  </Badge>
+                  <StatusBadge
+                    status={action.status}
+                    map={PDI_ACTION_STATUS}
+                    className="text-xs shrink-0"
+                  />
                 </div>
               ))}
             </div>

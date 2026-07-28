@@ -32,6 +32,20 @@ export const ONE_ON_ONE_STATUS: StatusMap = {
   no_show: { label: "Não realizada", variant: "outline" },
 };
 
+/**
+ * Vocabulário de status de uma AÇÃO de PDI (colunas do kanban / select do form).
+ *
+ * Fonte única de verdade para label + cor consolidando os mapas locais que
+ * viviam em `ActionForm` (STATUS_LABELS), `ActionsKanban` (COLUMNS) e a
+ * tradução inline da aba Evidências de `PDIDetail`. Ordem = fluxo do kanban.
+ */
+export const PDI_ACTION_STATUS: StatusMap = {
+  todo: { label: "A fazer", variant: "outline" },
+  doing: { label: "Em andamento", variant: "default" },
+  done: { label: "Concluído", variant: "secondary" },
+  blocked: { label: "Bloqueado", variant: "destructive" },
+};
+
 interface StatusBadgeProps {
   status: string;
   /** Mapa status→config (ex.: `PDI_STATUS`, `ONE_ON_ONE_STATUS`). */

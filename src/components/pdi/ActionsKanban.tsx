@@ -20,6 +20,7 @@ import { Plus, Loader2, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ActionCard } from "./ActionCard";
 import { ActionForm } from "./ActionForm";
+import { PDI_ACTION_STATUS } from "@/components/shared/StatusBadge";
 import { usePDIActions, type PDIAction, type ActionStatus } from "@/hooks/usePDIActions";
 import type { PDICompetency } from "@/hooks/usePDICompetencies";
 
@@ -31,12 +32,8 @@ interface Props {
   currentUserId?: string;
 }
 
-const COLUMNS: { id: ActionStatus; label: string }[] = [
-  { id: "todo", label: "A fazer" },
-  { id: "doing", label: "Em andamento" },
-  { id: "done", label: "Concluído" },
-  { id: "blocked", label: "Bloqueado" },
-];
+// Ordem das colunas (fluxo do kanban). Labels vêm de `PDI_ACTION_STATUS`.
+const COLUMN_STATUSES: ActionStatus[] = ["todo", "doing", "done", "blocked"];
 
 function KanbanColumn({
   column,
@@ -223,11 +220,11 @@ export function ActionsKanban({ planId, competencies, onPlanRefetch, planUserId,
           onDragEnd={handleDragEnd}
         >
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {COLUMNS.map((col) => (
+            {COLUMN_STATUSES.map((status) => (
               <KanbanColumn
-                key={col.id}
-                column={col}
-                actions={actionsByStatus(col.id)}
+                key={status}
+                column={{ id: status, label: PDI_ACTION_STATUS[status].label }}
+                actions={actionsByStatus(status)}
                 competencies={competencies}
                 onAddAction={openAdd}
                 onEditAction={openEdit}
