@@ -29,7 +29,7 @@ export default function HR() {
   // preserva-os ao trocar de aba e voltar (evita perder uma seleção em massa).
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("active");
   const [birthdayFilter, setBirthdayFilter] = useState("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   // Ordenação carrega por nome (A–Z); visão inicia em tabela. Elevados junto para 1:1.

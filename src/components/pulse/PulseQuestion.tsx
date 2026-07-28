@@ -27,35 +27,52 @@ export function PulseQuestion({ pulse, onComplete, className }: PulseQuestionPro
     score !== null &&
     score <= pulse.require_comment_below;
 
+  // Se já existe resposta desta pessoa no período (unique violation), tratamos
+  // como concluído: fecha o card com a confirmação em vez de deixar a pessoa
+  // clicando de novo sem feedback.
+  const alreadyAnswered = (err: unknown) => {
+    const msg = (err as Error)?.message ?? "";
+    return msg.includes("duplicate key") || msg.includes("unique");
+  };
+
   const handleSubmit = async () => {
     if (score === null) return;
     if (requiresComment && !comment.trim()) return;
 
-    await submit.mutateAsync({
-      pulseSurveyId: pulse.id,
-      periodStart: pulse.period_start,
-      anonymous: pulse.anonymous,
-      questionType: pulse.question_type,
-      score,
-      emoji: emoji ?? undefined,
-      comment: comment.trim() ? comment : null,
-    });
-    onComplete?.();
+    try {
+      await submit.mutateAsync({
+        pulseSurveyId: pulse.id,
+        periodStart: pulse.period_start,
+        anonymous: pulse.anonymous,
+        questionType: pulse.question_type,
+        score,
+        emoji: emoji ?? undefined,
+        comment: comment.trim() ? comment : null,
+      });
+      onComplete?.();
+    } catch (err) {
+      if (alreadyAnswered(err)) onComplete?.();
+      // demais erros: o toast do hook informa e o form permanece p/ nova tentativa
+    }
   };
 
   const handleMoodSelect = async (selectedScore: number, selectedEmoji: string) => {
     // Mood é 1-clique: submete imediatamente
     setScore(selectedScore);
     setEmoji(selectedEmoji);
-    await submit.mutateAsync({
-      pulseSurveyId: pulse.id,
-      periodStart: pulse.period_start,
-      anonymous: pulse.anonymous,
-      questionType: pulse.question_type,
-      score: selectedScore,
-      emoji: selectedEmoji,
-    });
-    onComplete?.();
+    try {
+      await submit.mutateAsync({
+        pulseSurveyId: pulse.id,
+        periodStart: pulse.period_start,
+        anonymous: pulse.anonymous,
+        questionType: pulse.question_type,
+        score: selectedScore,
+        emoji: selectedEmoji,
+      });
+      onComplete?.();
+    } catch (err) {
+      if (alreadyAnswered(err)) onComplete?.();
+    }
   };
 
   const isPending = submit.isPending;
@@ -105,9 +122,10 @@ export function PulseQuestion({ pulse, onComplete, className }: PulseQuestionPro
             size="sm"
             onClick={handleSubmit}
             disabled={isPending || (requiresComment && !comment.trim())}
+            aria-busy={isPending}
           >
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Enviar
+            {isPending ? "Enviando…" : "Enviar resposta"}
           </Button>
         </div>
       )}
