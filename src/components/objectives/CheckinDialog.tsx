@@ -18,15 +18,19 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   AlertCircle,
   CheckCircle2,
+  Circle,
   Clock,
   MessageSquare,
   TrendingUp,
   Paperclip,
+  ArrowRight,
 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { useCreateCheckin, useCheckins, useOkrSettings } from "@/hooks/useCheckins";
 import { useUploadCheckinAttachments } from "@/hooks/useCheckinAttachments";
 import { AttachmentUploader } from "./AttachmentUploader";
 import { CheckinStreak } from "./CheckinStreak";
+import { krProgressForValue, formatKrValue } from "@/lib/kr-progress";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -43,6 +47,10 @@ interface CheckinDialogProps {
     initial_value?: number;
     unit: string | null;
     objective_id: string;
+    /** Tipo do KR (numeric | percent | currency | binary). Ajusta input e preview. */
+    kr_type?: string | null;
+    /** Direção da meta (up | down). Respeitada no cálculo do avanço. */
+    direction?: string | null;
   };
 }
 
@@ -114,9 +122,18 @@ export function CheckinDialog({ open, onOpenChange, keyResult }: CheckinDialogPr
     }
   };
 
-  const progress = keyResult.target_value > 0
-    ? Math.min(100, Math.round(((newValue - (keyResult.initial_value || 0)) / (keyResult.target_value - (keyResult.initial_value || 0))) * 100))
-    : 0;
+  // Tipo do KR molda o input e o preview (percent %, currency R$, binary toggle).
+  const krType = keyResult.kr_type ?? "numeric";
+  const isBinary = krType === "binary";
+  const isCurrency = krType === "currency";
+  const isPercent = krType === "percent";
+  const isDone = newValue >= keyResult.target_value;
+
+  // Preview de avanço AO VIVO (antes → depois) pela lib canônica de KR,
+  // respeitando direção e valor inicial.
+  const beforePct = krProgressForValue(keyResult.current_value, keyResult);
+  const afterPct = krProgressForValue(newValue, keyResult);
+  const delta = afterPct - beforePct;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -133,25 +150,118 @@ export function CheckinDialog({ open, onOpenChange, keyResult }: CheckinDialogPr
           <div className="p-3 rounded-lg bg-muted/50">
             <p className="text-sm font-medium">{keyResult.title}</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Atual: {keyResult.current_value} / Meta: {keyResult.target_value} {keyResult.unit || ""}
+              Atual:{" "}
+              {isBinary
+                ? (keyResult.current_value >= keyResult.target_value ? "Concluído" : "Não concluído")
+                : formatKrValue(keyResult.current_value, krType, keyResult.unit)}
             </p>
           </div>
 
-          {/* New Value */}
-          <div className="space-y-2">
-            <Label>Valor Atualizado *</Label>
-            <div className="flex items-center gap-3">
-              <Input
-                type="number"
-                step="0.01"
-                value={newValue}
-                onChange={(e) => setNewValue(Number(e.target.value))}
-                className="flex-1"
-              />
-              <span className="text-sm text-muted-foreground">{keyResult.unit || ""}</span>
-              <Badge variant={progress >= 75 ? "default" : progress >= 50 ? "secondary" : "destructive"}>
-                {progress}%
-              </Badge>
+          {/* Novo valor — input por tipo de KR */}
+          <div className="space-y-3">
+            <Label>{isBinary ? "Este KR foi concluído?" : "Valor atualizado *"}</Label>
+
+            {isBinary ? (
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNewValue(keyResult.target_value)}
+                  className={cn(
+                    "flex items-center justify-center gap-2 rounded-lg border-2 border-muted p-3 text-sm font-medium transition-all",
+                    isDone && "border-primary bg-primary/5 text-primary",
+                  )}
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  Concluído
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewValue(keyResult.initial_value ?? 0)}
+                  className={cn(
+                    "flex items-center justify-center gap-2 rounded-lg border-2 border-muted p-3 text-sm font-medium transition-all",
+                    !isDone && "border-primary bg-primary/5 text-primary",
+                  )}
+                >
+                  <Circle className="h-4 w-4" />
+                  Ainda não
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    {isCurrency && (
+                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                        R$
+                      </span>
+                    )}
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={newValue}
+                      onChange={(e) => {
+                        const n = Number(e.target.value);
+                        setNewValue(Number.isNaN(n) ? 0 : n);
+                      }}
+                      className={cn(isCurrency && "pl-9", isPercent && "pr-8")}
+                    />
+                    {isPercent && (
+                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                        %
+                      </span>
+                    )}
+                  </div>
+                  {!isCurrency && !isPercent && keyResult.unit && (
+                    <span className="shrink-0 text-sm text-muted-foreground">{keyResult.unit}</span>
+                  )}
+                </div>
+
+                {krType === "numeric" && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground">Rápido:</span>
+                    {[1, 10].map((step) => (
+                      <Button
+                        key={step}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => setNewValue((v) => Math.round((v + step) * 100) / 100)}
+                      >
+                        +{step}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Preview de avanço AO VIVO — antes → depois */}
+            <div className="space-y-2 rounded-lg border bg-muted/40 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium">Avanço</span>
+                <div className="flex items-center gap-1.5 tabular-nums">
+                  <span className="text-sm text-muted-foreground">{beforePct}%</span>
+                  <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-base font-bold text-primary">{afterPct}%</span>
+                  {delta !== 0 && (
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "ml-1 border-0 text-[11px]",
+                        delta > 0 ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive",
+                      )}
+                    >
+                      {delta > 0 ? "+" : ""}{delta} pts
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              <Progress value={afterPct} className="h-2" />
+              <p className="text-xs text-muted-foreground">
+                Meta: {formatKrValue(keyResult.target_value, krType, keyResult.unit)} · Início:{" "}
+                {formatKrValue(keyResult.initial_value ?? 0, krType, keyResult.unit)}
+              </p>
             </div>
           </div>
 

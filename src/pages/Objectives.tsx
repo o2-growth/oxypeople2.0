@@ -1,331 +1,136 @@
-import { useState, type CSSProperties } from "react";
-import { cn } from "@/lib/utils";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { CreateObjectiveDialog } from "@/components/objectives/CreateObjectiveDialog";
-import { ObjectivesContextBar } from "@/components/objectives/ObjectivesContextBar";
-import { BoardHeader } from "@/components/objectives/BoardHeader";
-import { BoardColumnHeaders } from "@/components/objectives/BoardColumnHeaders";
-import { GroupFooter } from "@/components/objectives/GroupFooter";
-import { ObjectiveTreeNode } from "@/components/objectives/ObjectiveTreeNode";
-import { ObjectiveDetailPanel } from "@/components/objectives/ObjectiveDetailPanel";
-import { BreakdownObjectiveDialog } from "@/components/objectives/BreakdownObjectiveDialog";
-import { ObjectivesMap } from "@/components/objectives/ObjectivesMap";
-import { ActionsKanban } from "@/components/actions/ActionsKanban";
-import { DeletedItemsDialog } from "@/components/objectives/DeletedItemsDialog";
-import { AuditLogDialog } from "@/components/objectives/AuditLogDialog";
-import { SavedFiltersMenu } from "@/components/objectives/SavedFiltersMenu";
-import { QueryError } from "@/components/QueryError";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Target, Building2 } from "lucide-react";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown } from "lucide-react";
-import { useObjectivesFilters } from "@/hooks/useObjectivesFilters";
-import { ObjectiveType, ObjectiveWithDetails, useObjectives } from "@/hooks/useObjectives";
+import { Target, Plus, User, Building2, LayoutGrid } from "lucide-react";
+import { MyOkrsView } from "@/components/objectives/MyOkrsView";
+import { CompanyOkrsList } from "@/components/objectives/CompanyOkrsList";
+import { ObjectivesBoard } from "@/components/objectives/ObjectivesBoard";
+import { CreateObjectiveDialog } from "@/components/objectives/CreateObjectiveDialog";
+import { useObjectives } from "@/hooks/useObjectives";
 import { useOkrTier } from "@/hooks/useOkrTier";
+import { useAuth } from "@/contexts/AuthContext";
+import { ownsActiveKr } from "@/lib/my-okrs";
 
-export type DisplayMode = "tree" | "map" | "actions";
+type TabKey = "mine" | "company" | "board";
 
-// Paleta do board (estilo Monday) — único ponto tipado com as 10 cores de grupo
-// (escolhidas por índice, ciclam). São REDESIGN-SENSÍVEIS: distinguem grupos e
-// preservam 1:1 os hex originais — não devem colapsar num único token. Locais a
-// esta página (sem CSS vars em index.css, sem util em src/lib).
-const GROUP_COLORS = [
-  "#579bfc", "#00c875", "#fdab3d", "#a25ddc", "#e2445c",
-  "#037f4c", "#9cd326", "#cab641", "#784bd1", "#ff158a",
-] as const;
+const STORAGE_KEY = "oxy:objectives-view";
 
-/** Cor do grupo `idx` (cicla a paleta). Único acesso às cores de grupo. */
-const groupColor = (idx: number) => GROUP_COLORS[idx % GROUP_COLORS.length];
-
-// Verde de marca da ação primária do board (base + hover). Exposto como CSS
-// custom properties locais só para permitir o estado :hover sem hex cru na
-// classe — os valores continuam centralizados aqui.
-const boardCtaVars = {
-  "--board-cta": "#00c875",
-  "--board-cta-hover": "#00b461",
-} as CSSProperties;
-
-/**
- * Corpo de um grupo do board: cabeçalhos de coluna + linhas + rodapé.
- * Extraído para eliminar a duplicação entre a visão por área e a visão única.
- */
-function BoardGroupBody({
-  objectives,
-  onCreateChild,
-  onSelectObjective,
-  onAddItem,
-}: {
-  objectives: ObjectiveWithDetails[];
-  onCreateChild: (parentId: string, childType: ObjectiveType) => void;
-  onSelectObjective: (objective: ObjectiveWithDetails) => void;
-  onAddItem?: () => void;
-}) {
-  return (
-    <>
-      <BoardColumnHeaders />
-      <div className="space-y-0">
-        {objectives.map((objective) => (
-          <ObjectiveTreeNode
-            key={objective.id}
-            objective={objective}
-            onCreateChild={onCreateChild}
-            onSelectObjective={onSelectObjective}
-          />
-        ))}
-      </div>
-      <GroupFooter objectives={objectives} onAddItem={onAddItem} />
-    </>
-  );
+function readStoredTab(): TabKey | "" {
+  try {
+    const v = localStorage.getItem(STORAGE_KEY);
+    return v === "mine" || v === "company" || v === "board" ? v : "";
+  } catch {
+    return "";
+  }
 }
 
+/**
+ * /objectives — redesenhada em 3 visões (padrão Lattice/15Five): a pessoal
+ * ("Meus OKRs") vem primeiro para quem tem KR, a hierarquia limpa da empresa
+ * ("Empresa") para quem não tem, e o board completo ("Board (avançado)")
+ * preservado intacto para o uso avançado. A escolha de aba persiste em
+ * localStorage.
+ */
 export default function Objectives() {
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [displayMode, setDisplayMode] = useState<DisplayMode>("tree");
-  const [createDefaults, setCreateDefaults] = useState<{
-    type: ObjectiveType;
-    parentId?: string;
-  }>({ type: "operational" });
-
-  const [selectedObjective, setSelectedObjective] = useState<ObjectiveWithDetails | null>(null);
-  const [breakdownObjective, setBreakdownObjective] = useState<ObjectiveWithDetails | null>(null);
-  const [isDeletedOpen, setIsDeletedOpen] = useState(false);
-  const [isAuditOpen, setIsAuditOpen] = useState(false);
-
+  const { user } = useAuth();
+  const { data: objectives = [], isLoading } = useObjectives();
   const { canCreateObjective } = useOkrTier();
-  // Mesma queryKey de useObjectivesFilters → React Query deduplica (sem refetch extra).
-  // Expõe o estado de erro/refetch que o hook de filtros não repassa.
-  const { isError, refetch } = useObjectives();
 
-  const {
-    filters,
-    setFilters,
-    clearFilters,
-    hasActiveFilters,
-    filteredObjectives,
-    filteredTree,
-    tree,
-    stats,
-    departments,
-    teams,
-    responsibleUsers,
-    isLoading,
-    viewMode,
-    setViewMode,
-  } = useObjectivesFilters();
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [tab, setTab] = useState<TabKey | "">(() => readStoredTab());
 
-  const handleCreateChild = (parentId: string, childType: ObjectiveType) => {
-    setCreateDefaults({ type: childType, parentId });
-    setIsCreateOpen(true);
-  };
+  // O usuário tem KR próprio (em objetivo ativo)? Define o default da aba —
+  // mesma noção de "meu KR" de "Meu Dia" (owner do KR, herdando o do objetivo).
+  const hasMyKrs = useMemo(() => ownsActiveKr(objectives, user?.id), [objectives, user?.id]);
 
-  const handleNewObjective = () => {
-    setCreateDefaults({ type: "strategic" });
-    setIsCreateOpen(true);
-  };
+  const activeTab: TabKey = tab || (hasMyKrs ? "mine" : "company");
 
-  const renderTree = () => {
-    if (isError) {
-      return (
-        <QueryError
-          message="Não foi possível carregar os objetivos."
-          onRetry={() => refetch()}
-        />
-      );
+  // Resolve o default uma vez que os dados carregaram (sem sobrescrever escolha).
+  useEffect(() => {
+    if (tab === "" && !isLoading) setTab(hasMyKrs ? "mine" : "company");
+  }, [tab, isLoading, hasMyKrs]);
+
+  const handleTabChange = useCallback((v: string) => {
+    setTab(v as TabKey);
+    try {
+      localStorage.setItem(STORAGE_KEY, v);
+    } catch {
+      /* localStorage indisponível — segue sem persistir */
     }
+  }, []);
 
-    if (isLoading) {
-      return (
-        <div className="space-y-1">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="flex items-center h-10 px-3 gap-3">
-              <Skeleton className="h-4 w-4" />
-              <Skeleton className="h-4 flex-1 max-w-xs" />
-              <Skeleton className="h-5 w-16" />
-              <Skeleton className="h-5 w-20" />
-              <Skeleton className="h-2 w-24" />
-              <Skeleton className="h-7 w-7 rounded-full" />
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    if (filteredTree.length === 0) {
-      return (
-        <div className="p-12 text-center">
-          <Target className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium mb-2">Nenhum objetivo encontrado</h3>
-          <p className="text-muted-foreground mb-4 text-sm">
-            {hasActiveFilters
-              ? "Nenhum objetivo corresponde aos filtros aplicados."
-              : canCreateObjective
-                ? "Comece criando um objetivo estratégico para definir a direção da empresa."
-                : "Você ainda não tem acesso a nenhum objetivo. Peça a um manager para incluir você como contribuidor."}
-          </p>
-          {hasActiveFilters ? (
-            <Button variant="outline" onClick={clearFilters}>Limpar Filtros</Button>
-          ) : canCreateObjective ? (
-            <Button onClick={handleNewObjective} className="bg-[var(--board-cta)] hover:bg-[var(--board-cta-hover)] text-white">
-              <Plus className="h-4 w-4 mr-2" />
-              Criar Objetivo Estratégico
-            </Button>
-          ) : null}
-        </div>
-      );
-    }
-
-    // Group by department if viewMode is "department"
-    if (viewMode === "department") {
-      const grouped: Record<string, ObjectiveWithDetails[]> = {};
-      filteredTree.forEach((obj) => {
-        const dept = obj.department || obj.team?.department || "Sem área";
-        if (!grouped[dept]) grouped[dept] = [];
-        grouped[dept].push(obj);
-      });
-
-      return (
-        <div className="space-y-0">
-          {Object.entries(grouped).map(([dept, objectives], idx) => (
-            <Collapsible key={dept} defaultOpen>
-              <CollapsibleTrigger className="flex items-center gap-2 w-full px-3 py-2 hover:bg-accent/30 transition-colors"
-                style={{ borderLeft: `6px solid ${groupColor(idx)}` }}
-              >
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-bold" style={{ color: groupColor(idx) }}>{dept}</span>
-                <span className="text-xs text-muted-foreground">({objectives.length})</span>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <BoardGroupBody
-                  objectives={objectives}
-                  onCreateChild={handleCreateChild}
-                  onSelectObjective={setSelectedObjective}
-                  onAddItem={canCreateObjective ? handleNewObjective : undefined}
-                />
-              </CollapsibleContent>
-            </Collapsible>
-          ))}
-        </div>
-      );
-    }
-
-    // Default: single group "Todos os Objetivos"
+  // Sem escolha salva e ainda carregando: não sabemos o default (Meus OKRs vs
+  // Empresa depende de `hasMyKrs`). Segura a renderização das abas para não
+  // "piscar" a aba errada antes de os objetivos carregarem.
+  if (tab === "" && isLoading) {
     return (
-      <div>
-        <div className="flex items-center gap-2 px-3 py-2" style={{ borderLeft: `6px solid ${groupColor(0)}` }}>
-          <span className="text-sm font-bold" style={{ color: groupColor(0) }}>
-            Todos os Objetivos
-          </span>
-          <span className="text-xs text-muted-foreground">({filteredTree.length})</span>
-        </div>
-        <BoardGroupBody
-          objectives={filteredTree}
-          onCreateChild={handleCreateChild}
-          onSelectObjective={setSelectedObjective}
-          onAddItem={canCreateObjective ? handleNewObjective : undefined}
+      <AppLayout>
+        <PageHeader
+          title="Objetivos"
+          description="Seus check-ins, os OKRs da empresa e o board completo — em um só lugar."
+          icon={Target}
         />
-      </div>
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-24 w-full rounded-lg" />)}
+        </div>
+      </AppLayout>
     );
-  };
+  }
 
   return (
     <AppLayout>
-      <div className="space-y-4">
-        {/* Board Header — Monday style */}
-        <BoardHeader
-          displayMode={displayMode}
-          setDisplayMode={setDisplayMode}
-          onNewObjective={handleNewObjective}
-          onOpenAudit={() => setIsAuditOpen(true)}
-          onOpenDeleted={() => setIsDeletedOpen(true)}
-          filteredObjectives={filteredObjectives}
-          search={filters.search}
-          onSearchChange={(v) => setFilters((p) => ({ ...p, search: v }))}
-          canCreate={canCreateObjective}
-          quarterFilter={filters.quarterFilter}
-          onQuarterChange={(q) => setFilters((p) => ({ ...p, quarterFilter: q }))}
-        />
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
+        <PageHeader
+          title="Objetivos"
+          description="Seus check-ins, os OKRs da empresa e o board completo — em um só lugar."
+          icon={Target}
+          actions={
+            canCreateObjective && activeTab !== "board" ? (
+              <Button onClick={() => setIsCreateOpen(true)} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Novo objetivo
+              </Button>
+            ) : undefined
+          }
+        >
+          <TabsList className="w-full justify-start sm:w-auto">
+            <TabsTrigger value="mine" className="gap-1.5">
+              <User className="h-4 w-4" />
+              Meus OKRs
+            </TabsTrigger>
+            <TabsTrigger value="company" className="gap-1.5">
+              <Building2 className="h-4 w-4" />
+              Empresa
+            </TabsTrigger>
+            <TabsTrigger value="board" className="gap-1.5">
+              <LayoutGrid className="h-4 w-4" />
+              Board <span className="hidden sm:inline">(avançado)</span>
+            </TabsTrigger>
+          </TabsList>
+        </PageHeader>
 
-        {/* Compact filters bar */}
-        <div className="space-y-2">
-          <ObjectivesContextBar
-            filters={filters}
-            setFilters={setFilters}
-            clearFilters={clearFilters}
-            hasActiveFilters={hasActiveFilters}
-            departments={departments}
-            teams={teams}
-            responsibleUsers={responsibleUsers}
-            viewMode={viewMode}
-            setViewMode={setViewMode}
-            stats={stats}
-          />
-          <div className="flex items-center gap-2 px-1">
-            <SavedFiltersMenu
-              currentFilters={filters}
-              onApplyFilter={setFilters}
-              hasActiveFilters={hasActiveFilters}
-            />
-          </div>
-        </div>
+        <TabsContent value="mine" className="mt-0">
+          <MyOkrsView onGoToCompany={() => handleTabChange("company")} />
+        </TabsContent>
 
-        {/* Content — board table */}
-        <div className="bg-card rounded-lg border border-border/50 overflow-hidden" style={boardCtaVars}>
-          {displayMode === "tree" && renderTree()}
-          {displayMode === "map" && (
-            isError ? (
-              <QueryError
-                message="Não foi possível carregar os objetivos."
-                onRetry={() => refetch()}
-              />
-            ) : (
-              <ObjectivesMap
-                tree={filteredTree}
-                isLoading={isLoading}
-                onSelectObjective={setSelectedObjective}
-              />
-            )
-          )}
-          {displayMode === "actions" && <ActionsKanban />}
-        </div>
-      </div>
+        <TabsContent value="company" className="mt-0">
+          <CompanyOkrsList />
+        </TabsContent>
 
-      {/* Create Dialog */}
+        <TabsContent value="board" className="mt-0">
+          <ObjectivesBoard />
+        </TabsContent>
+      </Tabs>
+
+      {/* Criação de objetivo — mesmo gate (useOkrTier). O board mantém sua própria criação. */}
       <CreateObjectiveDialog
         open={isCreateOpen}
         onOpenChange={setIsCreateOpen}
-        defaultType={createDefaults.type}
-        defaultParentId={createDefaults.parentId}
+        defaultType="strategic"
       />
-
-      {/* Detail Panel */}
-      {selectedObjective && (
-        <ObjectiveDetailPanel
-          open={!!selectedObjective}
-          onOpenChange={(open) => !open && setSelectedObjective(null)}
-          objective={selectedObjective}
-          allObjectives={filteredObjectives}
-          onCreateChild={handleCreateChild}
-          onBreakdown={setBreakdownObjective}
-          onSelectObjective={setSelectedObjective}
-        />
-      )}
-
-      {/* Breakdown Dialog */}
-      {breakdownObjective && (
-        <BreakdownObjectiveDialog
-          open={!!breakdownObjective}
-          onOpenChange={(open) => !open && setBreakdownObjective(null)}
-          parentObjective={breakdownObjective}
-        />
-      )}
-
-      {/* Deleted Items Dialog */}
-      <DeletedItemsDialog open={isDeletedOpen} onOpenChange={setIsDeletedOpen} />
-
-      {/* Audit Log Dialog */}
-      <AuditLogDialog open={isAuditOpen} onOpenChange={setIsAuditOpen} />
     </AppLayout>
   );
 }
