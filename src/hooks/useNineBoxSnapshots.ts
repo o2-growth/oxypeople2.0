@@ -279,7 +279,9 @@ export function useNineBoxSnapshots() {
   return {
     snapshots: listQuery.data ?? [],
     isLoading: listQuery.isLoading,
+    isError: listQuery.isError,
     error: listQuery.error as Error | null,
+    refetch: listQuery.refetch,
     createSnapshot,
     finalizeSnapshot,
     archiveSnapshot,

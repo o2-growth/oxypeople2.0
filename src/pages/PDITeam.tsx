@@ -10,16 +10,10 @@ import { useIsManager } from "@/hooks/useIsManager";
 import { useTeamPDIs } from "@/hooks/useTeamPDIs";
 import { CreateForReportDialog } from "@/components/pdi/CreateForReportDialog";
 import type { DirectReport } from "@/hooks/useIsManager";
-import type { PDIPlan, PDIStatus } from "@/hooks/usePDI";
+import type { PDIPlan } from "@/hooks/usePDI";
+import { PDI_STATUS } from "@/components/shared/StatusBadge";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-
-const STATUS_BADGE: Record<PDIStatus, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
-  draft: { label: "Rascunho", variant: "outline" },
-  active: { label: "Ativo", variant: "default" },
-  completed: { label: "Concluído", variant: "secondary" },
-  canceled: { label: "Cancelado", variant: "destructive" },
-};
 
 function initialsOf(name: string | null): string {
   if (!name) return "?";
@@ -36,7 +30,7 @@ function ReportRow({
   onCreatePDI: (report: DirectReport) => void;
 }) {
   const navigate = useNavigate();
-  const status = latestPlan ? STATUS_BADGE[latestPlan.status] : null;
+  const status = latestPlan ? PDI_STATUS[latestPlan.status] : null;
   const isPendingApproval =
     latestPlan?.approval_requested_at && !latestPlan.approved_at;
 
@@ -56,7 +50,7 @@ function ReportRow({
             </Badge>
           )}
           {isPendingApproval && (
-            <Badge variant="outline" className="text-xs py-0 gap-1 text-amber-700 border-amber-300 bg-amber-50">
+            <Badge variant="outline" className="text-xs py-0 gap-1 text-warning border-warning/30 bg-warning/10">
               <Clock className="h-2.5 w-2.5" />
               Aguardando aprovação
             </Badge>
@@ -126,7 +120,7 @@ export default function PDITeamPage() {
       <div className="space-y-6 max-w-3xl">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
+            <h1 className="text-2xl font-bold flex items-center gap-2">
               <Users className="h-6 w-6" />
               PDI do Time
             </h1>
@@ -135,7 +129,7 @@ export default function PDITeamPage() {
             </p>
           </div>
           {pendingApprovals.length > 0 && (
-            <Badge className="gap-1.5 bg-amber-100 text-amber-800 border-amber-300">
+            <Badge className="gap-1.5 bg-warning/15 text-warning border-warning/30">
               <Clock className="h-3.5 w-3.5" />
               {pendingApprovals.length} aprovação{pendingApprovals.length > 1 ? "ões" : ""} pendente{pendingApprovals.length > 1 ? "s" : ""}
             </Badge>

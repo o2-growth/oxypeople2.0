@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -39,10 +39,11 @@ import { OverdueBadge } from "./OverdueBadge";
 import { BreakdownObjectiveDialog } from "./BreakdownObjectiveDialog";
 import { EditObjectiveDialog } from "./EditObjectiveDialog";
 import { ObjectiveWithDetails, useDeleteObjective, ObjectiveType } from "@/hooks/useObjectives";
+import { rollup, type WeightOf } from "@/lib/objective-rollup";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { useOkrTier } from "@/hooks/useOkrTier";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -57,14 +58,48 @@ interface ObjectiveTreeNodeProps {
   weightPercentage?: number;
 }
 
-const typeConfig: Record<ObjectiveType, { label: string; bg: string; borderColor: string }> = {
-  strategic: { label: "Estratégico", bg: "bg-[#a25ddc]", borderColor: "border-l-[#a25ddc]" },
-  tactical: { label: "Tático", bg: "bg-[#579bfc]", borderColor: "border-l-[#579bfc]" },
-  operational: { label: "Operacional", bg: "bg-[#00c875]", borderColor: "border-l-[#00c875]" },
-  personal: { label: "Pessoal", bg: "bg-[#6b7280]", borderColor: "border-l-[#6b7280]" },
-  team: { label: "Time", bg: "bg-[#0ea5e9]", borderColor: "border-l-[#0ea5e9]" },
-  individual: { label: "Individual", bg: "bg-[#94a3b8]", borderColor: "border-l-[#94a3b8]" },
+const typeConfig: Record<ObjectiveType, { label: string }> = {
+  strategic: { label: "Estratégico" },
+  tactical: { label: "Tático" },
+  operational: { label: "Operacional" },
+  personal: { label: "Pessoal" },
+  team: { label: "Time" },
+  individual: { label: "Individual" },
 };
+
+// Paleta do board (estilo Monday) para as linhas de objetivo — único ponto
+// tipado, local a este componente (sem CSS vars em index.css, sem util em
+// src/lib). São REDESIGN-SENSÍVEIS: cada cor distingue tier/status e preserva
+// 1:1 o hex original; não colapsar num único token. Aplicadas via `style` inline.
+const TIER_COLOR: Record<ObjectiveType, string> = {
+  strategic: "#a25ddc",
+  tactical: "#579bfc",
+  operational: "#00c875",
+  personal: "#6b7280",
+  team: "#0ea5e9",
+  individual: "#94a3b8",
+};
+
+/** Cores das faixas de progresso. */
+const PROGRESS_COLOR = { good: "#00c875", warn: "#fdab3d", bad: "#e2445c" } as const;
+
+/** Cor de alerta do badge "Sem KR". */
+const WARN_COLOR = "#fdab3d";
+
+/** Verde da ação primária (base + hover) e fundo suave do badge de peso OK. */
+const BOARD_CTA = { base: "#00c875", hover: "#00b461", soft: "rgba(0, 200, 117, 0.2)" } as const;
+
+// CSS custom properties locais só para o :hover do botão de salvar (inline
+// style não expressa :hover). Valores continuam centralizados em BOARD_CTA.
+const boardCtaVars = {
+  "--board-cta": BOARD_CTA.base,
+  "--board-cta-hover": BOARD_CTA.hover,
+} as CSSProperties;
+
+// Marcador do "esperado" na barra dupla (§3.4). Segue a convenção deste
+// componente (hex inline, não token): tom de alerta quando o nó está ATRÁS do
+// esperado; neutro (slate) quando no alvo/à frente.
+const EXPECTED_MARKER = { behind: PROGRESS_COLOR.warn, ontrack: "#64748b" } as const;
 
 const childTypeMap: Record<ObjectiveType, ObjectiveType | null> = {
   strategic: "tactical",
@@ -74,6 +109,31 @@ const childTypeMap: Record<ObjectiveType, ObjectiveType | null> = {
   team: null,
   individual: null,
 };
+
+// Rollup (§3.4) — cálculo compartilhado em @/lib/objective-rollup (fonte única).
+
+// Pesos pai→filho (`objective_relations`) em UMA query — dedup por react-query,
+// então as N instâncias recursivas do nó compartilham o mesmo cache/fetch.
+// RLS vazio ou erro → mapa vazio → `weightedMean` cai para média simples.
+function useWeightOf(): WeightOf {
+  const { data } = useQuery({
+    queryKey: ["objective-relations-weights"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("objective_relations")
+        .select("child_objective_id, weight_percentage");
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 60_000,
+  });
+  const byChild = useMemo(() => {
+    const m = new Map<string, number>();
+    (data ?? []).forEach((r) => m.set(r.child_objective_id, Number(r.weight_percentage) || 0));
+    return m;
+  }, [data]);
+  return useCallback((childId: string) => byChild.get(childId) ?? 0, [byChild]);
+}
 
 export function ObjectiveTreeNode({ objective, depth = 0, onCreateChild, onSelectObjective, weightPercentage }: ObjectiveTreeNodeProps) {
   const navigate = useNavigate();
@@ -86,6 +146,7 @@ export function ObjectiveTreeNode({ objective, depth = 0, onCreateChild, onSelec
   const { canEditObjective, canDeleteObjective } = useUserPermissions();
   const { canManageRelations } = useOkrTier();
   const deleteObjective = useDeleteObjective();
+  const weightOf = useWeightOf();
 
   // Child weights state
   const [childWeights, setChildWeights] = useState<Record<string, number>>({});
@@ -135,6 +196,7 @@ export function ObjectiveTreeNode({ objective, depth = 0, onCreateChild, onSelec
 
   const hasNoKRWarning = objective.type === "operational" && objective.key_results.length === 0;
   const type = typeConfig[objective.type] || typeConfig.operational;
+  const tierColor = TIER_COLOR[objective.type] || TIER_COLOR.operational;
   const canAddChild = childTypeMap[objective.type] !== null;
   const autoStatus = (objective as any).auto_status || "no_data";
 
@@ -205,19 +267,22 @@ export function ObjectiveTreeNode({ objective, depth = 0, onCreateChild, onSelec
     direction: (kr as any).direction,
   }));
 
-  const progress = Math.round(Math.min(Math.max(0, objective.progress), 100));
-  const progressColor = progress >= 70 ? "#00c875" : progress >= 40 ? "#fdab3d" : "#e2445c";
+  // §3.4 — rollup ponderado (pai = média ponderada dos filhos) + presença do
+  // backend; barra dupla real vs esperado quando há esperado > 0.
+  const { progress, expected } = rollup(objective, weightOf);
+  const behind = expected > 0 && progress < expected;
+  const progressColor = progress >= 70 ? PROGRESS_COLOR.good : progress >= 40 ? PROGRESS_COLOR.warn : PROGRESS_COLOR.bad;
 
   return (
     <>
-      <div className={cn(depth > 0 && "ml-6")}>
+      <div className={cn(depth > 0 && "ml-6")} style={boardCtaVars}>
         {/* Main Row */}
         <div
           className={cn(
             "group flex items-center h-10 hover:bg-accent/60 transition-colors border-b border-border/30",
             depth === 0 && "border-l-4",
-            depth === 0 && type.borderColor,
           )}
+          style={depth === 0 ? { borderLeftColor: tierColor } : undefined}
         >
           {/* Left: Expand + Title */}
           <div className="flex items-center gap-1.5 flex-1 min-w-0 px-3">
@@ -255,7 +320,10 @@ export function ObjectiveTreeNode({ objective, depth = 0, onCreateChild, onSelec
 
             {/* Type cell */}
             <div className="w-[100px] flex items-center justify-center px-1">
-              <div className={cn("inline-flex items-center justify-center px-2.5 py-0.5 rounded-sm text-[10px] font-semibold text-white min-w-[75px] text-center", type.bg)}>
+              <div
+                className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-sm text-[10px] font-semibold text-white min-w-[75px] text-center"
+                style={{ backgroundColor: tierColor }}
+              >
                 {type.label}
               </div>
             </div>
@@ -269,21 +337,34 @@ export function ObjectiveTreeNode({ objective, depth = 0, onCreateChild, onSelec
             <div className="w-[90px] flex items-center justify-center gap-1 px-1">
               <OverdueBadge overdue={isCheckinOverdue} label="Atrasado" />
               {hasNoKRWarning && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded-sm bg-[#fdab3d] text-white font-semibold">
+                <span className="text-[10px] px-1.5 py-0.5 rounded-sm text-white font-semibold" style={{ backgroundColor: WARN_COLOR }}>
                   Sem KR
                 </span>
               )}
             </div>
 
-            {/* Progress bar */}
+            {/* Progress bar — dupla (real vs esperado) quando há esperado > 0 */}
             <div className="w-[130px] flex items-center gap-2 px-3">
-              <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
+              <div
+                className="relative flex-1 h-2 bg-secondary rounded-full overflow-hidden"
+                title={expected > 0 ? `Real ${progress}% · Esperado ${expected}%` : undefined}
+              >
                 <div
                   className="h-full rounded-full transition-all duration-500 ease-out"
                   style={{ width: `${progress}%`, backgroundColor: progressColor }}
                 />
+                {expected > 0 && (
+                  <span
+                    aria-hidden
+                    className="absolute top-0 h-full w-0.5 -translate-x-1/2"
+                    style={{ left: `${expected}%`, backgroundColor: behind ? EXPECTED_MARKER.behind : EXPECTED_MARKER.ontrack }}
+                  />
+                )}
               </div>
-              <span className="text-[11px] font-bold text-muted-foreground w-8 text-right tabular-nums">
+              <span
+                className="text-[11px] font-bold text-muted-foreground w-8 text-right tabular-nums"
+                style={behind ? { color: EXPECTED_MARKER.behind } : undefined}
+              >
                 {progress}%
               </span>
             </div>
@@ -384,12 +465,17 @@ export function ObjectiveTreeNode({ objective, depth = 0, onCreateChild, onSelec
               <span className="text-xs font-medium flex items-center gap-1.5">
                 <Scale className="h-3.5 w-3.5 text-muted-foreground" />
                 Editar pesos dos filhos
-                <span className={cn(
-                  "text-[10px] font-bold px-1.5 py-0.5 rounded",
-                  Object.values(editWeights).reduce((s, v) => s + v, 0) === 100
-                    ? "bg-[#00c875]/20 text-[#00c875]"
-                    : "bg-destructive/20 text-destructive"
-                )}>
+                <span
+                  className={cn(
+                    "text-[10px] font-bold px-1.5 py-0.5 rounded",
+                    Object.values(editWeights).reduce((s, v) => s + v, 0) !== 100 && "bg-destructive/20 text-destructive",
+                  )}
+                  style={
+                    Object.values(editWeights).reduce((s, v) => s + v, 0) === 100
+                      ? { backgroundColor: BOARD_CTA.soft, color: BOARD_CTA.base }
+                      : undefined
+                  }
+                >
                   {Object.values(editWeights).reduce((s, v) => s + v, 0)}%
                 </span>
               </span>
@@ -397,7 +483,7 @@ export function ObjectiveTreeNode({ objective, depth = 0, onCreateChild, onSelec
                 <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => setIsEditingWeights(false)}>
                   <X className="h-3 w-3 mr-1" />Cancelar
                 </Button>
-                <Button size="sm" className="h-6 text-[10px] px-2 gap-1 bg-[#00c875] hover:bg-[#00b461] text-white" onClick={saveWeights} disabled={isSavingWeights}>
+                <Button size="sm" className="h-6 text-[10px] px-2 gap-1 bg-[var(--board-cta)] hover:bg-[var(--board-cta-hover)] text-white" onClick={saveWeights} disabled={isSavingWeights}>
                   <Check className="h-3 w-3" />Salvar
                 </Button>
               </div>

@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { UserPointsSummary } from "@/components/gamification/UserPointsSummary";
 import { GamificationLeaderboard } from "@/components/gamification/GamificationLeaderboard";
 import { PointsHistory } from "@/components/gamification/PointsHistory";
@@ -9,16 +10,11 @@ export default function Gamification() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold font-heading flex items-center gap-3">
-            <Gamepad2 className="h-8 w-8 text-primary" />
-            Gamificação
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Acompanhe seu engajamento e conquiste recompensas
-          </p>
-        </div>
+        <PageHeader
+          icon={Gamepad2}
+          title="Gamificação"
+          description="Acompanhe seu engajamento e conquiste recompensas"
+        />
 
         {/* User Summary */}
         <UserPointsSummary />

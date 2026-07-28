@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { format, parseISO, isPast } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { ONE_ON_ONE_STATUS } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -22,13 +24,6 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { OneOnOneRow } from "@/hooks/useOneOnOnes";
 import { DownloadIcsButton } from "./DownloadIcsButton";
-
-const STATUS_BADGE: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
-  scheduled: { label: "Agendada", variant: "default" },
-  completed: { label: "Concluída", variant: "secondary" },
-  canceled: { label: "Cancelada", variant: "destructive" },
-  no_show: { label: "Não compareceu", variant: "outline" },
-};
 
 const RECURRENCE_LABEL: Record<string, string> = {
   none: "",
@@ -58,6 +53,7 @@ export function OneOnOneList({ rows, currentUserId, onEdit, onCancel, onComplete
   const [isStoppingSeries, setIsStoppingSeries] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [listRef] = useAutoAnimate<HTMLDivElement>();
 
   if (rows.length === 0) {
     return (
@@ -95,14 +91,14 @@ export function OneOnOneList({ rows, currentUserId, onEdit, onCancel, onComplete
 
   return (
     <>
-      <div className="divide-y divide-border rounded-lg border">
+      <div ref={listRef} className="divide-y divide-border rounded-lg border">
         {rows.map((row) => {
           const counterpart =
             row.leader_id === currentUserId ? row.member : row.leader;
           const myRole = row.leader_id === currentUserId ? "Líder" : "Liderado";
           const isScheduled = row.status === "scheduled";
           const canComplete = isScheduled && isPast(parseISO(row.scheduled_at));
-          const status = STATUS_BADGE[row.status] ?? { label: row.status, variant: "outline" as const };
+          const status = ONE_ON_ONE_STATUS[row.status] ?? { label: row.status, variant: "outline" as const };
 
           return (
             <div key={row.id} className="flex items-start gap-4 p-4 hover:bg-muted/30 transition-colors">
@@ -173,7 +169,7 @@ export function OneOnOneList({ rows, currentUserId, onEdit, onCancel, onComplete
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8 text-green-600 hover:text-green-700"
+                        className="h-8 w-8 text-success hover:text-success/80"
                         onClick={() => onComplete(row.id)}
                         disabled={isMutating}
                         title="Marcar como concluída"
@@ -205,7 +201,7 @@ export function OneOnOneList({ rows, currentUserId, onEdit, onCancel, onComplete
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8 text-muted-foreground hover:text-orange-600"
+                        className="h-8 w-8 text-muted-foreground hover:text-warning"
                         onClick={() => setStopSeriesTarget(row)}
                         disabled={isMutating}
                         title="Parar série"

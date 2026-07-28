@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import { PDI_ACTION_STATUS } from "@/components/shared/StatusBadge";
 import type { PDIAction, ActionInput, ActionStatus } from "@/hooks/usePDIActions";
 import type { PDICompetency } from "@/hooks/usePDICompetencies";
 
@@ -50,13 +51,6 @@ interface Props {
   onSubmit: (input: ActionInput) => Promise<void>;
   isSubmitting: boolean;
 }
-
-const STATUS_LABELS: Record<ActionStatus, string> = {
-  todo: "A fazer",
-  doing: "Em andamento",
-  done: "Concluído",
-  blocked: "Bloqueado",
-};
 
 export function ActionForm({
   open,
@@ -202,9 +196,9 @@ export function ActionForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {(Object.entries(STATUS_LABELS) as [ActionStatus, string][]).map(([val, label]) => (
+                      {Object.entries(PDI_ACTION_STATUS).map(([val, cfg]) => (
                         <SelectItem key={val} value={val}>
-                          {label}
+                          {cfg.label}
                         </SelectItem>
                       ))}
                     </SelectContent>

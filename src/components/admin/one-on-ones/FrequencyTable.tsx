@@ -16,7 +16,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LeaderStat, MeetingRow } from "@/hooks/useOneOnOnesDashboard";
 
@@ -26,7 +25,7 @@ const STATUS_LABEL: Record<string, string> = {
   scheduled: "Agendada",
   completed: "Concluída",
   canceled: "Cancelada",
-  no_show: "No-show",
+  no_show: "Não realizada",
 };
 
 function statusVariant(status: string): "secondary" | "outline" | "destructive" | "default" {
@@ -76,7 +75,7 @@ export function FrequencyTable({ rows, allMeetings }: Props) {
               <TableHead className="text-right">Liderados</TableHead>
               <TableHead className="text-right">1:1s agendadas</TableHead>
               <TableHead className="text-right">1:1s completadas</TableHead>
-              <TableHead className="text-right">% Completion</TableHead>
+              <TableHead className="text-right">% Conclusão</TableHead>
               <TableHead>Última 1:1</TableHead>
             </TableRow>
           </TableHeader>
@@ -142,9 +141,9 @@ export function FrequencyTable({ rows, allMeetings }: Props) {
           </SheetHeader>
           <div className="mt-4 space-y-3">
             {leaderMeetings.length === 0 ? (
-              <div className="flex items-center justify-center py-10">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
+              <p className="py-10 text-center text-sm text-muted-foreground">
+                Nenhuma 1:1 registrada para este gestor no período.
+              </p>
             ) : (
               leaderMeetings
                 .slice()

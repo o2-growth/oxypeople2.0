@@ -1,25 +1,20 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Coffee, ArrowLeft, MapPin, Clock, User } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { QueryError } from "@/components/QueryError";
+import { DetailPageSkeleton } from "@/components/ui/page-skeleton";
+import { ONE_ON_ONE_STATUS } from "@/components/shared/StatusBadge";
+import { Coffee, ArrowLeft, MapPin, Clock, User } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { TopicsPanel } from "@/components/one-on-ones/TopicsPanel";
 import { NotesPanel } from "@/components/one-on-ones/NotesPanel";
 import { PreviousMeetings } from "@/components/one-on-ones/PreviousMeetings";
+import { LeaderObjectivesSection } from "@/components/one-on-ones/LeaderObjectivesSection";
 import { DownloadIcsButton } from "@/components/one-on-ones/DownloadIcsButton";
-import type { OneOnOneRow } from "@/hooks/useOneOnOnes";
-
-const STATUS_BADGE: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
-  scheduled: { label: "Agendada", variant: "default" },
-  completed: { label: "Concluída", variant: "secondary" },
-  canceled: { label: "Cancelada", variant: "destructive" },
-  no_show: { label: "Não realizada", variant: "outline" },
-};
+import { useOneOnOneDetail } from "@/hooks/useOneOnOneDetail";
 
 export default function OneOnOneDetail() {
   const { id } = useParams<{ id: string }>();
@@ -27,33 +22,20 @@ export default function OneOnOneDetail() {
   const { user } = useAuth();
   const userId = user?.id ?? "";
 
-  const { data: row, isLoading } = useQuery({
-    queryKey: ["one-on-one", id],
-    queryFn: async (): Promise<OneOnOneRow | null> => {
-      if (!id) return null;
-      const { data, error } = await supabase
-        .from("one_on_ones")
-        .select(`
-          id, company_id, leader_id, member_id, scheduled_at, duration_minutes,
-          location, status, recurrence, recurrence_parent_id, completed_at,
-          canceled_reason, created_at, updated_at,
-          leader:users!one_on_ones_leader_id_fkey(id, full_name, avatar_url),
-          member:users!one_on_ones_member_id_fkey(id, full_name, avatar_url)
-        `)
-        .eq("id", id)
-        .maybeSingle();
-      if (error) throw error;
-      return data as unknown as OneOnOneRow | null;
-    },
-    enabled: !!id,
-  });
+  const { data: row, isLoading, isError, refetch } = useOneOnOneDetail(id);
 
   if (isLoading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        <DetailPageSkeleton className="max-w-2xl" />
+      </AppLayout>
+    );
+  }
+
+  if (isError) {
+    return (
+      <AppLayout>
+        <QueryError message="Não foi possível carregar a 1:1." onRetry={() => refetch()} />
       </AppLayout>
     );
   }
@@ -76,7 +58,7 @@ export default function OneOnOneDetail() {
   const leaderName = row.leader?.full_name ?? "Líder";
   const memberName = row.member?.full_name ?? "Liderado";
   const dateStr = format(parseISO(row.scheduled_at), "EEEE, d 'de' MMMM yyyy 'às' HH:mm", { locale: ptBR });
-  const status = STATUS_BADGE[row.status] ?? { label: row.status, variant: "outline" as const };
+  const status = ONE_ON_ONE_STATUS[row.status] ?? { label: row.status, variant: "outline" as const };
 
   return (
     <AppLayout>
@@ -86,7 +68,7 @@ export default function OneOnOneDetail() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-heading font-bold flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl font-display font-bold leading-tight flex items-center gap-2 flex-wrap">
               <Coffee className="h-5 w-5 shrink-0" />
               {leaderName} × {memberName}
             </h1>
@@ -131,6 +113,10 @@ export default function OneOnOneDetail() {
 
         <div className="border rounded-lg p-4">
           <NotesPanel oneOnOneId={row.id} currentUserId={userId} isLeader={isLeader} />
+        </div>
+
+        <div className="border rounded-lg p-4">
+          <LeaderObjectivesSection memberId={row.member_id} memberName={memberName} />
         </div>
 
         <div className="border rounded-lg p-4">

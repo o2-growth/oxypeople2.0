@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { MembersList, Member } from "@/components/company/MembersList";
 import { MemberDetailSheet } from "@/components/company/MemberDetailSheet";
 import { InviteModal } from "@/components/company/InviteModal";
@@ -21,6 +22,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { QueryError } from "@/components/QueryError";
+import { ListPageSkeleton } from "@/components/ui/page-skeleton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,26 +35,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { 
-  Building2, 
-  Users, 
-  UserPlus, 
-  Settings, 
-  Globe, 
+import {
+  Building2,
+  Users,
+  UserPlus,
+  Globe,
   Mail,
   Search,
   Shield,
   Clock,
   Plus,
-  Loader2
 } from "lucide-react";
-import { 
-  useDepartmentsWithDetails, 
+import {
+  useDepartmentsWithDetails,
   useDeleteDepartment,
-  type Department 
+  type Department,
 } from "@/hooks/useDepartmentsManager";
 import { usePeopleList, usePeopleStats, useUpdateMember, useUpdateMemberStatus } from "@/hooks/usePeopleList";
-import { useUser } from "@/hooks/useUser";
+import { useCompany } from "@/hooks/useCompany";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -75,6 +77,33 @@ function formatJoinDate(dateStr: string | null | undefined): string {
   }
 }
 
+/** Formata o identificador do plano ("pro" → "Plano Pro"). */
+function formatPlan(plan: string): string {
+  const label = plan.charAt(0).toUpperCase() + plan.slice(1);
+  return `Plano ${label}`;
+}
+
+/** Skeleton de conteúdo de aba (sem cabeçalho — o PageHeader da página já o cobre). */
+function TabListSkeleton({ rows = 4 }: { rows?: number }) {
+  return (
+    <div className="space-y-3">
+      {Array.from({ length: rows }).map((_, i) => (
+        <Skeleton key={i} className="h-16 w-full rounded-xl" />
+      ))}
+    </div>
+  );
+}
+
+function TabCardsSkeleton({ cards = 3 }: { cards?: number }) {
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {Array.from({ length: cards }).map((_, i) => (
+        <Skeleton key={i} className="h-40 w-full rounded-xl" />
+      ))}
+    </div>
+  );
+}
+
 export default function Company() {
   const navigate = useNavigate();
   const { isAdmin, isLoading: permsLoading } = useUserPermissions();
@@ -96,15 +125,35 @@ export default function Company() {
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
   const [detailMemberId, setDetailMemberId] = useState<string | null>(null);
 
-  const { data: departments = [], isLoading: isLoadingDepartments } = useDepartmentsWithDetails();
+  const {
+    data: departments = [],
+    isLoading: isLoadingDepartments,
+    isError: isDepartmentsError,
+    refetch: refetchDepartments,
+  } = useDepartmentsWithDetails();
   const deleteDepartment = useDeleteDepartment();
   const updateMember = useUpdateMember();
   const updateStatus = useUpdateMemberStatus();
-  
+
   // Real data hooks
-  const { data: people = [], isLoading: isLoadingPeople } = usePeopleList();
-  const { data: stats, isLoading: isLoadingStats } = usePeopleStats();
-  const { profile } = useUser();
+  const {
+    data: people = [],
+    isLoading: isLoadingPeople,
+    isError: isPeopleError,
+    refetch: refetchPeople,
+  } = usePeopleList();
+  const {
+    data: stats,
+    isLoading: isLoadingStats,
+    isError: isStatsError,
+    refetch: refetchStats,
+  } = usePeopleStats();
+  const {
+    data: company,
+    isLoading: isLoadingCompany,
+    isError: isCompanyError,
+    refetch: refetchCompany,
+  } = useCompany();
 
   // Transform people data to Member format
   const members: Member[] = useMemo(() => {
@@ -156,9 +205,9 @@ export default function Company() {
 
     return [
       { label: "Total de Membros", value: stats?.total || 0, icon: Users, color: "text-primary" },
-      { label: "Administradores", value: adminCount, icon: Shield, color: "text-red-500" },
-      { label: "Gestores", value: managerCount, icon: Users, color: "text-blue-500" },
-      { label: "Convites Pendentes", value: pendingCount, icon: Clock, color: "text-yellow-500" },
+      { label: "Administradores", value: adminCount, icon: Shield, color: "text-destructive" },
+      { label: "Gestores", value: managerCount, icon: Users, color: "text-primary" },
+      { label: "Convites Pendentes", value: pendingCount, icon: Clock, color: "text-warning" },
     ];
   }, [stats, members, invitedMembers]);
 
@@ -191,7 +240,7 @@ export default function Company() {
 
   const handleDeleteDepartment = async () => {
     if (!deletingDepartmentId) return;
-    
+
     try {
       await deleteDepartment.mutateAsync(deletingDepartmentId);
       setDeletingDepartmentId(null);
@@ -207,16 +256,15 @@ export default function Company() {
     }
   };
 
-  const detailMember = detailMemberId ? people.find(p => p.id === detailMemberId) ?? null : null;
+  const detailMember = detailMemberId ? people.find((p) => p.id === detailMemberId) ?? null : null;
 
-  const isLoading = isLoadingPeople || isLoadingStats;
+  const isStatsLoading = isLoadingPeople || isLoadingStats;
+  const isStatsErrored = isPeopleError || isStatsError;
 
   if (permsLoading || !isAdmin) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        <ListPageSkeleton />
       </AppLayout>
     );
   }
@@ -225,68 +273,89 @@ export default function Company() {
     <AppLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-heading font-bold text-foreground">Empresa</h1>
-            <p className="text-muted-foreground mt-1">
-              Gerencie seu workspace e membros da equipe
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" className="gap-2" onClick={() => setCreateDepartmentOpen(true)}>
-              <Plus className="h-4 w-4" />
-              Nova Área
-            </Button>
-            <Button className="gap-2" onClick={() => setInviteModalOpen(true)}>
-              <UserPlus className="h-4 w-4" />
-              Convidar Membros
-            </Button>
-          </div>
-        </div>
+        <PageHeader
+          title="Empresa"
+          description="Gerencie seu workspace e membros da equipe"
+          actions={
+            <>
+              <Button variant="outline" className="gap-2" onClick={() => setCreateDepartmentOpen(true)}>
+                <Plus className="h-4 w-4" />
+                Nova Área
+              </Button>
+              <Button className="gap-2" onClick={() => setInviteModalOpen(true)}>
+                <UserPlus className="h-4 w-4" />
+                Convidar Membros
+              </Button>
+            </>
+          }
+        />
 
-        {/* Company Info Card */}
-        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-6">
-              <Avatar className="h-20 w-20 ring-4 ring-primary/20">
-                <AvatarImage src="" />
-                <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">
-                  PH
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-2xl font-bold text-foreground">People Hub Corp</h2>
-                  <Badge variant="secondary" className="bg-primary/10 text-primary">
-                    Plano Pro
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1.5">
-                    <Globe className="h-4 w-4" />
-                    <span>peoplehub.com</span>
+        {/* Company Info Card — dados reais da company do usuário */}
+        {isLoadingCompany ? (
+          <Card>
+            <CardContent className="flex items-center gap-6 p-6">
+              <Skeleton className="h-20 w-20 rounded-full" />
+              <div className="flex-1 space-y-3">
+                <Skeleton className="h-7 w-48" />
+                <Skeleton className="h-4 w-72 max-w-full" />
+              </div>
+            </CardContent>
+          </Card>
+        ) : isCompanyError ? (
+          <Card>
+            <CardContent className="p-6">
+              <QueryError
+                message="Não foi possível carregar os dados da empresa."
+                onRetry={() => refetchCompany()}
+              />
+            </CardContent>
+          </Card>
+        ) : company ? (
+          <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5">
+            <CardContent className="p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
+                <Avatar className="h-20 w-20 ring-4 ring-primary/20">
+                  <AvatarImage src={company.logo_url ?? ""} alt={company.name} />
+                  <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">
+                    {getInitials(company.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h2 className="text-2xl font-bold text-foreground">{company.name}</h2>
+                    {company.plan && (
+                      <Badge variant="secondary" className="bg-primary/10 text-primary">
+                        {formatPlan(company.plan)}
+                      </Badge>
+                    )}
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <Mail className="h-4 w-4" />
-                    <span>admin@peoplehub.com</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Users className="h-4 w-4" />
-                    <span>{stats?.total || 0} membros</span>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
+                    {company.domain && (
+                      <div className="flex items-center gap-1.5">
+                        <Globe className="h-4 w-4 shrink-0" />
+                        <span className="truncate">{company.domain}</span>
+                      </div>
+                    )}
+                    {company.owner_email && (
+                      <div className="flex items-center gap-1.5">
+                        <Mail className="h-4 w-4 shrink-0" />
+                        <span className="truncate">{company.owner_email}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1.5">
+                      <Users className="h-4 w-4 shrink-0" />
+                      <span>{stats?.total ?? 0} membros</span>
+                    </div>
                   </div>
                 </div>
               </div>
-              <Button variant="outline" className="gap-2">
-                <Settings className="h-4 w-4" />
-                Editar
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ) : null}
 
         {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {isLoading ? (
+          {isStatsLoading ? (
             Array.from({ length: 4 }).map((_, i) => (
               <Card key={i}>
                 <CardContent className="flex items-center gap-4 p-4">
@@ -298,6 +367,18 @@ export default function Company() {
                 </CardContent>
               </Card>
             ))
+          ) : isStatsErrored ? (
+            <Card className="sm:col-span-2 lg:col-span-4">
+              <CardContent className="p-0">
+                <QueryError
+                  message="Não foi possível carregar as estatísticas da equipe."
+                  onRetry={() => {
+                    refetchPeople();
+                    refetchStats();
+                  }}
+                />
+              </CardContent>
+            </Card>
           ) : (
             computedStats.map((stat) => (
               <Card key={stat.label}>
@@ -348,75 +429,81 @@ export default function Company() {
           </TabsList>
 
           <TabsContent value="members" className="mt-6 space-y-4">
-            {/* Busca + ordenação */}
-            <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar membros..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <Select value={sortOrder} onValueChange={setSortOrder}>
-                <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="az">Nome (A–Z)</SelectItem>
-                  <SelectItem value="za">Nome (Z–A)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
             {isLoadingPeople ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : filteredMembers.length === 0 ? (
-              <div className="text-center py-12">
-                <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium">Nenhum membro encontrado</h3>
-                <p className="text-muted-foreground mt-1 mb-4">
-                  {searchQuery 
-                    ? "Tente ajustar sua busca" 
-                    : "Convide membros para começar"}
-                </p>
-                {!searchQuery && (
-                  <Button onClick={() => setInviteModalOpen(true)} className="gap-2">
-                    <UserPlus className="h-4 w-4" />
-                    Convidar Membros
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <MembersList
-                members={filteredMembers}
-                onChangeRole={handleChangeRole}
-                onRemoveMember={handleRemoveMember}
-                onMemberClick={handleMemberClick}
+              <TabListSkeleton rows={4} />
+            ) : isPeopleError ? (
+              <QueryError
+                message="Não foi possível carregar os membros."
+                onRetry={refetchPeople}
               />
+            ) : activeMembers.length === 0 ? (
+              <EmptyState
+                icon={Users}
+                title="Nenhum membro ainda"
+                description="Convide pessoas para começar a montar sua equipe."
+                action={{ label: "Convidar Membros", onClick: () => setInviteModalOpen(true) }}
+              />
+            ) : (
+              <>
+                {/* Busca + ordenação */}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <label htmlFor="member-search" className="sr-only">
+                      Buscar membros
+                    </label>
+                    <Input
+                      id="member-search"
+                      placeholder="Buscar membros..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <Select value={sortOrder} onValueChange={setSortOrder}>
+                    <SelectTrigger className="w-full sm:w-[180px]" aria-label="Ordenar membros">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="az">Nome (A–Z)</SelectItem>
+                      <SelectItem value="za">Nome (Z–A)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {filteredMembers.length === 0 ? (
+                  <EmptyState
+                    icon={Search}
+                    title="Nenhum membro encontrado"
+                    description="Tente ajustar os termos da busca."
+                  />
+                ) : (
+                  <MembersList
+                    members={filteredMembers}
+                    onChangeRole={handleChangeRole}
+                    onRemoveMember={handleRemoveMember}
+                    onMemberClick={handleMemberClick}
+                  />
+                )}
+              </>
             )}
           </TabsContent>
 
           <TabsContent value="departments" className="mt-6">
             {isLoadingDepartments ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
+              <TabCardsSkeleton />
+            ) : isDepartmentsError ? (
+              <QueryError
+                message="Não foi possível carregar as áreas."
+                onRetry={refetchDepartments}
+              />
             ) : departments.length === 0 ? (
-              <div className="text-center py-12">
-                <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium">Nenhuma área criado</h3>
-                <p className="text-muted-foreground mt-1 mb-4">
-                  Crie áreas para organizar membros e equipes
-                </p>
-                <Button onClick={() => setCreateDepartmentOpen(true)} className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Criar Área
-                </Button>
-              </div>
+              <EmptyState
+                icon={Building2}
+                title="Nenhuma área criada"
+                description="Crie áreas para organizar membros e equipes."
+                action={{ label: "Criar Área", onClick: () => setCreateDepartmentOpen(true) }}
+              />
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {departments.map((dept) => (
@@ -434,21 +521,19 @@ export default function Company() {
 
           <TabsContent value="invites" className="mt-6">
             {isLoadingPeople ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
+              <TabListSkeleton rows={3} />
+            ) : isPeopleError ? (
+              <QueryError
+                message="Não foi possível carregar os convites."
+                onRetry={refetchPeople}
+              />
             ) : invitedMembers.length === 0 ? (
-              <div className="text-center py-12">
-                <Mail className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium">Nenhum convite pendente</h3>
-                <p className="text-muted-foreground mt-1 mb-4">
-                  Todos os convites foram aceitos
-                </p>
-                <Button onClick={() => setInviteModalOpen(true)} className="gap-2">
-                  <UserPlus className="h-4 w-4" />
-                  Convidar Membros
-                </Button>
-              </div>
+              <EmptyState
+                icon={Mail}
+                title="Nenhum convite pendente"
+                description="Todos os convites enviados já foram aceitos."
+                action={{ label: "Convidar Membros", onClick: () => setInviteModalOpen(true) }}
+              />
             ) : (
               <MembersList
                 members={invitedMembers}
@@ -461,10 +546,7 @@ export default function Company() {
         </Tabs>
 
         {/* Modals */}
-        <InviteModal 
-          open={inviteModalOpen} 
-          onOpenChange={setInviteModalOpen}
-        />
+        <InviteModal open={inviteModalOpen} onOpenChange={setInviteModalOpen} />
 
         <CreateDepartmentDialog
           open={createDepartmentOpen}
@@ -484,7 +566,7 @@ export default function Company() {
             <AlertDialogHeader>
               <AlertDialogTitle>Excluir área?</AlertDialogTitle>
               <AlertDialogDescription>
-                Esta ação não pode ser desfeita. Os membros e equipes vinculados a este
+                Esta ação não pode ser desfeita. Os membros e equipes vinculados a esta
                 área terão a associação removida.
               </AlertDialogDescription>
             </AlertDialogHeader>

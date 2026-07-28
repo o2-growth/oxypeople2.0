@@ -31,9 +31,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Plus,
-  Loader2,
   Grid3X3,
   Eye,
   MoreVertical,
@@ -43,12 +43,15 @@ import {
   ArchiveRestore,
   CheckCircle2,
 } from "lucide-react";
-import { toast } from "sonner";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 import {
   useNineBoxSnapshots,
   type NineBoxSnapshotRow,
 } from "@/hooks/useNineBoxSnapshots";
-import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { useRequireAdmin } from "@/hooks/useRequireAdmin";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { QueryError } from "@/components/QueryError";
+import { EmptyState } from "@/components/ui/empty-state";
 import { CreateSnapshotDialog } from "@/components/admin/nineBox/CreateSnapshotDialog";
 import { cn } from "@/lib/utils";
 
@@ -59,8 +62,8 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const STATUS_CLASS: Record<string, string> = {
-  draft: "border-blue-500/40 text-blue-600",
-  finalized: "border-emerald-500/40 text-emerald-600",
+  draft: "border-primary/40 text-primary",
+  finalized: "border-success/40 text-success",
   archived: "border-muted-foreground/40 text-muted-foreground",
 };
 
@@ -73,12 +76,31 @@ function formatDate(value: string | null): string {
   }
 }
 
+function SnapshotsSkeleton() {
+  return (
+    <div className="space-y-3 p-4">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="flex items-center justify-between gap-4">
+          <Skeleton className="h-5 w-48" />
+          <Skeleton className="h-5 w-20" />
+          <Skeleton className="h-5 w-16" />
+          <Skeleton className="h-8 w-16" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function NineBoxPage() {
   const navigate = useNavigate();
-  const { isAdmin, isLoading: permsLoading } = useUserPermissions();
+  const { isAdmin, isLoading: permsLoading } = useRequireAdmin({
+    message: "Sem permissão para gerenciar Nine Box.",
+  });
   const {
     snapshots,
     isLoading,
+    isError,
+    refetch,
     createSnapshot,
     finalizeSnapshot,
     archiveSnapshot,
@@ -88,19 +110,19 @@ export default function NineBoxPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<NineBoxSnapshotRow | null>(null);
+  const [listRef] = useAutoAnimate<HTMLTableSectionElement>();
 
-  useEffect(() => {
-    if (!permsLoading && !isAdmin) {
-      toast.error("Sem permissão para gerenciar Nine Box.");
-      navigate("/", { replace: true });
-    }
-  }, [isAdmin, permsLoading, navigate]);
 
   if (permsLoading || !isAdmin) {
     return (
       <AppLayout>
-        <div className="flex justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <div className="mx-auto max-w-6xl space-y-4 py-2">
+          <Skeleton className="h-9 w-40" />
+          <Card>
+            <CardContent className="p-0">
+              <SnapshotsSkeleton />
+            </CardContent>
+          </Card>
         </div>
       </AppLayout>
     );
@@ -115,36 +137,34 @@ export default function NineBoxPage() {
   return (
     <AppLayout>
       <div className="mx-auto max-w-6xl space-y-4 py-2">
-        <header className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="flex items-center gap-2 text-2xl font-heading font-bold">
-              <Grid3X3 className="h-6 w-6" />
-              Nine Box
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Calibração de performance × potencial. Crie snapshots por ciclo e arraste
-              colaboradores na matriz 3×3.
-            </p>
-          </div>
-          <Button onClick={() => setCreateOpen(true)} className="gap-1.5">
-            <Plus className="h-4 w-4" />
-            Novo snapshot
-          </Button>
-        </header>
+        <PageHeader
+          icon={Grid3X3}
+          title="Nine Box"
+          description="Calibração de performance × potencial. Crie snapshots por ciclo e arraste colaboradores na matriz 3×3."
+          actions={
+            <Button onClick={() => setCreateOpen(true)} className="gap-1.5">
+              <Plus className="h-4 w-4" />
+              Novo snapshot
+            </Button>
+          }
+        />
 
         <Card>
           <CardContent className="p-0">
             {isLoading ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
+              <SnapshotsSkeleton />
+            ) : isError ? (
+              <QueryError
+                message="Não foi possível carregar os snapshots."
+                onRetry={refetch}
+              />
             ) : snapshots.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-16 text-center">
-                <Grid3X3 className="h-10 w-10 text-muted-foreground/40" />
-                <p className="text-sm text-muted-foreground">
-                  Nenhum snapshot ainda. Clique em "Novo snapshot" para começar.
-                </p>
-              </div>
+              <EmptyState
+                icon={Grid3X3}
+                title="Nenhum snapshot ainda"
+                description="Crie um snapshot por ciclo para calibrar performance e potencial na matriz 3×3."
+                action={{ label: "Novo snapshot", onClick: () => setCreateOpen(true) }}
+              />
             ) : (
               <Table>
                 <TableHeader>
@@ -158,7 +178,7 @@ export default function NineBoxPage() {
                     <TableHead className="w-32 text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
+                <TableBody ref={listRef}>
                   {snapshots.map((s) => (
                     <TableRow key={s.id}>
                       <TableCell className="font-medium">{s.name}</TableCell>

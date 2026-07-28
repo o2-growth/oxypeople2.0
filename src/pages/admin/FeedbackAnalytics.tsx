@@ -1,24 +1,28 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { format, subMonths } from "date-fns";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { CardsPageSkeleton } from "@/components/ui/page-skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { QueryError } from "@/components/QueryError";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Loader2, MessageSquareQuote, Eye, EyeOff } from "lucide-react";
-import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { useUserPermissions } from "@/hooks/useUserPermissions";
-import { useUser } from "@/hooks/useUser";
+import { MessageSquareQuote, Eye, EyeOff } from "lucide-react";
+import { useRequireAdmin } from "@/hooks/useRequireAdmin";
 import { useFeedbackMetrics } from "@/hooks/useFeedbackMetrics";
+import {
+  useFeedbackDrilldown,
+  type FeedbackDrilldownTarget,
+} from "@/hooks/useFeedbackDrilldown";
 import { trackEvent } from "@/lib/analytics";
 import { FeedbackKpiCards } from "@/components/admin/feedback/FeedbackKpiCards";
 import { FeedbackTimelineChart } from "@/components/admin/feedback/FeedbackTimelineChart";
@@ -34,181 +38,175 @@ const STATUS_LABEL: Record<string, string> = {
   expired: "Expirados",
 };
 
-interface DrilldownRow {
-  id: string;
-  question: string;
-  status: string;
-  declined_reason: string | null;
-  answered_at: string | null;
-  created_at: string;
-  requester: { full_name: string | null } | null;
-  respondent: { full_name: string | null } | null;
-}
-
 export default function FeedbackAnalyticsPage() {
-  const navigate = useNavigate();
-  const { isAdmin, isLoading: permsLoading } = useUserPermissions();
-  const { profile } = useUser();
-  const companyId = profile?.primary_company_id;
+  const { isAdmin, isLoading: permsLoading } = useRequireAdmin({
+    message: "Sem permissão para acessar analytics de feedback.",
+  });
 
   const [dateFrom, setDateFrom] = useState(
     format(subMonths(new Date(), 6), "yyyy-MM-dd"),
   );
   const [dateTo, setDateTo] = useState(format(new Date(), "yyyy-MM-dd"));
   const [aggregatedOnly, setAggregatedOnly] = useState(false);
-  const [drillFilter, setDrillFilter] = useState<string | null>(null);
-  const [drillRows, setDrillRows] = useState<DrilldownRow[]>([]);
-  const [drillLoading, setDrillLoading] = useState(false);
+  const [drilldown, setDrilldown] = useState<FeedbackDrilldownTarget | null>(null);
 
-  const { data: metrics, isLoading } = useFeedbackMetrics(dateFrom, dateTo);
+  const {
+    data: metrics,
+    isLoading,
+    isError,
+    refetch,
+  } = useFeedbackMetrics(dateFrom, dateTo);
 
-  useEffect(() => {
-    if (!permsLoading && !isAdmin) {
-      toast.error("Sem permissão para acessar analytics de feedback.");
-      navigate("/", { replace: true });
-    }
-  }, [isAdmin, permsLoading, navigate]);
+  const {
+    data: drillRows = [],
+    isLoading: drillLoading,
+    isError: drillError,
+    refetch: refetchDrill,
+  } = useFeedbackDrilldown(drilldown, dateFrom, dateTo);
 
   useEffect(() => {
     if (metrics) trackEvent("feedback_analytics_viewed", { date_from: dateFrom, date_to: dateTo });
   }, [metrics, dateFrom, dateTo]);
 
-  const openDrilldown = async (filter: string, tagName?: string) => {
-    if (!companyId) return;
-    setDrillFilter(tagName ?? filter);
-    setDrillLoading(true);
-    setDrillRows([]);
+  const openStatus = (filter: string) =>
+    setDrilldown({
+      status: filter === "all" ? null : (filter as FeedbackDrilldownTarget["status"]),
+      label: STATUS_LABEL[filter] ?? filter,
+    });
 
-    let query = supabase
-      .from("feedback_requests")
-      .select(`
-        id, question, status, declined_reason, answered_at, created_at,
-        requester:users!feedback_requests_requester_id_fkey(full_name),
-        respondent:users!feedback_requests_respondent_id_fkey(full_name)
-      `)
-      .eq("company_id", companyId)
-      .gte("created_at", `${dateFrom}T00:00:00`)
-      .lte("created_at", `${dateTo}T23:59:59`)
-      .order("created_at", { ascending: false })
-      .limit(50);
+  const openTag = (tag: string) => setDrilldown({ status: null, label: tag });
 
-    if (filter !== "all" && !tagName) query = query.eq("status", filter);
+  const filters = (
+    <div className="flex flex-wrap items-end gap-3">
+      <div className="space-y-1">
+        <Label htmlFor="date-from" className="text-xs">De</Label>
+        <Input
+          id="date-from"
+          type="date"
+          value={dateFrom}
+          onChange={(e) => setDateFrom(e.target.value)}
+          className="w-36 text-sm"
+        />
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor="date-to" className="text-xs">Até</Label>
+        <Input
+          id="date-to"
+          type="date"
+          value={dateTo}
+          onChange={(e) => setDateTo(e.target.value)}
+          className="w-36 text-sm"
+        />
+      </div>
+      <div className="flex items-center gap-1.5">
+        {aggregatedOnly ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        <Label className="text-xs cursor-pointer" htmlFor="agg-toggle">
+          Modo agregado
+        </Label>
+        <Switch
+          id="agg-toggle"
+          checked={aggregatedOnly}
+          onCheckedChange={setAggregatedOnly}
+        />
+      </div>
+    </div>
+  );
 
-    const { data, error } = await query;
-    setDrillLoading(false);
-
-    if (error) {
-      toast.error("Erro ao carregar detalhes.");
-      return;
-    }
-    setDrillRows((data ?? []) as unknown as DrilldownRow[]);
-  };
-
+  // Gate de permissão: skeleton enquanto resolve (nunca spinner de tela cheia).
   if (permsLoading || !isAdmin) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        <CardsPageSkeleton cards={6} />
       </AppLayout>
     );
   }
 
+  const isEmpty = !!metrics && metrics.total_requests === 0;
+
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
-              <MessageSquareQuote className="h-6 w-6" />
-              Analytics de Feedback
-            </h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Métricas de adoção e qualidade da prática de feedback contínuo.
-            </p>
+      <PageHeader
+        title="Analytics de Feedback"
+        description="Métricas de adoção e qualidade da prática de feedback contínuo."
+        icon={MessageSquareQuote}
+      >
+        {filters}
+      </PageHeader>
+
+      {isLoading ? (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-24 w-full rounded-xl" />
+            ))}
           </div>
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">De</Label>
-              <Input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="h-8 text-sm w-36"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Até</Label>
-              <Input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="h-8 text-sm w-36"
-              />
-            </div>
-            <div className="flex items-center gap-1.5 pb-0.5">
-              {aggregatedOnly ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              <Label className="text-xs cursor-pointer" htmlFor="agg-toggle">
-                Modo agregado
-              </Label>
-              <Switch
-                id="agg-toggle"
-                checked={aggregatedOnly}
-                onCheckedChange={setAggregatedOnly}
-                className="ml-1"
-              />
-            </div>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <Skeleton className="h-72 w-full rounded-xl lg:col-span-2" />
+            <Skeleton className="h-72 w-full rounded-xl" />
           </div>
         </div>
+      ) : isError ? (
+        <QueryError
+          message="Não foi possível carregar as métricas de feedback."
+          onRetry={() => refetch()}
+        />
+      ) : isEmpty || !metrics ? (
+        <EmptyState
+          icon={MessageSquareQuote}
+          title="Sem feedbacks no período"
+          description="Nenhum pedido de feedback foi registrado no intervalo selecionado. Amplie o período para ver mais dados."
+          action={{
+            label: "Ampliar para 12 meses",
+            onClick: () =>
+              setDateFrom(format(subMonths(new Date(), 12), "yyyy-MM-dd")),
+          }}
+        />
+      ) : (
+        <div className="space-y-6">
+          <FeedbackKpiCards
+            metrics={metrics}
+            aggregatedOnly={aggregatedOnly}
+            onCardClick={openStatus}
+          />
 
-        {isLoading || !metrics ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <>
-            <FeedbackKpiCards
-              metrics={metrics}
-              aggregatedOnly={aggregatedOnly}
-              onCardClick={(f) => openDrilldown(f)}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <FeedbackTimelineChart data={metrics.monthly} />
+            </div>
+            <AdoptionGauge
+              adoptionPct={metrics.adoption_pct}
+              distinctRequesters={metrics.distinct_requesters}
+              totalMembers={metrics.total_members}
             />
+          </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="lg:col-span-2">
-                <FeedbackTimelineChart data={metrics.monthly} />
-              </div>
-              <AdoptionGauge
-                adoptionPct={metrics.adoption_pct}
-                distinctRequesters={metrics.distinct_requesters}
-                totalMembers={metrics.total_members}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <CompetencyRankingChart
+                data={metrics.competencies}
+                onTagClick={openTag}
               />
             </div>
+            <CronStatusCard />
+          </div>
+        </div>
+      )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="lg:col-span-2">
-                <CompetencyRankingChart
-                  data={metrics.competencies}
-                  onTagClick={(tag) => openDrilldown("tag", tag)}
-                />
-              </div>
-              <CronStatusCard />
-            </div>
-          </>
-        )}
-      </div>
-
-      <Sheet open={!!drillFilter} onOpenChange={(open) => !open && setDrillFilter(null)}>
-        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+      <Sheet open={!!drilldown} onOpenChange={(open) => !open && setDrilldown(null)}>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
           <SheetHeader>
-            <SheetTitle>
-              {STATUS_LABEL[drillFilter ?? "all"] ?? drillFilter} — últimos 50
-            </SheetTitle>
+            <SheetTitle>{drilldown?.label} — últimos 50</SheetTitle>
           </SheetHeader>
           <div className="mt-4 space-y-3">
             {drillLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
+              Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full rounded-lg" />
+              ))
+            ) : drillError ? (
+              <QueryError
+                message="Não foi possível carregar os detalhes."
+                onRetry={() => refetchDrill()}
+              />
             ) : drillRows.length === 0 ? (
               <p className="text-sm text-muted-foreground">Nenhum feedback encontrado.</p>
             ) : (
@@ -229,7 +227,7 @@ export default function FeedbackAnalyticsPage() {
                     </p>
                   )}
                   {row.declined_reason && (
-                    <p className="text-xs text-amber-600 italic">Motivo: {row.declined_reason}</p>
+                    <p className="text-xs text-warning italic">Motivo: {row.declined_reason}</p>
                   )}
                 </div>
               ))

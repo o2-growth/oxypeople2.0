@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { format, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { formatDateTime } from "@/lib/formatters";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Loader2, ShieldOff, MessageSquare, BookOpen } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ArrowLeft, ShieldOff, MessageSquare, BookOpen } from "lucide-react";
+import { QueryError } from "@/components/QueryError";
 import { useFeedbackDetail } from "@/hooks/useFeedbackDetail";
 import { FeedbackStatusBadge } from "@/components/feedback/FeedbackStatusBadge";
 import { FeedbackVisibilityBadge } from "@/components/feedback/FeedbackVisibilityBadge";
@@ -14,19 +15,10 @@ import { UserCell } from "@/components/feedback/UserCell";
 import { CreatePDIActionFromFeedback } from "@/components/feedback/CreatePDIActionFromFeedback";
 import { useAuth } from "@/contexts/AuthContext";
 
-function formatDate(v: string | null) {
-  if (!v) return "—";
-  try {
-    return format(parseISO(v), "dd MMM yyyy 'às' HH:mm", { locale: ptBR });
-  } catch {
-    return v;
-  }
-}
-
 export default function FeedbackDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { data, isLoading, error } = useFeedbackDetail(id);
+  const { data, isLoading, isError, refetch } = useFeedbackDetail(id);
   const { user } = useAuth();
   const [pdiDialogOpen, setPdiDialogOpen] = useState(false);
 
@@ -44,19 +36,24 @@ export default function FeedbackDetailPage() {
         </Button>
 
         {isLoading ? (
+          <FeedbackDetailSkeleton />
+        ) : isError ? (
           <Card>
-            <CardContent className="flex justify-center py-12">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            <CardContent className="py-4">
+              <QueryError
+                message="Não foi possível carregar este feedback."
+                onRetry={() => refetch()}
+              />
             </CardContent>
           </Card>
-        ) : error || !data ? (
+        ) : !data ? (
           <Card>
             <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
               <ShieldOff className="h-10 w-10 text-muted-foreground" />
               <div>
                 <p className="text-sm font-medium">Feedback não encontrado ou sem permissão</p>
                 <p className="text-xs text-muted-foreground">
-                  Pedidos privados ao requester não são visíveis para outras pessoas.
+                  Pedidos privados a quem os solicitou não são visíveis para outras pessoas.
                 </p>
               </div>
               <Button variant="outline" size="sm" onClick={() => navigate("/feedback/sent")}>
@@ -112,11 +109,11 @@ export default function FeedbackDetailPage() {
               )}
 
               {data.status === "answered" && data.response && (
-                <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-4">
+                <div className="rounded-md border border-success/30 bg-success/5 p-4">
                   <div className="mb-1 flex items-center justify-between">
-                    <p className="text-xs font-medium text-emerald-600">Resposta</p>
+                    <p className="text-xs font-medium text-success">Resposta</p>
                     <span className="text-xs text-muted-foreground">
-                      {formatDate(data.answered_at)}
+                      {formatDateTime(data.answered_at)}
                     </span>
                   </div>
                   <p className="text-sm whitespace-pre-line leading-relaxed">{data.response}</p>
@@ -132,12 +129,12 @@ export default function FeedbackDetailPage() {
 
               {data.status === "requested" && data.due_date && (
                 <p className="text-xs text-muted-foreground">
-                  Prazo: <strong>{formatDate(data.due_date)}</strong>
+                  Prazo: <strong>{formatDateTime(data.due_date)}</strong>
                 </p>
               )}
 
               <p className="text-xs text-muted-foreground">
-                Pedido criado em {formatDate(data.created_at)}.
+                Pedido criado em {formatDateTime(data.created_at)}.
               </p>
 
               {data.status === "answered" && (
@@ -176,5 +173,30 @@ function DetailField({ label, children }: { label: string; children: React.React
       <p className="mb-1 text-xs font-medium text-muted-foreground">{label}</p>
       {children}
     </div>
+  );
+}
+
+function FeedbackDetailSkeleton() {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Skeleton className="h-5 w-32" />
+          <div className="flex gap-1.5">
+            <Skeleton className="h-5 w-20" />
+            <Skeleton className="h-5 w-20" />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="grid gap-3 md:grid-cols-3">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+        <Skeleton className="h-24 w-full rounded-md" />
+        <Skeleton className="h-4 w-40" />
+      </CardContent>
+    </Card>
   );
 }

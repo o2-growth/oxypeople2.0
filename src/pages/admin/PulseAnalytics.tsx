@@ -6,6 +6,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -17,15 +18,17 @@ import {
 import {
   Activity,
   ArrowLeft,
-  Loader2,
   ShieldAlert,
   Users,
   TrendingUp,
   EyeOff,
 } from "lucide-react";
-import { toast } from "sonner";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { usePulseAnalytics, type PulseAnalyticsFilters } from "@/hooks/usePulseAnalytics";
-import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { useRequireAdmin } from "@/hooks/useRequireAdmin";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { QueryError } from "@/components/QueryError";
+import { EmptyState } from "@/components/ui/empty-state";
 import { PulseLineChart } from "@/components/admin/pulse/PulseLineChart";
 import { PulseFilters } from "@/components/admin/pulse/PulseFilters";
 import { PulseCommentsDrawer } from "@/components/admin/pulse/PulseCommentsDrawer";
@@ -56,14 +59,45 @@ function formatPeriod(value: string) {
 
 const ENPS_COLOR_CLASS: Record<string, string> = {
   destructive: "text-destructive",
-  amber: "text-amber-600",
-  emerald: "text-emerald-600",
+  amber: "text-warning",
+  emerald: "text-success",
 };
+
+function AnalyticsSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start gap-3">
+        <Skeleton className="h-9 w-9 rounded-lg" />
+        <div className="space-y-2">
+          <Skeleton className="h-7 w-48" />
+          <Skeleton className="h-4 w-72" />
+        </div>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {[0, 1, 2].map((i) => (
+          <Card key={i}>
+            <CardContent className="space-y-2 py-4">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-8 w-16" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <Card>
+        <CardContent className="py-4">
+          <Skeleton className="h-48 w-full" />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 export default function PulseAnalyticsPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { isAdmin, isLoading: permsLoading } = useUserPermissions();
+  const { isAdmin, isLoading: permsLoading } = useRequireAdmin({
+    message: "Sem permissão.",
+  });
 
   const [filters, setFilters] = useState<PulseAnalyticsFilters>({
     departmentIds: [],
@@ -71,15 +105,10 @@ export default function PulseAnalyticsPage() {
     periodsBack: 12,
   });
   const [drawerPeriod, setDrawerPeriod] = useState<string | null>(null);
+  const [historyRef] = useAutoAnimate<HTMLTableSectionElement>();
 
   const analytics = usePulseAnalytics(id, filters);
 
-  useEffect(() => {
-    if (!permsLoading && !isAdmin) {
-      toast.error("Sem permissão.");
-      navigate("/", { replace: true });
-    }
-  }, [isAdmin, permsLoading, navigate]);
 
   useEffect(() => {
     if (id) trackEvent("pulse_analytics_viewed", { pulse_survey_id: id });
@@ -88,8 +117,8 @@ export default function PulseAnalyticsPage() {
   if (permsLoading || !isAdmin) {
     return (
       <AppLayout>
-        <div className="flex justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <div className="mx-auto max-w-6xl space-y-4 py-2">
+          <AnalyticsSkeleton />
         </div>
       </AppLayout>
     );
@@ -106,48 +135,50 @@ export default function PulseAnalyticsPage() {
         </Button>
 
         {analytics.loading ? (
+          <AnalyticsSkeleton />
+        ) : analytics.isError ? (
           <Card>
-            <CardContent className="flex justify-center py-12">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </CardContent>
+            <QueryError
+              message="Não foi possível carregar os resultados deste pulse."
+              onRetry={analytics.refetch}
+            />
           </Card>
         ) : !pulse ? (
           <Card>
-            <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
-              <Activity className="h-10 w-10 text-muted-foreground/40" />
-              <p className="text-sm text-muted-foreground">
-                Pulse não encontrado ou foi removido.
-              </p>
-            </CardContent>
+            <EmptyState
+              icon={Activity}
+              title="Pulse não encontrado"
+              description="Esta pesquisa pode ter sido removida. Volte para a lista para ver os pulses ativos."
+              action={{
+                label: "Voltar para lista",
+                onClick: () => navigate("/admin/pulse-surveys"),
+              }}
+            />
           </Card>
         ) : (
           <>
-            <header className="flex flex-wrap items-start justify-between gap-3">
-              <div className="space-y-1">
-                <div className="flex items-baseline gap-2">
-                  <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
-                    <Activity className="h-6 w-6 text-emerald-500" />
-                    {pulse.name}
-                  </h1>
+            <PageHeader
+              icon={Activity}
+              title={pulse.name}
+              description={`${pulse.question} · ${FREQ_LABEL[pulse.frequency]} · ${TYPE_LABEL[pulse.question_type]}`}
+              actions={
+                <>
                   {pulse.anonymous && (
                     <Badge variant="secondary" className="gap-1">
                       <EyeOff className="h-3 w-3" />
                       Anônimo
                     </Badge>
                   )}
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {pulse.question} · {FREQ_LABEL[pulse.frequency]} · {TYPE_LABEL[pulse.question_type]}
-                </p>
-              </div>
-              <ExportPulseButton
-                pulseId={pulse.id}
-                pulseName={pulse.name}
-                anonymous={pulse.anonymous}
-                filters={{ departmentIds: filters.departmentIds, teamIds: filters.teamIds }}
-                blockedAnonymity={blockedAnonymity}
-              />
-            </header>
+                  <ExportPulseButton
+                    pulseId={pulse.id}
+                    pulseName={pulse.name}
+                    anonymous={pulse.anonymous}
+                    filters={{ departmentIds: filters.departmentIds, teamIds: filters.teamIds }}
+                    blockedAnonymity={blockedAnonymity}
+                  />
+                </>
+              }
+            />
 
             <div className="grid gap-4 md:grid-cols-[1fr_280px]">
               <div className="space-y-4">
@@ -215,9 +246,9 @@ export default function PulseAnalyticsPage() {
                 </div>
 
                 {blockedAnonymity ? (
-                  <Card className="border-amber-500/40 bg-amber-500/5">
+                  <Card className="border-warning/40 bg-warning/5">
                     <CardContent className="flex items-start gap-3 py-4">
-                      <ShieldAlert className="h-5 w-5 text-amber-600 mt-0.5" />
+                      <ShieldAlert className="h-5 w-5 text-warning mt-0.5" />
                       <div>
                         <p className="text-sm font-medium">Amostra muito pequena</p>
                         <p className="text-xs text-muted-foreground">
@@ -269,7 +300,7 @@ export default function PulseAnalyticsPage() {
                             <TableHead className="text-right">Comentários</TableHead>
                           </TableRow>
                         </TableHeader>
-                        <TableBody>
+                        <TableBody ref={historyRef}>
                           {[...periods].reverse().map((p) => {
                             const periodComments = comments.filter((c) => c.period_start === p.period_start);
                             return (

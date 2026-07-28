@@ -15,9 +15,6 @@ import {
   Gamepad2,
   Briefcase,
   MessageSquareQuote,
-  Inbox,
-  Send,
-  Sparkles,
   Coffee,
   LogOut,
   User,
@@ -29,7 +26,15 @@ import {
   BarChart3,
   Palmtree,
   TrendingUp,
+  UserPlus,
+  Network,
+  CalendarRange,
+  KeyRound,
+  Siren,
   Activity,
+  LayoutGrid,
+  ClipboardList,
+  PieChart,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { NavLink } from "@/components/NavLink";
@@ -72,44 +77,58 @@ interface NavItem {
   url: string;
   icon: React.ComponentType<{ className?: string }>;
   external?: boolean;
+  /** Item só aparece para admin (ex.: destino tem gate de admin na própria página). */
+  adminOnly?: boolean;
 }
 
+// Navegação por papel (Onda 3, Lote F §3.1). Os grupos MEU TIME / EMPRESA / ADMIN
+// são exibidos conforme o papel do usuário (gate SÓ no menu — as rotas em App.tsx
+// permanecem inalteradas). Rótulos renomeados para tarefa do colaborador.
+
 const inicioItems: NavItem[] = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Meu Dia", url: "/", icon: LayoutDashboard },
   { title: "Mural", url: "/feed", icon: MessageSquare },
 ];
 
 const meuEspacoItems: NavItem[] = [
-  { title: "Sobre mim", url: "/feedback/about-me", icon: Sparkles },
-  { title: "Objetivos", url: "/objectives", icon: Target },
+  { title: "Meus Objetivos", url: "/objectives", icon: Target },
+  { title: "Meu PDI", url: "/pdi", icon: BookOpen },
+  { title: "Minhas 1:1s", url: "/one-on-ones", icon: Coffee },
+  { title: "Feedback", url: "/feedback", icon: MessageSquareQuote },
+  { title: "Reconhecimentos", url: "/recognition", icon: Trophy },
   { title: "Desempenho", url: "/performance", icon: ClipboardCheck },
   { title: "Gamificação", url: "/gamification", icon: Gamepad2 },
-  { title: "Reconhecimentos", url: "/recognition", icon: Trophy },
 ];
 
-const feedbackItems: NavItem[] = [
-  { title: "Inbox", url: "/feedback/inbox", icon: Inbox },
-  { title: "Pedir feedback", url: "/feedback/new", icon: MessageSquareQuote },
-  { title: "Enviados", url: "/feedback/sent", icon: Send },
+// Visível a gestor/admin.
+const meuTimeItems: NavItem[] = [
+  { title: "PDIs", url: "/pdi/team", icon: Users },
+  { title: "1:1s", url: "/admin/one-on-ones-dashboard", icon: Coffee },
+  { title: "Pesquisas", url: "/surveys", icon: BarChart3 },
 ];
 
-const desenvolvimentoItems: NavItem[] = [
-  { title: "PDI", url: "/pdi", icon: BookOpen },
-  { title: "1:1s", url: "/one-on-ones", icon: Coffee },
-];
-
-const gestaoItems: NavItem[] = [
+// Visível a gestor/admin.
+const empresaItems: NavItem[] = [
+  // /company tem gate de admin na própria página (Onda 2) — só admin vê o item,
+  // pra não deixar item morto no menu do gestor não-admin. (Relaxar o gate da
+  // página é decisão de produto — pergunta aberta pro Andrey.)
+  { title: "Empresa", url: "/company", icon: Building2, adminOnly: true },
+  { title: "Times", url: "/teams", icon: UsersRound },
   { title: "Acompanhamento OKR", url: "/okr-overview", icon: TrendingUp },
   { title: "RH", url: "/hr", icon: Briefcase },
-  { title: "Times", url: "/teams", icon: UsersRound },
-  { title: "Pesquisas", url: "/surveys", icon: BarChart3 },
-  { title: "PDI do Time", url: "/pdi/team", icon: Users },
-  { title: "1:1s Gestão", url: "/admin/one-on-ones-dashboard", icon: Coffee },
 ];
 
+// Visível a admin. "Tudo de /admin agrupado" + configs administrativas soltas.
 const adminItems: NavItem[] = [
-  { title: "Empresa", url: "/company", icon: Building2 },
+  { title: "Convites", url: "/admin/invitations", icon: UserPlus },
+  { title: "Gestores", url: "/admin/managers", icon: Network },
+  { title: "Períodos", url: "/admin/periods", icon: CalendarRange },
+  { title: "Acesso a OKR", url: "/admin/okr-access", icon: KeyRound },
+  { title: "Escalonamento de OKRs", url: "/admin/okr-escalation", icon: Siren },
   { title: "Pesquisas Pulse", url: "/admin/pulse-surveys", icon: Activity },
+  { title: "Nine Box", url: "/admin/nine-box", icon: LayoutGrid },
+  { title: "Painel de PDIs", url: "/admin/pdi-dashboard", icon: ClipboardList },
+  { title: "Análise de Feedback", url: "/admin/feedback/analytics", icon: PieChart },
   { title: "Férias", url: "/time-off", icon: Palmtree },
   { title: "Automação", url: "/automation", icon: Zap },
   { title: "Oxy VE", url: "https://oxyve.lovable.app", icon: MonitorPlay, external: true },
@@ -228,7 +247,7 @@ export function AppSidebar() {
           </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="text-lg font-heading font-bold text-sidebar-foreground">Oxy People</span>
+              <span className="text-lg font-bold text-sidebar-foreground">Oxy People</span>
               <span className="text-xs text-sidebar-foreground/60">by O2 Inc</span>
             </div>
           )}
@@ -238,13 +257,18 @@ export function AppSidebar() {
       <SidebarContent className="px-2 py-4">
         <NavGroup label="Início" items={inicioItems} />
         <NavGroup label="Meu Espaço" items={meuEspacoItems} />
-        <NavGroup label="Feedback" items={feedbackItems} defaultOpen={false} />
-        <NavGroup label="Desenvolvimento" items={desenvolvimentoItems} defaultOpen={false} />
         {(isManager || isAdmin) && (
-          <NavGroup label="Gestão" items={gestaoItems} defaultOpen={false} />
+          <NavGroup label="Meu Time" items={meuTimeItems} defaultOpen={false} />
+        )}
+        {(isManager || isAdmin) && (
+          <NavGroup
+            label="Organização"
+            items={empresaItems.filter((item) => isAdmin || !item.adminOnly)}
+            defaultOpen={false}
+          />
         )}
         {isAdmin && (
-          <NavGroup label="Administração" items={adminItems} defaultOpen={false} />
+          <NavGroup label="Admin" items={adminItems} defaultOpen={false} />
         )}
       </SidebarContent>
 

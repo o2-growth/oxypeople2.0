@@ -100,7 +100,7 @@ export function FeedbackResponseView({
                 <AvatarFallback>{userInitials}</AvatarFallback>
               </Avatar>
               <div>
-                <DialogTitle className="text-lg font-heading">{userName}</DialogTitle>
+                <DialogTitle className="text-lg">{userName}</DialogTitle>
                 <DialogDescription>
                   Respondido em{" "}
                   {feedback.completed_at

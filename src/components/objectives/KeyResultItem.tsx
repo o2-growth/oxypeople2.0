@@ -39,6 +39,7 @@ import {
 import { CheckinDialog } from "./CheckinDialog";
 import { EditKeyResultDialog } from "./EditKeyResultDialog";
 import { KrConfidenceSlider } from "./KrConfidenceSlider";
+import { CheckinStreak } from "./CheckinStreak";
 import { ProgressBarStatus } from "./ProgressBarStatus";
 import { OverdueBadge } from "./OverdueBadge";
 import { ProgressChart } from "./ProgressChart";
@@ -300,9 +301,15 @@ function KeyResultDetailPanel({ krId, kr }: { krId: string; kr: KeyResult }) {
               </p>
             </div>
           ) : (
-            <ScrollArea className="max-h-48">
-              <div className="space-y-1.5">
-                {checkins.map((checkin) => (
+            <>
+              <CheckinStreak
+                checkins={checkins}
+                lastCheckinAt={kr.last_checkin_at}
+                className="mb-2 px-0.5"
+              />
+              <ScrollArea className="max-h-48">
+                <div className="space-y-1.5">
+                  {checkins.map((checkin) => (
                   <div key={checkin.id} className="p-2 rounded-lg bg-muted/30 space-y-1">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
@@ -333,9 +340,10 @@ function KeyResultDetailPanel({ krId, kr }: { krId: string; kr: KeyResult }) {
                       </Badge>
                     )}
                   </div>
-                ))}
-              </div>
-            </ScrollArea>
+                  ))}
+                </div>
+              </ScrollArea>
+            </>
           )}
         </TabsContent>
 

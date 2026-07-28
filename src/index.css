@@ -129,6 +129,19 @@
     --ink-200:  #BFBFBF;
     --ink-150:  #EAEAEA;
 
+    /* OKR area accents — cores categóricas SEMÂNTICAS por área do painel
+     * /okr-overview (Gestão). Espelham as cores oficiais dos departamentos no
+     * banco (departments.color) — ex.: #F97316=Operação, #3B82F6=Comercial.
+     * Por terem significado de domínio, pertencem ao tema (token nomeado); já as
+     * GROUP_COLORS decorativas do board Monday ficam em const local (ver Log de
+     * decisões em docs/ux-revamp/README.md). Definidas uma vez (valem light+dark),
+     * preservando a aparência atual.
+     * NOTA: numa onda futura podem passar a vir do banco — não agora. */
+    --okr-area-ops:     #F97316; /* Operações — laranja */
+    --okr-area-revenue: #3B82F6; /* Revenue — azul */
+    --okr-area-tech:    #6B7280; /* Tech — cinza */
+    --okr-area-default: #10B981; /* fallback — esmeralda */
+
     /* Forma — extends shadcn's --radius (0.75rem ≈ 12px) */
     --radius-sm:   8px;
     --radius-lg:   20px;
@@ -403,15 +416,6 @@
   
   .badge-accent {
     @apply bg-primary/10 text-primary border-primary/20;
-  }
-  
-  /* Objectives page gradient background */
-  .objectives-page-bg {
-    background: linear-gradient(180deg, hsl(150 10% 97%) 0%, hsl(152 35% 16%) 75%, hsl(160 30% 12%) 100%);
-  }
-  
-  .dark .objectives-page-bg {
-    background: linear-gradient(180deg, hsl(160 20% 7%) 0%, hsl(152 25% 12%) 75%, hsl(160 25% 8%) 100%);
   }
 }
 

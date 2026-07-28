@@ -73,6 +73,33 @@ interface CompetencyRow {
   pdi_plan_id: string;
 }
 
+/** Normaliza a relação embedada (objeto ou array de um) para `{ id, name }`. */
+function pickDepartment(rel: unknown): MembershipRow["departments"] {
+  const value = Array.isArray(rel) ? rel[0] : rel;
+  if (!value || typeof value !== "object") return null;
+  const dept = value as Record<string, unknown>;
+  return { id: dept.id as string, name: dept.name as string };
+}
+
+/** Normaliza a relação embedada (objeto ou array de um) para `{ id, full_name }`. */
+function pickUser(rel: unknown): MembershipRow["users"] {
+  const value = Array.isArray(rel) ? rel[0] : rel;
+  if (!value || typeof value !== "object") return null;
+  const user = value as Record<string, unknown>;
+  return { id: user.id as string, full_name: (user.full_name as string | null) ?? null };
+}
+
+/** Converte a linha bruta do Supabase em `MembershipRow` sem `as unknown as`. */
+function mapMemberships(rows: Array<Record<string, unknown>>): MembershipRow[] {
+  return rows.map((row) => ({
+    user_id: row.user_id as string,
+    department: (row.department as string | null) ?? null,
+    department_id: (row.department_id as string | null) ?? null,
+    departments: pickDepartment(row.departments),
+    users: pickUser(row.users),
+  }));
+}
+
 function daysBetween(targetDate: string): number {
   return Math.ceil((parseISO(targetDate).getTime() - Date.now()) / 86400000);
 }
@@ -95,7 +122,7 @@ async function fetchDashboardData(companyId: string): Promise<PDIDashboardData> 
     .eq("status", "active");
 
   if (membershipsError) throw membershipsError;
-  const memberships = (membershipsData ?? []) as unknown as MembershipRow[];
+  const memberships = mapMemberships(membershipsData ?? []);
 
   // Query 3: competencies for active+completed plans
   const relevantPlanIds = plans
@@ -296,5 +323,7 @@ export function usePDIDashboard(companyId: string) {
   return {
     data: query.data ?? null,
     isLoading: query.isLoading,
+    isError: query.isError,
+    refetch: query.refetch,
   };
 }

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useMemo, useState } from "react";
 import { format } from "date-fns";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,9 +15,10 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle, Bell, Clock, Loader2, Play, Siren } from "lucide-react";
-import { toast } from "sonner";
 import { useOkrEscalation, type OkrEscalationReport } from "@/hooks/useOkrEscalation";
-import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { useRequireAdmin } from "@/hooks/useRequireAdmin";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { ListPageSkeleton } from "@/components/ui/page-skeleton";
 
 interface RunHistoryEntry {
   ranAt: Date;
@@ -29,20 +30,19 @@ interface RunHistoryEntry {
 }
 
 export default function OkrEscalationPage() {
-  const navigate = useNavigate();
-  const { isAdmin, isLoading: permsLoading } = useUserPermissions();
+  const { isAdmin, isLoading: permsLoading } = useRequireAdmin({
+    message: "Sem permissão para acessar escalação automática.",
+  });
   const escalation = useOkrEscalation();
 
   const [history, setHistory] = useState<RunHistoryEntry[]>([]);
   const [lastReport, setLastReport] = useState<OkrEscalationReport | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!permsLoading && !isAdmin) {
-      toast.error("Sem permissão para acessar escalação automática.");
-      navigate("/", { replace: true });
-    }
-  }, [isAdmin, permsLoading, navigate]);
+  const [companyCardsRef] = useAutoAnimate<HTMLDivElement>();
+  const [companyTbodyRef] = useAutoAnimate<HTMLTableSectionElement>();
+  const [historyCardsRef] = useAutoAnimate<HTMLDivElement>();
+  const [historyTbodyRef] = useAutoAnimate<HTMLTableSectionElement>();
 
   const handleRun = async () => {
     setLastError(null);
@@ -76,26 +76,20 @@ export default function OkrEscalationPage() {
   if (permsLoading || !isAdmin) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        <ListPageSkeleton />
       </AppLayout>
     );
   }
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
-            <Siren className="h-6 w-6" />
-            Escalação automática de OKRs
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Notifica owners e líderes quando objetivos estão em risco ou atrasados.
-          </p>
-        </div>
+      <PageHeader
+        icon={Siren}
+        title="Escalação automática de OKRs"
+        description="Notifica owners e líderes quando objetivos estão em risco ou atrasados."
+      />
 
+      <div className="space-y-6">
         <Alert>
           <Clock className="h-4 w-4" />
           <AlertTitle>Cron diário pendente</AlertTitle>
@@ -167,34 +161,62 @@ export default function OkrEscalationPage() {
               {lastReport.perCompany.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhuma empresa retornada.</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Empresa</TableHead>
-                      <TableHead className="text-right">Escaneados</TableHead>
-                      <TableHead className="text-right">Em risco</TableHead>
-                      <TableHead className="text-right">Notificações</TableHead>
-                      <TableHead>Erros</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                <>
+                  {/* Mobile: cards (colapso da tabela) */}
+                  <div ref={companyCardsRef} className="space-y-3 md:hidden">
                     {lastReport.perCompany.map((c) => (
-                      <TableRow key={c.companyId}>
-                        <TableCell className="font-mono text-xs">{c.companyId.slice(0, 8)}…</TableCell>
-                        <TableCell className="text-right">{c.objectivesScanned}</TableCell>
-                        <TableCell className="text-right">{c.atRisk}</TableCell>
-                        <TableCell className="text-right">{c.notificationsCreated}</TableCell>
-                        <TableCell>
+                      <div key={c.companyId} className="rounded-lg border p-3 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-mono text-xs">{c.companyId.slice(0, 8)}…</span>
                           {c.errors.length === 0 ? (
                             <Badge variant="outline">ok</Badge>
                           ) : (
-                            <Badge variant="destructive">{c.errors.length}</Badge>
+                            <Badge variant="destructive">{c.errors.length} erros</Badge>
                           )}
-                        </TableCell>
-                      </TableRow>
+                        </div>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                          <span>Escaneados: {c.objectivesScanned}</span>
+                          <span>Em risco: {c.atRisk}</span>
+                          <span>Notificações: {c.notificationsCreated}</span>
+                        </div>
+                      </div>
                     ))}
-                  </TableBody>
-                </Table>
+                  </div>
+
+                  {/* Desktop: tabela completa */}
+                  <div className="hidden md:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Empresa</TableHead>
+                          <TableHead className="text-right">Escaneados</TableHead>
+                          <TableHead className="text-right">Em risco</TableHead>
+                          <TableHead className="text-right">Notificações</TableHead>
+                          <TableHead>Erros</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody ref={companyTbodyRef}>
+                        {lastReport.perCompany.map((c) => (
+                          <TableRow key={c.companyId}>
+                            <TableCell className="font-mono text-xs">
+                              {c.companyId.slice(0, 8)}…
+                            </TableCell>
+                            <TableCell className="text-right">{c.objectivesScanned}</TableCell>
+                            <TableCell className="text-right">{c.atRisk}</TableCell>
+                            <TableCell className="text-right">{c.notificationsCreated}</TableCell>
+                            <TableCell>
+                              {c.errors.length === 0 ? (
+                                <Badge variant="outline">ok</Badge>
+                              ) : (
+                                <Badge variant="destructive">{c.errors.length}</Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -214,36 +236,65 @@ export default function OkrEscalationPage() {
                 Nenhuma execução nesta sessão. Clique em "Rodar agora" para começar.
               </p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Quando</TableHead>
-                    <TableHead className="text-right">Duração</TableHead>
-                    <TableHead className="text-right">Empresas</TableHead>
-                    <TableHead className="text-right">Em risco</TableHead>
-                    <TableHead className="text-right">Notificações</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {history.map((entry, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell>{format(entry.ranAt, "HH:mm:ss")}</TableCell>
-                      <TableCell className="text-right">{entry.durationMs} ms</TableCell>
-                      <TableCell className="text-right">{entry.totalCompanies}</TableCell>
-                      <TableCell className="text-right">{entry.totalAtRisk}</TableCell>
-                      <TableCell className="text-right">{entry.totalNotificationsCreated}</TableCell>
-                      <TableCell>
+              <>
+                {/* Mobile: cards (colapso da tabela) */}
+                <div ref={historyCardsRef} className="space-y-3 md:hidden">
+                  {history.map((entry) => (
+                    <div key={entry.ranAt.getTime()} className="rounded-lg border p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium">{format(entry.ranAt, "HH:mm:ss")}</span>
                         {entry.hasErrors ? (
                           <Badge variant="destructive">erros</Badge>
                         ) : (
                           <Badge variant="outline">ok</Badge>
                         )}
-                      </TableCell>
-                    </TableRow>
+                      </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <span>Duração: {entry.durationMs} ms</span>
+                        <span>Empresas: {entry.totalCompanies}</span>
+                        <span>Em risco: {entry.totalAtRisk}</span>
+                        <span>Notificações: {entry.totalNotificationsCreated}</span>
+                      </div>
+                    </div>
                   ))}
-                </TableBody>
-              </Table>
+                </div>
+
+                {/* Desktop: tabela completa */}
+                <div className="hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Quando</TableHead>
+                        <TableHead className="text-right">Duração</TableHead>
+                        <TableHead className="text-right">Empresas</TableHead>
+                        <TableHead className="text-right">Em risco</TableHead>
+                        <TableHead className="text-right">Notificações</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody ref={historyTbodyRef}>
+                      {history.map((entry) => (
+                        <TableRow key={entry.ranAt.getTime()}>
+                          <TableCell>{format(entry.ranAt, "HH:mm:ss")}</TableCell>
+                          <TableCell className="text-right">{entry.durationMs} ms</TableCell>
+                          <TableCell className="text-right">{entry.totalCompanies}</TableCell>
+                          <TableCell className="text-right">{entry.totalAtRisk}</TableCell>
+                          <TableCell className="text-right">
+                            {entry.totalNotificationsCreated}
+                          </TableCell>
+                          <TableCell>
+                            {entry.hasErrors ? (
+                              <Badge variant="destructive">erros</Badge>
+                            ) : (
+                              <Badge variant="outline">ok</Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>

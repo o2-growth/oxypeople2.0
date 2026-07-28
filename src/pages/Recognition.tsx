@@ -1,10 +1,14 @@
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { RecognitionCard } from "@/components/recognition/RecognitionCard";
 import { SendRecognition } from "@/components/recognition/SendRecognition";
 import { Leaderboard } from "@/components/recognition/Leaderboard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trophy, Send, Inbox, Award } from "lucide-react";
 import { useRecognitions } from "@/hooks/useRecognitions";
+import { QueryError } from "@/components/QueryError";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function RecognitionSkeleton() {
@@ -27,29 +31,34 @@ function RecognitionSkeleton() {
   );
 }
 
-function EmptyState({ message }: { message: string }) {
-  return (
-    <div className="text-center py-12">
-      <Award className="h-16 w-16 mx-auto mb-4 text-muted-foreground/30" />
-      <p className="text-muted-foreground">{message}</p>
-    </div>
-  );
-}
-
 export default function Recognition() {
-  const { recognitions, received, sent, isLoading, isLoadingReceived, isLoadingSent } =
-    useRecognitions();
+  const {
+    recognitions,
+    received,
+    sent,
+    isLoading,
+    isLoadingReceived,
+    isLoadingSent,
+    isError,
+    isErrorReceived,
+    isErrorSent,
+    refetch,
+    refetchReceived,
+    refetchSent,
+  } = useRecognitions();
+
+  const [allRef] = useAutoAnimate<HTMLDivElement>();
+  const [receivedRef] = useAutoAnimate<HTMLDivElement>();
+  const [sentRef] = useAutoAnimate<HTMLDivElement>();
 
   return (
     <AppLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-heading font-bold text-foreground">Reconhecimentos</h1>
-          <p className="text-muted-foreground mt-1">
-            Celebre as conquistas e reconheça seus colegas
-          </p>
-        </div>
+        <PageHeader
+          icon={Trophy}
+          title="Reconhecimentos"
+          description="Celebre as conquistas e reconheça seus colegas"
+        />
 
         {/* Main Content */}
         <div className="grid gap-6 lg:grid-cols-3">
@@ -73,66 +82,99 @@ export default function Recognition() {
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="all" className="mt-6 space-y-4">
+              <TabsContent value="all" className="mt-6">
                 {isLoading ? (
                   <RecognitionSkeleton />
+                ) : isError ? (
+                  <QueryError
+                    message="Não foi possível carregar os reconhecimentos."
+                    onRetry={() => refetch()}
+                  />
                 ) : recognitions.length > 0 ? (
-                  recognitions.map((recognition) => (
-                    <RecognitionCard
-                      key={recognition.id}
-                      id={recognition.id}
-                      fromUser={recognition.from_user}
-                      toUser={recognition.to_user}
-                      message={recognition.message}
-                      badge={recognition.badge}
-                      points={recognition.points}
-                      createdAt={recognition.created_at}
-                    />
-                  ))
+                  <div ref={allRef} className="space-y-4">
+                    {recognitions.map((recognition) => (
+                      <RecognitionCard
+                        key={recognition.id}
+                        id={recognition.id}
+                        fromUser={recognition.from_user}
+                        toUser={recognition.to_user}
+                        message={recognition.message}
+                        badge={recognition.badge}
+                        points={recognition.points}
+                        createdAt={recognition.created_at}
+                      />
+                    ))}
+                  </div>
                 ) : (
-                  <EmptyState message="Nenhum reconhecimento ainda. Seja o primeiro a reconhecer um colega!" />
+                  <EmptyState
+                    icon={Award}
+                    title="Nenhum reconhecimento ainda"
+                    description="Seja o primeiro a reconhecer um colega!"
+                  />
                 )}
               </TabsContent>
 
-              <TabsContent value="received" className="mt-6 space-y-4">
+              <TabsContent value="received" className="mt-6">
                 {isLoadingReceived ? (
                   <RecognitionSkeleton />
+                ) : isErrorReceived ? (
+                  <QueryError
+                    message="Não foi possível carregar os reconhecimentos recebidos."
+                    onRetry={() => refetchReceived()}
+                  />
                 ) : received.length > 0 ? (
-                  received.map((recognition) => (
-                    <RecognitionCard
-                      key={recognition.id}
-                      id={recognition.id}
-                      fromUser={recognition.from_user}
-                      toUser={recognition.to_user}
-                      message={recognition.message}
-                      badge={recognition.badge}
-                      points={recognition.points}
-                      createdAt={recognition.created_at}
-                    />
-                  ))
+                  <div ref={receivedRef} className="space-y-4">
+                    {received.map((recognition) => (
+                      <RecognitionCard
+                        key={recognition.id}
+                        id={recognition.id}
+                        fromUser={recognition.from_user}
+                        toUser={recognition.to_user}
+                        message={recognition.message}
+                        badge={recognition.badge}
+                        points={recognition.points}
+                        createdAt={recognition.created_at}
+                      />
+                    ))}
+                  </div>
                 ) : (
-                  <EmptyState message="Você ainda não recebeu nenhum reconhecimento." />
+                  <EmptyState
+                    icon={Inbox}
+                    title="Nenhum reconhecimento recebido"
+                    description="Você ainda não recebeu nenhum reconhecimento."
+                  />
                 )}
               </TabsContent>
 
-              <TabsContent value="sent" className="mt-6 space-y-4">
+              <TabsContent value="sent" className="mt-6">
                 {isLoadingSent ? (
                   <RecognitionSkeleton />
+                ) : isErrorSent ? (
+                  <QueryError
+                    message="Não foi possível carregar os reconhecimentos enviados."
+                    onRetry={() => refetchSent()}
+                  />
                 ) : sent.length > 0 ? (
-                  sent.map((recognition) => (
-                    <RecognitionCard
-                      key={recognition.id}
-                      id={recognition.id}
-                      fromUser={recognition.from_user}
-                      toUser={recognition.to_user}
-                      message={recognition.message}
-                      badge={recognition.badge}
-                      points={recognition.points}
-                      createdAt={recognition.created_at}
-                    />
-                  ))
+                  <div ref={sentRef} className="space-y-4">
+                    {sent.map((recognition) => (
+                      <RecognitionCard
+                        key={recognition.id}
+                        id={recognition.id}
+                        fromUser={recognition.from_user}
+                        toUser={recognition.to_user}
+                        message={recognition.message}
+                        badge={recognition.badge}
+                        points={recognition.points}
+                        createdAt={recognition.created_at}
+                      />
+                    ))}
+                  </div>
                 ) : (
-                  <EmptyState message="Você ainda não enviou nenhum reconhecimento." />
+                  <EmptyState
+                    icon={Send}
+                    title="Nenhum reconhecimento enviado"
+                    description="Você ainda não enviou nenhum reconhecimento."
+                  />
                 )}
               </TabsContent>
             </Tabs>

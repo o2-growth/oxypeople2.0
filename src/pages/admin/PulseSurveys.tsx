@@ -25,19 +25,23 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Plus, Pencil, Trash2, Loader2, Activity, EyeOff, BarChart3, AlertTriangle, Clock } from "lucide-react";
-import { toast } from "sonner";
+import { Plus, Pencil, Trash2, Activity, EyeOff, BarChart3, AlertTriangle, Clock } from "lucide-react";
 import {
   usePulseSurveysAdmin,
   type PulseSurveyAdminRow,
 } from "@/hooks/usePulseSurveysAdmin";
-import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { useRequireAdmin } from "@/hooks/useRequireAdmin";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { ListPageSkeleton } from "@/components/ui/page-skeleton";
+import { QueryError } from "@/components/QueryError";
+import { EmptyState } from "@/components/ui/empty-state";
 import { PulseSurveyForm } from "@/components/admin/pulse/PulseSurveyForm";
 import type { PulseSurveyFormValues } from "@/lib/validation/pulseSurveySchema";
 
@@ -81,10 +85,14 @@ function isDispatchOverdue(row: PulseSurveyAdminRow): boolean {
 
 export default function PulseSurveysAdminPage() {
   const navigate = useNavigate();
-  const { isAdmin, isLoading: permsLoading } = useUserPermissions();
+  const { isAdmin, isLoading: permsLoading } = useRequireAdmin({
+    message: "Sem permissão para gerenciar pesquisas Pulse.",
+  });
   const {
     pulseSurveys,
     isLoading,
+    isError,
+    refetch,
     createPulse,
     updatePulse,
     togglePulse,
@@ -95,19 +103,18 @@ export default function PulseSurveysAdminPage() {
   const [editTarget, setEditTarget] = useState<PulseSurveyAdminRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PulseSurveyAdminRow | null>(null);
 
+  // Rótulo do próximo dispatch derivado de estado reativo: recomputa a cada
+  // minuto para não congelar num horário defasado ao cruzar a virada de hora.
+  const [nextDispatch, setNextDispatch] = useState(nextDispatchUTC);
   useEffect(() => {
-    if (!permsLoading && !isAdmin) {
-      toast.error("Sem permissão para gerenciar pesquisas Pulse.");
-      navigate("/", { replace: true });
-    }
-  }, [isAdmin, permsLoading, navigate]);
+    const id = setInterval(() => setNextDispatch(nextDispatchUTC()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   if (permsLoading || !isAdmin) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        <ListPageSkeleton />
       </AppLayout>
     );
   }
@@ -139,42 +146,148 @@ export default function PulseSurveysAdminPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
-              <Activity className="h-6 w-6" />
-              Pesquisas Pulse
-            </h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Pulses são perguntas curtas recorrentes (clima/eNPS/mood). Resultados em série temporal.
-            </p>
-            <p className="text-muted-foreground mt-1 text-xs flex items-center gap-1">
-              <Clock className="h-3 w-3" />
-              Próximo dispatch: {nextDispatchUTC()}
-            </p>
-          </div>
+      <PageHeader
+        icon={Activity}
+        title="Pesquisas Pulse"
+        description="Pulses são perguntas curtas recorrentes (clima/eNPS/mood). Resultados em série temporal."
+        actions={
           <Button onClick={openCreate} className="gap-1.5">
             <Plus className="h-4 w-4" />
             Nova pesquisa Pulse
           </Button>
-        </div>
+        }
+      >
+        <p className="flex items-center gap-1 text-xs text-muted-foreground">
+          <Clock className="h-3 w-3" />
+          Próximo dispatch: {nextDispatch}
+        </p>
+      </PageHeader>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Lista de pesquisas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex items-center justify-center py-10">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Lista de pesquisas</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full rounded-lg" />
+              ))}
+            </div>
+          ) : isError ? (
+            <QueryError
+              message="Não foi possível carregar as pesquisas Pulse."
+              onRetry={() => refetch()}
+            />
+          ) : pulseSurveys.length === 0 ? (
+            <EmptyState
+              icon={Activity}
+              title="Nenhuma pesquisa Pulse cadastrada"
+              description="Crie uma pesquisa curta e recorrente para acompanhar clima, eNPS ou mood do time."
+              action={{ label: "Nova pesquisa Pulse", onClick: openCreate }}
+            />
+          ) : (
+            <TooltipProvider delayDuration={200}>
+              {/* Mobile: cards (colapso da tabela de 9 colunas) */}
+              <div className="space-y-3 md:hidden">
+                {pulseSurveys.map((s) => (
+                  <div key={s.id} className="rounded-lg border p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{s.name}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {s.question}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={s.active}
+                        onCheckedChange={(active) =>
+                          togglePulse.mutate({ id: s.id, active })
+                        }
+                        disabled={togglePulse.isPending}
+                        aria-label={s.active ? "Pausar pesquisa" : "Ativar pesquisa"}
+                      />
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Badge variant="outline">
+                        {FREQUENCY_LABEL[s.frequency] ?? s.frequency}
+                      </Badge>
+                      <Badge variant="outline">
+                        {QUESTION_TYPE_LABEL[s.question_type] ?? s.question_type}
+                      </Badge>
+                      {s.target_all ? (
+                        <Badge variant="secondary">Toda empresa</Badge>
+                      ) : (
+                        <Badge variant="outline">
+                          {s.target_departments.length} dept · {s.target_teams.length} time
+                        </Badge>
+                      )}
+                      {s.anonymous && (
+                        <Badge variant="outline" className="gap-1">
+                          <EyeOff className="h-3 w-3" />
+                          Anônimo
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span className="truncate">
+                          Último envio: {formatLastDispatch(s.last_dispatched_at)}
+                        </span>
+                        {isDispatchOverdue(s) && (
+                          <AlertTriangle
+                            className="h-3.5 w-3.5 shrink-0 text-warning"
+                            aria-label="Dispatch atrasado — verifique o cron"
+                          />
+                        )}
+                      </span>
+                      <span className="flex shrink-0 items-center gap-1.5">
+                        Respostas
+                        <Badge
+                          variant={s.response_count_current_period > 0 ? "secondary" : "outline"}
+                        >
+                          {s.response_count_current_period}
+                        </Badge>
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-1 border-t pt-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="gap-1.5"
+                        onClick={() => navigate(`/admin/pulse-surveys/${s.id}/analytics`)}
+                      >
+                        <BarChart3 className="h-4 w-4" />
+                        Resultados
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() => openEdit(s)}
+                        aria-label="Editar"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => setDeleteTarget(s)}
+                        aria-label="Remover"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ) : pulseSurveys.length === 0 ? (
-              <div className="text-center py-10 text-muted-foreground text-sm">
-                Nenhuma pesquisa Pulse cadastrada. Clique em "Nova pesquisa Pulse" para começar.
-              </div>
-            ) : (
-              <TooltipProvider delayDuration={200}>
+
+              {/* Desktop: tabela completa */}
+              <div className="hidden md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -227,7 +340,7 @@ export default function PulseSurveysAdminPage() {
                             {isDispatchOverdue(s) && (
                               <Tooltip>
                                 <TooltipTrigger>
-                                  <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                                  <AlertTriangle className="h-3.5 w-3.5 text-warning" />
                                 </TooltipTrigger>
                                 <TooltipContent>Dispatch atrasado — verifique o cron</TooltipContent>
                               </Tooltip>
@@ -283,11 +396,11 @@ export default function PulseSurveysAdminPage() {
                     ))}
                   </TableBody>
                 </Table>
-              </TooltipProvider>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+              </div>
+            </TooltipProvider>
+          )}
+        </CardContent>
+      </Card>
 
       <PulseSurveyForm
         open={formOpen}

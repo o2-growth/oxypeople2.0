@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Tabs, TabsContent, TabsList, TabsTrigger,
 } from "@/components/ui/tabs";
@@ -16,7 +20,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Palmtree, Plus, Trash2, Settings2, RefreshCw } from "lucide-react";
+import { Palmtree, Plus, Trash2, Settings2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { usePeopleList } from "@/hooks/usePeopleList";
@@ -25,6 +29,7 @@ import {
 } from "@/hooks/useTimeOff";
 import { TimeOffForm } from "@/components/time-off/TimeOffForm";
 import { QueryError } from "@/components/QueryError";
+import { TabCountBadge } from "@/components/shared/TabCountBadge";
 import {
   computeAlert, ALERT_MODE_LABELS, type AlertMode, type AlertSettings,
   type AlertLevel, DEFAULT_ALERT_SETTINGS,
@@ -62,6 +67,7 @@ export default function TimeOffPage() {
   const { data: people = [] } = usePeopleList();
   const { remove, saveSettings, syncPipefy } = useTimeOffMutations();
   const [formOpen, setFormOpen] = useState(false);
+  const [historyRef] = useAutoAnimate<HTMLTableSectionElement>();
 
   const records = list.data ?? [];
 
@@ -111,59 +117,56 @@ export default function TimeOffPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
-              <Palmtree className="h-6 w-6" />
-              Férias / Ausências
-            </h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Controle de férias e suspensão de contrato (PJ) — visão administrativa.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              className="gap-1.5"
-              onClick={() => syncPipefy.mutate()}
-              disabled={syncPipefy.isPending}
-            >
-              <RefreshCw className={`h-4 w-4 ${syncPipefy.isPending ? "animate-spin" : ""}`} />
-              {syncPipefy.isPending ? "Sincronizando..." : "Sincronizar Pipefy"}
-            </Button>
-            <Button onClick={() => setFormOpen(true)} className="gap-1.5">
-              <Plus className="h-4 w-4" />
-              Novo registro
-            </Button>
-          </div>
-        </div>
+        <PageHeader
+          icon={Palmtree}
+          title="Férias / Ausências"
+          description="Controle de férias e suspensão de contrato (PJ) — visão administrativa."
+          actions={
+            <>
+              <Button
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => syncPipefy.mutate()}
+                disabled={syncPipefy.isPending}
+              >
+                <RefreshCw className={`h-4 w-4 ${syncPipefy.isPending ? "animate-spin" : ""}`} />
+                {syncPipefy.isPending ? "Sincronizando..." : "Sincronizar Pipefy"}
+              </Button>
+              <Button onClick={() => setFormOpen(true)} className="gap-1.5">
+                <Plus className="h-4 w-4" />
+                Novo registro
+              </Button>
+            </>
+          }
+        />
 
         <Tabs defaultValue="history">
           <TabsList>
             <TabsTrigger value="history">Histórico</TabsTrigger>
             <TabsTrigger value="overdue">
-              Falta tirar{overdue.length > 0 && (
-                <span className="ml-1.5 rounded-full bg-destructive/15 px-1.5 py-0.5 text-[10px] font-semibold leading-none">{overdue.length}</span>
-              )}
+              Falta tirar<TabCountBadge count={overdue.length} tone="destructive" />
             </TabsTrigger>
             <TabsTrigger value="soon">
-              Próximos{soon.length > 0 && (
-                <span className="ml-1.5 rounded-full bg-warning/15 px-1.5 py-0.5 text-[10px] font-semibold leading-none">{soon.length}</span>
-              )}
+              Próximos<TabCountBadge count={soon.length} tone="warning" />
             </TabsTrigger>
           </TabsList>
 
           {/* HISTÓRICO */}
           <TabsContent value="history" className="mt-4">
             {list.isLoading ? (
-              <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+              <div className="space-y-3">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12 w-full rounded-lg" />
+                ))}
+              </div>
             ) : list.isError ? (
               <QueryError message="Não foi possível carregar os registros de férias." onRetry={() => list.refetch()} />
             ) : records.length === 0 ? (
-              <div className="py-16 text-center text-muted-foreground">
-                <Palmtree className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                <p className="text-sm">Nenhum registro ainda. Lance um histórico ou sincronize com o Pipefy.</p>
-              </div>
+              <EmptyState
+                icon={Palmtree}
+                title="Nenhum registro ainda."
+                description="Lance um histórico manualmente ou sincronize com o Pipefy."
+              />
             ) : (
               <div className="rounded-lg border overflow-hidden">
                 <Table>
@@ -177,7 +180,7 @@ export default function TimeOffPage() {
                       <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
                   </TableHeader>
-                  <TableBody>
+                  <TableBody ref={historyRef}>
                     {records.map((r) => (
                       <TableRow key={r.id}>
                         <TableCell className="font-medium text-sm">{r.person_name}</TableCell>

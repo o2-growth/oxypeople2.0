@@ -1,16 +1,35 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { QueryError } from "@/components/QueryError";
 import { TeamCard } from "@/components/teams/TeamCard";
 import { CreateTeamDialog } from "@/components/teams/CreateTeamDialog";
 import { TeamMembersDialog } from "@/components/teams/TeamMembersDialog";
-import { Team, useTeams, useDeleteTeam, useTeamMembers } from "@/hooks/useTeams";
+import {
+  Team,
+  useTeams,
+  useDeleteTeam,
+  useTeamMemberCounts,
+} from "@/hooks/useTeams";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
-import { Users, Plus, Search, Loader2 } from "lucide-react";
+import { Users, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
+
+/** Skeleton sob medida para o grid de cards de time (mantém o PageHeader visível). */
+function TeamsGridSkeleton() {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <Skeleton key={i} className="h-24 w-full rounded-xl" />
+      ))}
+    </div>
+  );
+}
 
 export default function Teams() {
   const navigate = useNavigate();
@@ -28,32 +47,23 @@ export default function Teams() {
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
 
-  const { data: teams = [], isLoading } = useTeams();
+  const {
+    data: teams = [],
+    isLoading: teamsLoading,
+    isError: teamsError,
+    refetch: refetchTeams,
+  } = useTeams();
+
+  const teamIds = teams.map((team) => team.id);
+  const {
+    data: memberCounts = {},
+    isLoading: countsLoading,
+    isError: countsError,
+    refetch: refetchCounts,
+  } = useTeamMemberCounts(teamIds);
+
   const deleteTeam = useDeleteTeam();
-
-  // Fetch member counts for all teams
-  useEffect(() => {
-    const fetchMemberCounts = async () => {
-      const { supabase } = await import("@/integrations/supabase/client");
-      const counts: Record<string, number> = {};
-      
-      for (const team of teams) {
-        const { count } = await supabase
-          .from("team_members")
-          .select("*", { count: "exact", head: true })
-          .eq("team_id", team.id);
-        
-        counts[team.id] = count || 0;
-      }
-      setMemberCounts(counts);
-    };
-
-    if (teams.length > 0) {
-      fetchMemberCounts();
-    }
-  }, [teams]);
 
   const filteredTeams = teams.filter((team) => {
     if (!searchQuery) return true;
@@ -86,84 +96,92 @@ export default function Teams() {
     }
   };
 
+  const handleRetry = () => {
+    refetchTeams();
+    refetchCounts();
+  };
+
+  // Enquanto valida permissão, evita piscar a página (redireciona no efeito).
   if (permsLoading || !isAdmin) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        <TeamsGridSkeleton />
       </AppLayout>
     );
   }
 
+  // Loading combinado: só renderiza os cards quando times E contagens chegaram
+  // juntos — evita o flicker de "0 membros" enquanto a contagem carrega.
+  const isLoading = teamsLoading || countsLoading;
+  const isError = teamsError || countsError;
+
   return (
     <AppLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-heading font-bold text-foreground">Times</h1>
-            <p className="text-muted-foreground mt-1">
-              Gerencie as equipes da sua empresa
-            </p>
-          </div>
-          <Button className="gap-2" onClick={() => setCreateDialogOpen(true)}>
-            <Plus className="h-4 w-4" />
-            Novo Time
-          </Button>
-        </div>
+        <PageHeader
+          title="Times"
+          description="Gerencie as equipes da sua empresa"
+          icon={Users}
+          actions={
+            <Button className="gap-2" onClick={() => setCreateDialogOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Novo Time
+            </Button>
+          }
+        />
 
-        {/* Search */}
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Buscar equipes..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-
-        {/* Teams Grid */}
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : filteredTeams.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                <Users className="h-8 w-8 text-primary" />
-              </div>
-              <h3 className="text-lg font-semibold text-foreground mb-1">
-                {searchQuery ? "Nenhum time encontrado" : "Nenhum time criado"}
-              </h3>
-              <p className="text-muted-foreground text-center max-w-sm mb-4">
-                {searchQuery
-                  ? "Tente buscar com outros termos"
-                  : "Crie seu primeiro time para organizar os membros da empresa"}
-              </p>
-              {!searchQuery && (
-                <Button onClick={() => setCreateDialogOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Criar Time
-                </Button>
-              )}
-            </CardContent>
-          </Card>
+          <TeamsGridSkeleton />
+        ) : isError ? (
+          <QueryError
+            message="Não foi possível carregar os times."
+            onRetry={handleRetry}
+          />
+        ) : teams.length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title="Nenhum time criado"
+            description="Crie seu primeiro time para organizar os membros da empresa."
+            action={{
+              label: "Criar time",
+              onClick: () => setCreateDialogOpen(true),
+            }}
+          />
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredTeams.map((team) => (
-              <TeamCard
-                key={team.id}
-                team={team}
-                memberCount={memberCounts[team.id] || 0}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                onManageMembers={handleManageMembers}
+          <>
+            {/* Busca */}
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                aria-label="Buscar equipes"
+                placeholder="Buscar equipes..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
               />
-            ))}
-          </div>
+            </div>
+
+            {filteredTeams.length === 0 ? (
+              <EmptyState
+                icon={Search}
+                title="Nenhum time encontrado"
+                description="Tente buscar com outros termos."
+              />
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredTeams.map((team) => (
+                  <TeamCard
+                    key={team.id}
+                    team={team}
+                    memberCount={memberCounts[team.id] ?? 0}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onManageMembers={handleManageMembers}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
 
         {/* Dialogs */}

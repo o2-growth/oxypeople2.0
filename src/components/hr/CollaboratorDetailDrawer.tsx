@@ -25,7 +25,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Loader2, Save, Mail, Phone, MapPin, Calendar, Building2, Briefcase, Link2, FileText, User, KeyRound, Copy, Check } from "lucide-react";
+import { Loader2, Save, Mail, Phone, MapPin, Calendar, Building2, Briefcase, Link2, FileText, User, KeyRound, Copy, Check, History } from "lucide-react";
+import { PersonTimeline } from "@/components/people/PersonTimeline";
 import {
   useCollaboratorDetail,
   useAdminUpdateCollaborator,
@@ -326,6 +327,17 @@ export function CollaboratorDetailDrawer({ membershipId, open, onOpenChange, isA
                     <Input value={form.calendar_link} onChange={(e) => set("calendar_link", e.target.value)} placeholder="https://calendar.app.google/..." disabled={!isAdmin} />
                   </div>
                 </div>
+              </section>
+
+              <Separator />
+
+              {/* Jornada — timeline unificada (§3.5) */}
+              <section className="space-y-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  <History className="h-3.5 w-3.5" />
+                  Jornada
+                </div>
+                <PersonTimeline userId={data.userId} />
               </section>
 
               {isAdmin && (

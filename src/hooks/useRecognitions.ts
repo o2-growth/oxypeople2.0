@@ -193,6 +193,12 @@ export function useRecognitions() {
     isLoading: recognitionsQuery.isLoading,
     isLoadingReceived: myReceivedQuery.isLoading,
     isLoadingSent: mySentQuery.isLoading,
+    isError: recognitionsQuery.isError,
+    isErrorReceived: myReceivedQuery.isError,
+    isErrorSent: mySentQuery.isError,
+    refetch: recognitionsQuery.refetch,
+    refetchReceived: myReceivedQuery.refetch,
+    refetchSent: mySentQuery.refetch,
     sendRecognition,
   };
 }

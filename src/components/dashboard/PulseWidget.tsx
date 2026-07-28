@@ -12,7 +12,9 @@ export function PulseWidget() {
   if (!pulse && !completed) return null;
 
   return (
-    <Card className="border-emerald-500/30 bg-gradient-to-br from-emerald-500/5 to-transparent">
+    // data-tour: âncora do tour de onboarding (§3.7). Fica no card que só
+    // renderiza quando há Pulse ativo — sem Pulse, o passo é pulado.
+    <Card data-tour="pulse" className="border-emerald-500/30 bg-gradient-to-br from-emerald-500/5 to-transparent">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           {completed ? (
