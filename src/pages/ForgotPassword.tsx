@@ -6,7 +6,7 @@ import { AuthBrandingPanel } from "@/components/auth/AuthBrandingPanel";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Mail, ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
+import { Mail, ArrowLeft, ArrowRight, Loader2, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -26,8 +26,9 @@ const ForgotPassword = () => {
       });
 
       if (error) {
-        const code = (error as any).code || "";
-        const status = (error as any).status;
+        const authError = error as { code?: string; status?: number; message: string };
+        const code = authError.code || "";
+        const status = authError.status;
         const isRateLimit =
           status === 429 ||
           code === "over_email_send_rate_limit" ||
@@ -117,9 +118,14 @@ const ForgotPassword = () => {
                   </O2Button>
                 </form>
               ) : (
-                <div className="text-sm text-muted-foreground space-y-2">
-                  <p>Confira sua caixa de entrada (e a pasta de spam).</p>
-                  <p>O link expira em 1 hora.</p>
+                <div className="flex flex-col items-center gap-3 py-2 text-center">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-success/10 text-success">
+                    <CheckCircle2 className="h-6 w-6" />
+                  </span>
+                  <div className="space-y-1 text-sm text-muted-foreground">
+                    <p>Confira sua caixa de entrada (e a pasta de spam).</p>
+                    <p>O link expira em 1 hora.</p>
+                  </div>
                 </div>
               )}
 

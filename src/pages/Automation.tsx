@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Plus, Megaphone, Zap, History, Settings } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Megaphone, Zap, History, Settings, Slack } from "lucide-react";
 import { AnnouncementsList } from "@/components/automation/AnnouncementsList";
 import { AutomationCard } from "@/components/automation/AutomationCard";
 import { AutomationLogs } from "@/components/automation/AutomationLogs";
@@ -14,20 +16,17 @@ export default function Automation() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">
-              Automação
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Gerencie avisos e automações da sua empresa
-            </p>
-          </div>
-          <Button onClick={() => setIsCreateOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Novo Aviso
-          </Button>
-        </div>
+        <PageHeader
+          title="Automação"
+          description="Gerencie avisos e automações da sua empresa"
+          icon={Zap}
+          actions={
+            <Button onClick={() => setIsCreateOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Novo Aviso
+            </Button>
+          }
+        />
 
         <Tabs defaultValue="announcements" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
@@ -88,14 +87,18 @@ export default function Automation() {
 
           <TabsContent value="settings" className="space-y-4">
             <div className="rounded-lg border bg-card p-6">
-              <h3 className="text-lg font-semibold mb-4">
-                Configurações de Integração
-              </h3>
+              <div className="mb-4 flex items-center gap-2">
+                <h3 className="text-lg font-semibold">
+                  Configurações de Integração
+                </h3>
+                <Badge variant="secondary">Em breve</Badge>
+              </div>
               <p className="text-muted-foreground text-sm">
-                Conecte o Slack para enviar notificações automáticas para os
-                canais da sua empresa.
+                Em breve você poderá conectar o Slack para enviar notificações
+                automáticas para os canais da sua empresa.
               </p>
-              <Button variant="outline" className="mt-4">
+              <Button variant="outline" className="mt-4 gap-2" disabled>
+                <Slack className="h-4 w-4" />
                 Conectar Slack
               </Button>
             </div>
