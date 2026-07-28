@@ -7,7 +7,9 @@ import { useUser } from "@/hooks/useUser";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Activity, CheckCircle2, Loader2, ArrowLeft } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { QueryError } from "@/components/QueryError";
+import { Activity, CheckCircle2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { PulseQuestion } from "@/components/pulse/PulseQuestion";
 import { periodStartFor, pulseAckKey } from "@/lib/pulse/periodStart";
@@ -16,11 +18,15 @@ import type { PendingPulse } from "@/hooks/usePendingPulse";
 export default function PulsePage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
-  const { profile } = useUser();
+  const { user, loading: authLoading } = useAuth();
+  const { profile, isLoading: profileLoading } = useUser();
   const [completed, setCompleted] = useState(false);
 
-  const { data, isLoading, error } = useQuery({
+  // A query só pode rodar depois que auth + perfil (e, portanto, a empresa)
+  // resolveram. Enquanto isso, ela fica desabilitada.
+  const enabled = !!id && !!user?.id && !!profile?.primary_company_id;
+
+  const { data, isPending, isError, refetch } = useQuery({
     queryKey: ["pulse-detail", id, user?.id],
     queryFn: async (): Promise<{ pulse: PendingPulse; alreadyResponded: boolean } | null> => {
       if (!id || !user?.id) return null;
@@ -75,8 +81,14 @@ export default function PulsePage() {
         alreadyResponded,
       };
     },
-    enabled: !!id && !!user?.id && !!profile?.primary_company_id,
+    enabled,
   });
+
+  // Loading real = auth/perfil ainda carregando OU a query já habilitada e
+  // sem resposta definitiva. Com `enabled: false` o React Query mantém
+  // `isPending: true` mas nunca busca — por isso combinamos os loadings a
+  // montante; do contrário a tela cairia no empty "inexistente" cedo demais.
+  const loading = authLoading || profileLoading || (enabled && isPending);
 
   useEffect(() => {
     if (completed) {
@@ -118,11 +130,22 @@ export default function PulsePage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            {loading ? (
+              <div className="space-y-4 py-2">
+                <Skeleton className="h-5 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+                <div className="space-y-2 pt-2">
+                  <Skeleton className="h-10 w-full rounded-lg" />
+                  <Skeleton className="h-10 w-full rounded-lg" />
+                  <Skeleton className="h-10 w-full rounded-lg" />
+                </div>
               </div>
-            ) : error || !data ? (
+            ) : isError ? (
+              <QueryError
+                message="Não foi possível carregar este Pulse."
+                onRetry={() => refetch()}
+              />
+            ) : !data ? (
               <div className="space-y-3 py-4 text-center">
                 <p className="text-sm text-muted-foreground">
                   Esta pesquisa não existe ou não está mais ativa.
