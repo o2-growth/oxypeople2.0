@@ -18,10 +18,14 @@ import { PulseWidget } from "@/components/dashboard/PulseWidget";
 import { HeadcountSparkline } from "@/components/dashboard/HeadcountSparkline";
 import { UserGamificationMini } from "@/components/dashboard/UserGamificationMini";
 import { TurnoverMini } from "@/components/dashboard/TurnoverMini";
-import { Users, Trophy, Target, TrendingUp, MessageSquare, CheckCircle2 } from "lucide-react";
+import { Users, Trophy, Target, TrendingUp, MessageSquare, CheckCircle2, RefreshCw } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { QueryError } from "@/components/QueryError";
+import { cn } from "@/lib/utils";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { useDashboardFullStats } from "@/hooks/useDashboardFullStats";
 import { useQuarterGoals } from "@/hooks/useQuarterGoals";
@@ -29,9 +33,24 @@ import { useUser } from "@/hooks/useUser";
 
 const Index = () => {
   const { profile, isLoading: isLoadingUser } = useUser();
-  const { data: stats, isLoading: isLoadingStats } = useDashboardStats();
-  const { data: fullStats, isLoading: isLoadingFull } = useDashboardFullStats();
-  const { data: quarterGoals, isLoading: isLoadingGoals } = useQuarterGoals();
+  const {
+    data: stats,
+    isLoading: isLoadingStats,
+    isError: isErrorStats,
+    refetch: refetchStats,
+  } = useDashboardStats();
+  const {
+    data: fullStats,
+    isLoading: isLoadingFull,
+    isError: isErrorFull,
+    refetch: refetchFull,
+  } = useDashboardFullStats();
+  const {
+    data: quarterGoals,
+    isLoading: isLoadingGoals,
+    isError: isErrorGoals,
+    refetch: refetchGoals,
+  } = useQuarterGoals();
   const [openDialog, setOpenDialog] = useState<string | null>(null);
 
   const getGreeting = () => {
@@ -64,7 +83,8 @@ const Index = () => {
     },
     {
       title: "Objetivos Concluídos",
-      value: `${stats?.objectivesCompletionRate || 0}%`,
+      value: stats?.objectivesCompletionRate || 0,
+      suffix: "%",
       change: stats?.objectivesChange || 0,
       changeLabel: "vs último trimestre",
       icon: <Target className="h-6 w-6" />,
@@ -73,7 +93,8 @@ const Index = () => {
     },
     {
       title: "Engajamento",
-      value: `${stats?.engagementRate || 0}%`,
+      value: stats?.engagementRate || 0,
+      suffix: "%",
       change: stats?.engagementChange || 0,
       changeLabel: "vs último mês",
       icon: <TrendingUp className="h-6 w-6" />,
@@ -92,46 +113,49 @@ const Index = () => {
   return (
     <AppLayout>
       <div className="space-y-6">
-        {/* Hero Welcome */}
-        <div className="hero-header">
-          <h1 className="text-2xl lg:text-3xl font-bold text-white">
-            {getGreeting()}{userName ? `, ${userName}` : ""}! 👋
-          </h1>
-          <p className="text-white/70 mt-2 text-base">
-            Aqui está um resumo do que está acontecendo na sua empresa.
-          </p>
-        </div>
+        {/* Boas-vindas */}
+        <PageHeader
+          className="mb-0"
+          title={`${getGreeting()}${userName ? `, ${userName}` : ""}! 👋`}
+          description="Aqui está um resumo do que está acontecendo na sua empresa."
+        />
 
         {/* Quick Actions */}
         <QuickActions />
 
         {/* Stats Grid */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {isLoading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="stat-card">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-2 flex-1">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-8 w-16" />
-                    <Skeleton className="h-4 w-20" />
+        {isErrorStats ? (
+          <QueryError
+            message="Não foi possível carregar os indicadores principais."
+            onRetry={() => refetchStats()}
+          />
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {isLoading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="stat-card">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2 flex-1">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-8 w-16" />
+                      <Skeleton className="h-4 w-20" />
+                    </div>
+                    <Skeleton className="h-12 w-12 rounded-xl" />
                   </div>
-                  <Skeleton className="h-12 w-12 rounded-xl" />
                 </div>
-              </div>
-            ))
-          ) : (
-            statsData.map((stat, index) => (
-              <div
-                key={stat.title}
-                className="animate-slide-up opacity-0"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                <StatCard {...stat} onClick={() => setOpenDialog(stat.dialogKey)} />
-              </div>
-            ))
-          )}
-        </div>
+              ))
+            ) : (
+              statsData.map((stat, index) => (
+                <div
+                  key={stat.title}
+                  className={cn("animate-slide-up opacity-0", index > 0 && `stagger-${index}`)}
+                >
+                  <StatCard {...stat} onClick={() => setOpenDialog(stat.dialogKey)} />
+                </div>
+              ))
+            )}
+          </div>
+        )}
 
         {/* Pulse Widget — só aparece se há pulse pendente para o usuário no período */}
         <PulseWidget />
@@ -139,9 +163,15 @@ const Index = () => {
         {/* Shortcut Cards */}
         <ShortcutCards />
 
-        {/* NEW: OKR Summary */}
+        {/* NEW: OKR Summary — surface único de erro do fullStats (OKR/NPS/perf/ações/
+            headcount/gamificação/turnover vêm todos desta query; um retry recarrega tudo). */}
         {isLoadingFull ? (
           <Skeleton className="h-28 w-full rounded-2xl" />
+        ) : isErrorFull ? (
+          <QueryError
+            message="Não foi possível carregar os indicadores do painel."
+            onRetry={() => refetchFull()}
+          />
         ) : fullStats && (
           <OKRStatusSummary data={fullStats.okr} />
         )}
@@ -205,6 +235,10 @@ const Index = () => {
                         <Skeleton className="h-5 w-8" />
                       </div>
                     ))
+                  ) : isErrorStats ? (
+                    <p className="text-xs text-muted-foreground py-2">
+                      Não foi possível carregar.
+                    </p>
                   ) : (
                     quickStatsData.map((stat) => (
                       <div key={stat.label} className="flex items-center justify-between">
@@ -271,6 +305,19 @@ const Index = () => {
                         <Skeleton className="h-1.5 w-full" />
                       </div>
                     ))
+                  ) : isErrorGoals ? (
+                    <div className="py-2 text-xs text-muted-foreground">
+                      <p>Não foi possível carregar as metas.</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="mt-2 h-7 gap-1.5 px-2 text-xs"
+                        onClick={() => refetchGoals()}
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                        Tentar de novo
+                      </Button>
+                    </div>
                   ) : quarterGoals && quarterGoals.length > 0 ? (
                     quarterGoals.map((goal) => (
                       <div key={goal.label} className="space-y-1.5">

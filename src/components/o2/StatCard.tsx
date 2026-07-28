@@ -25,6 +25,8 @@ export interface O2StatCardTrend {
 export interface O2StatCardProps {
   title: string;
   value: number | string;
+  /** Sufixo do número (ex.: "%") — preserva a unidade animando o valor via NumberFlow. */
+  suffix?: string;
   icon?: React.ReactNode;
   /** Preferred trend shape (O2 spec). */
   trend?: O2StatCardTrend;
@@ -53,6 +55,7 @@ function getTrendToneClass(value: number) {
 export function StatCard({
   title,
   value,
+  suffix,
   icon,
   trend,
   change,
@@ -97,7 +100,7 @@ export function StatCard({
 
       {/* Display number — NumberFlow anima transições de valor nos KPIs. */}
       <p className="mt-3 font-display font-bold leading-none text-[var(--fg)] text-[clamp(40px,6vw,64px)]">
-        {typeof value === "number" ? <NumberFlow value={value} /> : value}
+        {typeof value === "number" ? <NumberFlow value={value} suffix={suffix} /> : value}
       </p>
 
       {/* Trend */}
