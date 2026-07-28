@@ -29,6 +29,7 @@ import {
   BarChart3,
   Palmtree,
   TrendingUp,
+  Activity,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { NavLink } from "@/components/NavLink";
@@ -108,6 +109,7 @@ const gestaoItems: NavItem[] = [
 
 const adminItems: NavItem[] = [
   { title: "Empresa", url: "/company", icon: Building2 },
+  { title: "Pesquisas Pulse", url: "/admin/pulse-surveys", icon: Activity },
   { title: "Férias", url: "/time-off", icon: Palmtree },
   { title: "Automação", url: "/automation", icon: Zap },
   { title: "Oxy VE", url: "https://oxyve.lovable.app", icon: MonitorPlay, external: true },
