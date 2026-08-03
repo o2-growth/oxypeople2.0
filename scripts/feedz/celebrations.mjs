@@ -116,41 +116,22 @@ export async function importCelebrations(db, idx, { apply }) {
   return { celebracoes: r.inseridos };
 }
 
+/**
+ * O extrato de moedas NÃO vira reconhecimento.
+ *
+ * A primeira importação tratou "lançamento com mensagem e valor positivo" como
+ * reconhecimento entre pessoas. Errado: o extrato é log de gamificação — cada
+ * linha diz que alguém ganhou pontos por uma ação ("Mudou foto do perfil",
+ * "Respondeu uma eNPS"), com a mesma pessoa nas duas pontas. A página de
+ * Reconhecimento passou a exibir 520 cartões de gente parabenizando a si mesma.
+ *
+ * O destino correto é gamification_points — ver feedz/gamification.mjs.
+ * Reconhecimento de verdade tem duas pessoas distintas, e o backup não traz
+ * nenhum registro assim.
+ */
 export async function importRecognitions(db, idx, { apply }) {
-  section("7. RECONHECIMENTOS (moedas)");
-  const rows = sheet("Feedzcoins-20263007.xlsx");
-
-  // ruído do extrato: crédito automático, sem outra pessoa envolvida
-  const AUTOMATICO = /login|acesso|cadastro|check-?in|resgate|ajuste|bônus autom|humor/i;
-
-  const recs = [];
-  let ignorados = 0;
-  for (const [i, m] of rows.entries()) {
-    const desc = (m["Descrição"] ?? "").toString().trim();
-    const moedas = Number(m["Moedas"] ?? 0);
-    const quem = idx.resolve(m["E-Mail"] ?? m["E-mail"], m["Colaborador"]);
-
-    if (!quem || !desc || moedas <= 0 || AUTOMATICO.test(desc)) { ignorados++; continue; }
-
-    recs.push({
-      company_id: COMPANY_ID,
-      from_user_id: quem.id,      // a origem não separa quem deu de quem recebeu
-      to_user_id: quem.id,
-      message: desc.slice(0, 500),
-      points: Math.round(moedas),
-      badge_id: null,
-      source: "feedz",
-      imported_at: new Date().toISOString(),
-      feedz_ref: `coin|${i}|${parseDateOnly(m["Data"]) ?? ""}`,
-    });
-  }
-
-  console.log(`  lançamentos no extrato: ${rows.length}`);
-  console.log(`  reconhecimentos a importar: ${recs.length}`);
-  console.log(`  ignorados (automáticos/sem pessoa): ${ignorados}`);
-  if (!apply) return { reconhecimentos: recs.length };
-
-  const r = await insertBatched(db, "recognitions", recs, { onConflict: "company_id,feedz_ref", chunk: 500 });
-  console.log(`  gravados: ${r.inseridos}${r.erros.length ? ` | ERROS: ${JSON.stringify(r.erros.slice(0, 2))}` : ""}`);
-  return { reconhecimentos: r.inseridos };
+  section("7. RECONHECIMENTOS");
+  console.log("  o extrato de moedas é log de gamificação, não reconhecimento.");
+  console.log("  destino correto: gamification_points (etapa 'gamification').");
+  return { reconhecimentos: 0, movidoPara: "gamification_points" };
 }

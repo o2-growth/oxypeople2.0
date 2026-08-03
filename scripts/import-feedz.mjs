@@ -11,7 +11,7 @@
  *   node scripts/import-feedz.mjs --only=people,perf   # só algumas etapas
  *
  * Etapas: people, turnover, perf, oneonone, birthdays, celebrations,
- *         recognitions, feedbacks, mood, enps, okrs, teams
+ *         recognitions, feedbacks, mood, enps, okrs, teams, gamification
  *
  * Requer SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY no .env.local e o backup
  * descompactado (FEEDZ_BACKUP_DIR aponta para outra pasta se preciso).
@@ -24,6 +24,7 @@ import { importBirthdays, importCelebrations, importRecognitions } from "./feedz
 import { importFeedbacks, importMood, importEnps } from "./feedz/engagement.mjs";
 import { importOKRs } from "./feedz/okrs.mjs";
 import { importTeams } from "./feedz/teams.mjs";
+import { importGamification } from "./feedz/gamification.mjs";
 
 const { apply, only } = parseArgs(process.argv);
 const run = (etapa) => !only || only.includes(etapa);
@@ -48,6 +49,7 @@ if (run("mood")) resumo.mood = await importMood(db, idx, { apply });
 if (run("enps")) resumo.enps = await importEnps(db, idx, { apply });
 if (run("okrs")) resumo.okrs = await importOKRs(db, idx, { apply });
 if (run("teams")) resumo.teams = await importTeams(db, idx, { apply });
+if (run("gamification")) resumo.gamification = await importGamification(db, idx, { apply });
 
 console.log(`\n${"=".repeat(72)}`);
 console.log(apply ? "IMPORTAÇÃO CONCLUÍDA" : "DRY-RUN CONCLUÍDO — nada foi escrito");
