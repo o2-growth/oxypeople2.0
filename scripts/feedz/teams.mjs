@@ -44,12 +44,38 @@ export function resolverTime(departamento, cargo) {
     // pontual, que é o que o time Serviços Especiais atende.
     if (cargoTem("projetos", "assessoria")) return "Serviços Especiais";
     if (cargoTem("bpo")) return "BPO";
-    // FP&A e Financeiro: 13 pessoas sem regra. O backup não traz o time e os
-    // gestores diretos são 9 para 4 times possíveis, então não há como derivar.
+    // Analistas de FP&A/Financeiro seguem o time do gestor — ver TIME_POR_GESTOR.
     return null;
   }
 
   return null;
+}
+
+/**
+ * Time dos analistas de FP&A/Financeiro, herdado do gestor direto.
+ *
+ * O departamento é "Operação" para todos, e o cargo não distingue — quem
+ * define é a célula em que a pessoa trabalha, representada pelo gestor.
+ * Mapeamento informado pelo Andrey em 03/08/2026.
+ */
+export const TIME_POR_GESTOR = [
+  { chave: "pedrolo", time: "Setup" },      // Eduardo Milani Pedrolo lidera o Setup
+  { chave: "cochlar", time: "CAAS" },       // Gustavo Ferreira Cochlar — CFO
+  { chave: "bisinella", time: "CAAS" },     // Everton Bisinella — CFO
+  { chave: "dagostini", time: "CAAS" },     // Luis Eduardo Dagostini — CFO
+];
+
+/**
+ * Resolve pelo gestor quando cargo e departamento não bastam.
+ *
+ * O casamento é por sobrenome, não por nome completo: o banco guarda o nome
+ * civil inteiro ("Luis Eduardo Dagostini", "Gustavo Ferreira Cochlar") e o
+ * nome usado no dia a dia é mais curto — comparar exato não casaria nenhum.
+ */
+export function resolverTimePorGestor(nomeGestor) {
+  const k = norm(nomeGestor);
+  if (!k) return null;
+  return TIME_POR_GESTOR.find((g) => k.includes(g.chave))?.time ?? null;
 }
 
 export async function importTeams(db, idx, { apply }) {
@@ -60,9 +86,13 @@ export async function importTeams(db, idx, { apply }) {
 
   const { data: membros } = await db
     .from("company_memberships")
-    .select("user_id,department,position")
+    .select("user_id,department,position,manager_id")
     .eq("company_id", COMPANY_ID)
     .eq("status", "active");
+
+  // nome do gestor, para o mapeamento por célula
+  const { data: todosUsers } = await db.from("users").select("id,full_name");
+  const nomePorId = new Map((todosUsers ?? []).map((u) => [u.id, u.full_name]));
 
   const { data: vinculos } = await db.from("team_members").select("team_id,user_id");
   const jaVinculado = new Set((vinculos ?? []).map((v) => `${v.team_id}|${v.user_id}`));
@@ -75,8 +105,13 @@ export async function importTeams(db, idx, { apply }) {
   for (const m of membros ?? []) {
     if (jaTemTime.has(m.user_id)) continue;
 
-    const nomeTime = resolverTime(m.department, m.position);
-    if (!nomeTime) { semRegra.push(m); continue; }
+    const nomeTime =
+      resolverTime(m.department, m.position) ??
+      resolverTimePorGestor(nomePorId.get(m.manager_id ?? ""));
+    if (!nomeTime) {
+      semRegra.push({ ...m, gestor: nomePorId.get(m.manager_id ?? "") ?? "(sem gestor)" });
+      continue;
+    }
 
     const time = timePorNome.get(norm(nomeTime));
     if (!time) {
@@ -105,7 +140,7 @@ export async function importTeams(db, idx, { apply }) {
   if (semRegra.length) {
     console.log(`\n  sem time (aguardando definição):`);
     for (const m of semRegra.slice(0, 20)) {
-      console.log(`     ${(m.department ?? "-").padEnd(14)} ${m.position ?? "-"}`);
+      console.log(`     ${(m.position ?? "-").slice(0, 34).padEnd(36)} gestor: ${m.gestor}`);
     }
   }
 

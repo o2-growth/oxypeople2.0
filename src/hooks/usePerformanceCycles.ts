@@ -115,6 +115,44 @@ export function usePerformanceCycles() {
     },
   });
 
+  /**
+   * Inicia o ciclo.
+   *
+   * Não é um simples update de status: a edge function gera as avaliações de
+   * cada participante e avisa todo mundo por notificação, e-mail e Slack. Ela
+   * só marca o ciclo como ativo depois disso — se falhar no meio, o ciclo
+   * continua em rascunho e pode ser reiniciado, em vez de abrir vazio.
+   */
+  const startCycle = useMutation({
+    mutationFn: async (cycleId: string) => {
+      const { data, error } = await supabase.functions.invoke("performance-cycle-start", {
+        body: { cycleId },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error ?? "Falha ao iniciar o ciclo");
+      return data as {
+        participantes: number;
+        avaliacoesCriadas: number;
+        notificacoes: number;
+        emails: number;
+        slackDMs: number;
+      };
+    },
+    onSuccess: (r) => {
+      queryClient.invalidateQueries({ queryKey: ["performance-cycles"] });
+      queryClient.invalidateQueries({ queryKey: ["evaluations"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      toast.success(
+        `Ciclo iniciado: ${r.avaliacoesCriadas} avaliações criadas`,
+        { description: `${r.notificacoes} notificações · ${r.emails} e-mails · ${r.slackDMs} DMs no Slack` },
+      );
+    },
+    onError: (error: Error) => {
+      console.error("Error starting cycle:", error);
+      toast.error("Erro ao iniciar o ciclo", { description: error.message });
+    },
+  });
+
   const deleteCycle = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
@@ -142,6 +180,7 @@ export function usePerformanceCycles() {
     refetch,
     createCycle,
     updateCycle,
+    startCycle,
     deleteCycle,
   };
 }

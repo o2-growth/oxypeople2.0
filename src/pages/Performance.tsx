@@ -29,6 +29,7 @@ import {
 export default function Performance() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deletingCycleId, setDeletingCycleId] = useState<string | null>(null);
+  const [editingCycleId, setEditingCycleId] = useState<string | null>(null);
   const {
     cycles,
     isLoading: cyclesLoading,
@@ -36,6 +37,7 @@ export default function Performance() {
     refetch: refetchCycles,
     createCycle,
     updateCycle,
+    startCycle,
     deleteCycle,
   } = usePerformanceCycles();
   const {
@@ -70,8 +72,22 @@ export default function Performance() {
     });
   };
 
+  // Iniciar não é só trocar o status: a edge function gera as avaliações de
+  // cada participante e dispara notificação, e-mail e Slack antes de ativar.
   const handleActivateCycle = (cycleId: string) => {
-    updateCycle.mutate({ id: cycleId, status: "active" });
+    startCycle.mutate(cycleId);
+  };
+
+  const editingCycle = editingCycleId
+    ? cycles.find((c) => c.id === editingCycleId) ?? null
+    : null;
+
+  const handleEditCycle = (data: Parameters<typeof createCycle.mutate>[0]) => {
+    if (!editingCycleId) return;
+    updateCycle.mutate(
+      { id: editingCycleId, ...data },
+      { onSuccess: () => setEditingCycleId(null) },
+    );
   };
 
   const handleCompleteCycle = (cycleId: string) => {
@@ -216,6 +232,11 @@ export default function Performance() {
                                     ? () => handleCompleteCycle(cycle.id)
                                     : undefined
                                 }
+                                onEdit={
+                                  cycle.status === "draft"
+                                    ? () => setEditingCycleId(cycle.id)
+                                    : undefined
+                                }
                                 onDelete={() => handleDeleteCycle(cycle.id)}
                               />
                             );
@@ -257,6 +278,16 @@ export default function Performance() {
             onOpenChange={setCreateDialogOpen}
             onSubmit={handleCreateCycle}
             isLoading={createCycle.isPending}
+          />
+
+          {/* Edição só de rascunho: depois de iniciado as avaliações já existem
+              e mudar tipo ou público as deixaria inconsistentes. */}
+          <CreateCycleDialog
+            open={!!editingCycleId}
+            onOpenChange={(open) => !open && setEditingCycleId(null)}
+            onSubmit={handleEditCycle}
+            isLoading={updateCycle.isPending}
+            cycle={editingCycle}
           />
 
           {deleteConfirmation}
