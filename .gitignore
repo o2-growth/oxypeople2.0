@@ -34,3 +34,6 @@ dist-ssr
 /scripts/import-*.mjs
 /.local/
 .vercel
+
+# Supabase CLI local state
+supabase/.temp/

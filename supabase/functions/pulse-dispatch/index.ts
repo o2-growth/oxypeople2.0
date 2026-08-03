@@ -41,7 +41,7 @@ serve(async (req) => {
     const { data: pulses, error: fetchError } = await supabase
       .from("pulse_surveys")
       .select(
-        "id, company_id, name, question, frequency, day_of_week, day_of_month, send_hour_utc, target_all, target_departments, target_teams, active, last_dispatched_at, created_at",
+        "id, company_id, name, question, question_type, frequency, day_of_week, day_of_month, send_hour_utc, target_all, target_departments, target_teams, active, last_dispatched_at, created_at",
       )
       .eq("active", true);
 
@@ -76,15 +76,20 @@ serve(async (req) => {
       }
 
       try {
-        const result = await dispatchPulse(supabase, {
-          id: pulse.id,
-          company_id: pulse.company_id,
-          name: pulse.name,
-          question: pulse.question,
-          target_all: pulse.target_all,
-          target_departments: pulse.target_departments ?? [],
-          target_teams: pulse.target_teams ?? [],
-        });
+        const result = await dispatchPulse(
+          supabase,
+          {
+            id: pulse.id,
+            company_id: pulse.company_id,
+            name: pulse.name,
+            question: pulse.question,
+            question_type: pulse.question_type,
+            target_all: pulse.target_all,
+            target_departments: pulse.target_departments ?? [],
+            target_teams: pulse.target_teams ?? [],
+          },
+          log,
+        );
 
         if (result.error) {
           errors.push({ pulseId: pulse.id, message: result.error });
@@ -94,6 +99,9 @@ serve(async (req) => {
           log("info", "pulse_dispatch_run", {
             pulseId: pulse.id,
             targetCount: result.targetCount,
+            emailsSent: result.emailsSent,
+            slackDMsSent: result.slackDMsSent,
+            slackPosted: result.slackPosted,
             duration: Date.now() - startedAt,
             status: "success",
           });
