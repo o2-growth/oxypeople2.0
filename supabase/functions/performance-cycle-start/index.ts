@@ -35,23 +35,70 @@ function log(level: "info" | "warn" | "error", msg: string, ctx?: Record<string,
   else console.log(JSON.stringify(payload));
 }
 
+/**
+ * E-mail em tabela com estilo inline: cliente de e-mail ignora folha de estilo
+ * e boa parte do CSS moderno, então flex/grid quebrariam no Outlook.
+ *
+ * O corpo diz o que a pessoa precisa fazer e quanto tempo leva — a versão
+ * anterior só anunciava que o ciclo abriu, o que não move ninguém a responder.
+ */
 function emailBody(cycleName: string, prazo: string, appUrl: string | null, quantas: number) {
+  const plural = quantas > 1;
   const cta = appUrl
-    ? `<p style="margin:24px 0;">
-         <a href="${appUrl}/performance" style="background:#0b6b4a;color:#fff;padding:12px 22px;
-            border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;">
-           Fazer minha avaliação
-         </a>
-       </p>`
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 8px;">
+         <tr><td align="center" bgcolor="#0b6b4a" style="border-radius:8px;">
+           <a href="${appUrl}/performance" target="_blank" rel="noopener"
+              style="display:inline-block;padding:14px 32px;font-size:16px;font-weight:bold;
+                     color:#ffffff;text-decoration:none;border-radius:8px;">
+             ${plural ? "Fazer minhas avaliações" : "Fazer minha avaliação"}
+           </a>
+         </td></tr>
+       </table>`
     : "";
-  return `
-    <div style="font-family:system-ui,Segoe UI,Roboto,sans-serif;color:#111;line-height:1.6;">
-      <h2 style="margin:0 0 8px;color:#0b6b4a;">Avaliação de desempenho aberta</h2>
-      <p>O ciclo <strong>${cycleName}</strong> começou.</p>
-      <p>Você tem <strong>${quantas}</strong> avaliação${quantas > 1 ? "ões" : ""} para preencher${prazo ? `, até <strong>${prazo}</strong>` : ""}.</p>
-      ${cta}
-      <p style="color:#666;font-size:13px;">Se já preencheu, pode ignorar este e-mail.</p>
-    </div>`;
+
+  return `<div style="margin:0;padding:0;background:#f4f6f8;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:24px 0;">
+      <tr><td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+               style="max-width:560px;background:#fff;border-radius:12px;overflow:hidden;
+                      box-shadow:0 2px 12px rgba(0,0,0,.08);font-family:Arial,Helvetica,sans-serif;">
+          <tr><td style="background:#0b6b4a;padding:28px 32px;">
+            <h1 style="margin:0;color:#fff;font-size:22px;">Avaliação de desempenho</h1>
+            <p style="margin:6px 0 0;color:#cdeede;font-size:14px;">Oxy People · O2</p>
+          </td></tr>
+
+          <tr><td style="padding:32px;">
+            <h2 style="margin:0 0 12px;color:#0b6b4a;font-size:19px;">${cycleName}</h2>
+            <p style="margin:0 0 18px;color:#53626b;font-size:15px;line-height:1.6;">
+              Chegou a hora da avaliação de desempenho. Você tem
+              <strong style="color:#111;">${quantas} avaliaç${plural ? "ões" : "ão"}</strong>
+              para preencher${prazo ? ` até <strong style="color:#111;">${prazo}</strong>` : ""}.
+            </p>
+
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                   style="background:#f4f6f8;border-radius:8px;margin:0 0 22px;">
+              <tr><td style="padding:16px 20px;color:#53626b;font-size:14px;line-height:1.7;">
+                Você avalia de 1 a 5 em cada um dos nossos cinco valores, e pode
+                deixar um comentário.<br>
+                <strong style="color:#111;">Leva cerca de 5 minutos por avaliação</strong>,
+                e dá para salvar rascunho e continuar depois.
+              </td></tr>
+            </table>
+
+            ${cta}
+
+            <p style="margin:16px 0 0;color:#8a97a0;font-size:13px;line-height:1.6;text-align:center;">
+              Se já preencheu, pode ignorar este e-mail.
+            </p>
+          </td></tr>
+
+          <tr><td style="background:#f0f3f5;padding:16px 32px;color:#9aa6ad;font-size:12px;text-align:center;">
+            Oxy People · O2 — comunicado automático de avaliação.
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </div>`;
 }
 
 serve(async (req) => {
@@ -270,9 +317,10 @@ serve(async (req) => {
       }
 
       const textoSlack =
-        `📋 *Avaliação de desempenho aberta*\n` +
-        `O ciclo *${cycle.name}* começou.${prazoBR ? ` Prazo: *${prazoBR}*.` : ""}\n` +
-        (appUrl ? `Responda em ${appUrl}/performance` : "");
+        `📋 *Avaliação de desempenho — ${cycle.name}*\n` +
+        `Você tem avaliações para preencher${prazoBR ? ` até *${prazoBR}*` : ""}.\n` +
+        `Nota de 1 a 5 nos cinco valores, ~5 min cada. Dá para salvar rascunho.\n` +
+        (appUrl ? `👉 ${appUrl}/performance` : "");
       if (quer("slack")) slacks = await sendSlackDMs(alvos, textoSlack, log);
     }
 

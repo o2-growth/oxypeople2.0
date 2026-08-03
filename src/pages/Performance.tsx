@@ -10,6 +10,7 @@ import { CreateCycleDialog } from "@/components/performance/CreateCycleDialog";
 import { EvaluationsList } from "@/components/performance/EvaluationsList";
 import { MyEvaluations } from "@/components/performance/MyEvaluations";
 import { EvaluationForm } from "@/components/performance/EvaluationForm";
+import { CycleDetailDialog } from "@/components/performance/CycleDetailDialog";
 import { usePerformanceCycles } from "@/hooks/usePerformanceCycles";
 import { useEvaluations } from "@/hooks/useEvaluations";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
@@ -32,6 +33,7 @@ export default function Performance() {
   const [deletingCycleId, setDeletingCycleId] = useState<string | null>(null);
   const [editingCycleId, setEditingCycleId] = useState<string | null>(null);
   const [answeringId, setAnsweringId] = useState<string | null>(null);
+  const [openCycleId, setOpenCycleId] = useState<string | null>(null);
   const {
     cycles,
     isLoading: cyclesLoading,
@@ -234,6 +236,10 @@ export default function Performance() {
                                     ? () => handleCompleteCycle(cycle.id)
                                     : undefined
                                 }
+                                participantsCount={
+                                  new Set(cycleEvaluations.map((e) => e.evaluator_id)).size
+                                }
+                                onOpen={() => setOpenCycleId(cycle.id)}
                                 onEdit={
                                   cycle.status === "draft"
                                     ? () => setEditingCycleId(cycle.id)
@@ -330,6 +336,11 @@ export default function Performance() {
         <EvaluationForm
           evaluationId={answeringId}
           onOpenChange={(open) => !open && setAnsweringId(null)}
+        />
+
+        <CycleDetailDialog
+          cycle={openCycleId ? cycles.find((c) => c.id === openCycleId) ?? null : null}
+          onOpenChange={(open) => !open && setOpenCycleId(null)}
         />
       </div>
     </AppLayout>
