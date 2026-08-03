@@ -629,10 +629,13 @@ export type Database = {
           end_date: string | null
           event_date: string
           event_type: string
+          feedz_ref: string | null
           id: string
+          imported_at: string | null
           is_recurring: boolean
           location: string | null
           metadata: Json | null
+          source: string
           title: string
           updated_at: string
         }
@@ -645,10 +648,13 @@ export type Database = {
           end_date?: string | null
           event_date: string
           event_type?: string
+          feedz_ref?: string | null
           id?: string
+          imported_at?: string | null
           is_recurring?: boolean
           location?: string | null
           metadata?: Json | null
+          source?: string
           title: string
           updated_at?: string
         }
@@ -661,10 +667,13 @@ export type Database = {
           end_date?: string | null
           event_date?: string
           event_type?: string
+          feedz_ref?: string | null
           id?: string
+          imported_at?: string | null
           is_recurring?: boolean
           location?: string | null
           metadata?: Json | null
+          source?: string
           title?: string
           updated_at?: string
         }
@@ -691,17 +700,23 @@ export type Database = {
           created_at: string
           department: string | null
           department_id: string | null
+          employee_code: string | null
           employment_type: string | null
+          feedz_id: string | null
           hire_date: string | null
           id: string
           invited_by: string | null
           is_new_hire: boolean | null
           joined_at: string | null
+          last_working_day: string | null
           manager_id: string | null
           okr_access_level: string
           pipefy_card_id: string | null
           position: string | null
           status: Database["public"]["Enums"]["membership_status"]
+          termination_reason: string | null
+          termination_type: string | null
+          unit: string | null
           updated_at: string
           user_id: string
         }
@@ -710,17 +725,23 @@ export type Database = {
           created_at?: string
           department?: string | null
           department_id?: string | null
+          employee_code?: string | null
           employment_type?: string | null
+          feedz_id?: string | null
           hire_date?: string | null
           id?: string
           invited_by?: string | null
           is_new_hire?: boolean | null
           joined_at?: string | null
+          last_working_day?: string | null
           manager_id?: string | null
           okr_access_level?: string
           pipefy_card_id?: string | null
           position?: string | null
           status?: Database["public"]["Enums"]["membership_status"]
+          termination_reason?: string | null
+          termination_type?: string | null
+          unit?: string | null
           updated_at?: string
           user_id: string
         }
@@ -729,17 +750,23 @@ export type Database = {
           created_at?: string
           department?: string | null
           department_id?: string | null
+          employee_code?: string | null
           employment_type?: string | null
+          feedz_id?: string | null
           hire_date?: string | null
           id?: string
           invited_by?: string | null
           is_new_hire?: boolean | null
           joined_at?: string | null
+          last_working_day?: string | null
           manager_id?: string | null
           okr_access_level?: string
           pipefy_card_id?: string | null
           position?: string | null
           status?: Database["public"]["Enums"]["membership_status"]
+          termination_reason?: string | null
+          termination_type?: string | null
+          unit?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -909,6 +936,63 @@ export type Database = {
           },
         ]
       }
+      employee_demographics: {
+        Row: {
+          company_id: string
+          cpf: string | null
+          created_at: string
+          ethnicity: string | null
+          gender: string | null
+          id: string
+          imported_at: string | null
+          sex: string | null
+          source: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          cpf?: string | null
+          created_at?: string
+          ethnicity?: string | null
+          gender?: string | null
+          id?: string
+          imported_at?: string | null
+          sex?: string | null
+          source?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          cpf?: string | null
+          created_at?: string
+          ethnicity?: string | null
+          gender?: string | null
+          id?: string
+          imported_at?: string | null
+          sex?: string | null
+          source?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_demographics_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_demographics_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feedback_requests: {
         Row: {
           answered_at: string | null
@@ -917,11 +1001,14 @@ export type Database = {
           created_at: string
           declined_reason: string | null
           due_date: string | null
+          feedz_ref: string | null
           id: string
+          imported_at: string | null
           question: string
           requester_id: string
           respondent_id: string
           response: string | null
+          source: string
           status: string
           subject_user_id: string
           updated_at: string
@@ -934,11 +1021,14 @@ export type Database = {
           created_at?: string
           declined_reason?: string | null
           due_date?: string | null
+          feedz_ref?: string | null
           id?: string
+          imported_at?: string | null
           question: string
           requester_id: string
           respondent_id: string
           response?: string | null
+          source?: string
           status?: string
           subject_user_id: string
           updated_at?: string
@@ -951,11 +1041,14 @@ export type Database = {
           created_at?: string
           declined_reason?: string | null
           due_date?: string | null
+          feedz_ref?: string | null
           id?: string
+          imported_at?: string | null
           question?: string
           requester_id?: string
           respondent_id?: string
           response?: string | null
+          source?: string
           status?: string
           subject_user_id?: string
           updated_at?: string
@@ -1394,6 +1487,69 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      mood_entries: {
+        Row: {
+          company_id: string
+          created_at: string
+          department: string | null
+          description: string | null
+          id: string
+          imported_at: string | null
+          mood_label: string | null
+          person_name: string
+          recorded_at: string
+          score: number | null
+          source: string
+          unit: string | null
+          user_id: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          department?: string | null
+          description?: string | null
+          id?: string
+          imported_at?: string | null
+          mood_label?: string | null
+          person_name: string
+          recorded_at: string
+          score?: number | null
+          source?: string
+          unit?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          department?: string | null
+          description?: string | null
+          id?: string
+          imported_at?: string | null
+          mood_label?: string | null
+          person_name?: string
+          recorded_at?: string
+          score?: number | null
+          source?: string
+          unit?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mood_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mood_entries_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       nine_box_placements: {
         Row: {
@@ -2588,13 +2744,16 @@ export type Database = {
           completed_at: string | null
           created_at: string
           duration_minutes: number
+          feedz_ref: string | null
           id: string
+          imported_at: string | null
           leader_id: string
           location: string | null
           member_id: string
           recurrence: string
           recurrence_parent_id: string | null
           scheduled_at: string
+          source: string
           status: string
           updated_at: string
         }
@@ -2604,13 +2763,16 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           duration_minutes?: number
+          feedz_ref?: string | null
           id?: string
+          imported_at?: string | null
           leader_id: string
           location?: string | null
           member_id: string
           recurrence?: string
           recurrence_parent_id?: string | null
           scheduled_at: string
+          source?: string
           status?: string
           updated_at?: string
         }
@@ -2620,13 +2782,16 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           duration_minutes?: number
+          feedz_ref?: string | null
           id?: string
+          imported_at?: string | null
           leader_id?: string
           location?: string | null
           member_id?: string
           recurrence?: string
           recurrence_parent_id?: string | null
           scheduled_at?: string
+          source?: string
           status?: string
           updated_at?: string
         }
@@ -2925,7 +3090,9 @@ export type Database = {
           end_date: string
           evaluators_config: Json | null
           id: string
+          imported_at: string | null
           name: string
+          source: string
           start_date: string
           status: Database["public"]["Enums"]["performance_cycle_status"]
           target_all: boolean | null
@@ -2943,7 +3110,9 @@ export type Database = {
           end_date: string
           evaluators_config?: Json | null
           id?: string
+          imported_at?: string | null
           name: string
+          source?: string
           start_date: string
           status?: Database["public"]["Enums"]["performance_cycle_status"]
           target_all?: boolean | null
@@ -2961,7 +3130,9 @@ export type Database = {
           end_date?: string
           evaluators_config?: Json | null
           id?: string
+          imported_at?: string | null
           name?: string
+          source?: string
           start_date?: string
           status?: Database["public"]["Enums"]["performance_cycle_status"]
           target_all?: boolean | null
@@ -2997,10 +3168,13 @@ export type Database = {
           due_date: string
           evaluated_id: string
           evaluator_id: string
+          feedz_ref: string | null
           id: string
+          imported_at: string | null
           overall_score: number | null
           relationship: string
           relationship_type: string | null
+          source: string
           status: Database["public"]["Enums"]["evaluation_status"]
           updated_at: string
         }
@@ -3012,10 +3186,13 @@ export type Database = {
           due_date: string
           evaluated_id: string
           evaluator_id: string
+          feedz_ref?: string | null
           id?: string
+          imported_at?: string | null
           overall_score?: number | null
           relationship: string
           relationship_type?: string | null
+          source?: string
           status?: Database["public"]["Enums"]["evaluation_status"]
           updated_at?: string
         }
@@ -3027,10 +3204,13 @@ export type Database = {
           due_date?: string
           evaluated_id?: string
           evaluator_id?: string
+          feedz_ref?: string | null
           id?: string
+          imported_at?: string | null
           overall_score?: number | null
           relationship?: string
           relationship_type?: string | null
+          source?: string
           status?: Database["public"]["Enums"]["evaluation_status"]
           updated_at?: string
         }
@@ -3679,30 +3859,39 @@ export type Database = {
           badge_id: string | null
           company_id: string
           created_at: string
+          feedz_ref: string | null
           from_user_id: string
           id: string
+          imported_at: string | null
           message: string
           points: number
+          source: string
           to_user_id: string
         }
         Insert: {
           badge_id?: string | null
           company_id: string
           created_at?: string
+          feedz_ref?: string | null
           from_user_id: string
           id?: string
+          imported_at?: string | null
           message: string
           points?: number
+          source?: string
           to_user_id: string
         }
         Update: {
           badge_id?: string | null
           company_id?: string
           created_at?: string
+          feedz_ref?: string | null
           from_user_id?: string
           id?: string
+          imported_at?: string | null
           message?: string
           points?: number
+          source?: string
           to_user_id?: string
         }
         Relationships: [
@@ -4367,6 +4556,7 @@ export type Database = {
           age_group: string | null
           avatar: string | null
           avatar_url: string | null
+          bio: string | null
           birth_date: string | null
           created_at: string | null
           display_name: string | null
@@ -4385,6 +4575,7 @@ export type Database = {
           age_group?: string | null
           avatar?: string | null
           avatar_url?: string | null
+          bio?: string | null
           birth_date?: string | null
           created_at?: string | null
           display_name?: string | null
@@ -4403,6 +4594,7 @@ export type Database = {
           age_group?: string | null
           avatar?: string | null
           avatar_url?: string | null
+          bio?: string | null
           birth_date?: string | null
           created_at?: string | null
           display_name?: string | null
