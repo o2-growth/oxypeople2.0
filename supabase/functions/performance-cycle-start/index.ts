@@ -64,7 +64,14 @@ serve(async (req) => {
   );
 
   try {
-    const { cycleId, notify = true } = await req.json();
+    // `channels` permite gerar as avaliações e avisar dentro da plataforma sem
+    // disparar comunicação externa — útil para consertar um ciclo que já foi
+    // ativado, sem mandar e-mail para a empresa inteira de novo.
+    const body = await req.json();
+    const { cycleId } = body;
+    const notify = body.notify ?? true;
+    const channels: string[] = body.channels ?? ["inapp", "email", "slack"];
+    const quer = (c: string) => notify && channels.includes(c);
     if (!cycleId) {
       return new Response(JSON.stringify({ success: false, error: "cycleId é obrigatório" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -180,7 +187,7 @@ serve(async (req) => {
     let emails = 0;
     let slacks = 0;
 
-    if (notify) {
+    if (quer("inapp")) {
       const { data: jaNotificados } = await supabase
         .from("notifications")
         .select("user_id")
@@ -206,6 +213,9 @@ serve(async (req) => {
         else notificacoes += Math.min(200, rows.length - i);
       }
 
+    }
+
+    if (quer("email") || quer("slack")) {
       // ---- 4. e-mail e Slack (best-effort) ----
       const { data: users } = await supabase
         .from("users").select("id,email,full_name").in("id", avaliadores);
@@ -228,15 +238,17 @@ serve(async (req) => {
         if (!porQuantidade.has(q)) porQuantidade.set(q, []);
         porQuantidade.get(q)!.push({ email: u.email, fullName: u.full_name });
       }
-      for (const [q, lista] of porQuantidade) {
-        emails += await sendEmails(lista, assunto, emailBody(cycle.name, prazoBR, appUrl, q), log);
+      if (quer("email")) {
+        for (const [q, lista] of porQuantidade) {
+          emails += await sendEmails(lista, assunto, emailBody(cycle.name, prazoBR, appUrl, q), log);
+        }
       }
 
       const textoSlack =
         `📋 *Avaliação de desempenho aberta*\n` +
         `O ciclo *${cycle.name}* começou.${prazoBR ? ` Prazo: *${prazoBR}*.` : ""}\n` +
         (appUrl ? `Responda em ${appUrl}/performance` : "");
-      slacks = await sendSlackDMs(alvos, textoSlack, log);
+      if (quer("slack")) slacks = await sendSlackDMs(alvos, textoSlack, log);
     }
 
     // ---- 5. ativa o ciclo ----
