@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button as O2Button } from "@/components/o2/Button";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { O2Logo } from "@/components/o2/Logo";
 import { AuthBrandingPanel } from "@/components/auth/AuthBrandingPanel";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -125,6 +126,17 @@ const Auth = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              <GoogleSignInButton label={isLogin ? "Entrar com Google" : "Criar conta com Google"} />
+
+              <div className="relative my-5">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">ou com e-mail</span>
+                </div>
+              </div>
+
               <form onSubmit={handleSubmit} className="space-y-4">
                 {!isLogin && (
                   <div className="space-y-2">
