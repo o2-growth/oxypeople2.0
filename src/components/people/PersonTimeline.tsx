@@ -4,7 +4,9 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Award,
+  Briefcase,
   CalendarClock,
+  ClipboardCheck,
   ExternalLink,
   History,
   MessageSquareText,
@@ -22,6 +24,7 @@ import {
 import { useTeamPDIs } from "@/hooks/useTeamPDIs";
 import { useOneOnOnes, type OneOnOneRow } from "@/hooks/useOneOnOnes";
 import { useRecognitions } from "@/hooks/useRecognitions";
+import { usePositionHistory, usePersonEvaluations } from "@/hooks/usePersonHistory";
 import type { PDIStatus } from "@/hooks/usePDI";
 
 /**
@@ -38,7 +41,13 @@ import type { PDIStatus } from "@/hooks/usePDI";
  * visíveis ao viewer (shared_with_manager / sobre si mesmo).
  */
 
-type TimelineType = "feedback" | "pdi" | "one_on_one" | "recognition";
+type TimelineType =
+  | "feedback"
+  | "pdi"
+  | "one_on_one"
+  | "recognition"
+  | "position"
+  | "evaluation";
 
 interface TimelineEntry {
   id: string;
@@ -69,6 +78,16 @@ const TYPE_META: Record<
     label: "Reconhecimento",
     icon: Award,
     className: "bg-warning/10 text-warning",
+  },
+  position: {
+    label: "Cargo",
+    icon: Briefcase,
+    className: "bg-muted text-muted-foreground",
+  },
+  evaluation: {
+    label: "Avaliação",
+    icon: ClipboardCheck,
+    className: "bg-primary/10 text-primary",
   },
 };
 
@@ -106,6 +125,8 @@ export function PersonTimeline({ userId, className }: PersonTimelineProps) {
   const pdiQuery = useTeamPDIs(reportIds);
   const { list: oneOnOnes } = useOneOnOnes();
   const recognitions = useRecognitions();
+  const positions = usePositionHistory(userId);
+  const evaluations = usePersonEvaluations(userId);
 
   const entries = useMemo<TimelineEntry[]>(() => {
     if (!userId) return [];
@@ -181,6 +202,34 @@ export function PersonTimeline({ userId, className }: PersonTimelineProps) {
       });
     }
 
+    // 5. Movimentações de cargo e saída (Pipefy + importação do Feedz).
+    for (const p of positions.data ?? []) {
+      const iso = toISO(p.changed_at);
+      if (!iso) continue;
+      const saida = p.notes?.startsWith("Turnover");
+      const partes = [p.position, p.department_name].filter(Boolean).join(" · ");
+      items.push({
+        id: `position-${p.id}`,
+        type: "position",
+        date: iso,
+        title: saida ? "Saída da empresa" : partes || "Mudança de cargo",
+        detail: saida ? p.reason ?? undefined : p.manager_name ? `gestor: ${p.manager_name}` : undefined,
+      });
+    }
+
+    // 6. Avaliações de desempenho concluídas — a nota, não as respostas.
+    for (const e of evaluations.data ?? []) {
+      const iso = toISO(e.completed_at ?? e.due_date);
+      if (!iso) continue;
+      items.push({
+        id: `evaluation-${e.id}`,
+        type: "evaluation",
+        date: iso,
+        title: e.cycle?.name || "Avaliação de desempenho",
+        detail: e.overall_score != null ? `nota ${e.overall_score.toFixed(2)}` : undefined,
+      });
+    }
+
     // Ordem cronológica decrescente (ISO ordena lexicograficamente = temporal).
     items.sort((a, b) => b.date.localeCompare(a.date));
     return items;
@@ -191,6 +240,8 @@ export function PersonTimeline({ userId, className }: PersonTimelineProps) {
     pdiQuery.data,
     oneOnOnes.data,
     recognitions.recognitions,
+    positions.data,
+    evaluations.data,
   ]);
 
   const isLoading =
