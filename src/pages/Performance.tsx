@@ -11,6 +11,7 @@ import { EvaluationsList } from "@/components/performance/EvaluationsList";
 import { MyEvaluations } from "@/components/performance/MyEvaluations";
 import { EvaluationForm } from "@/components/performance/EvaluationForm";
 import { CycleDetailDialog } from "@/components/performance/CycleDetailDialog";
+import { MyResults } from "@/components/performance/MyResults";
 import { usePerformanceCycles } from "@/hooks/usePerformanceCycles";
 import { useEvaluations } from "@/hooks/useEvaluations";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
@@ -325,12 +326,15 @@ export default function Performance() {
             onRetry={handleRetry}
           />
         ) : (
-          <MyEvaluations
+          <div className="space-y-6">
+            <MyResults />
+            <MyEvaluations
             pendingEvaluations={pendingEvaluations}
             completedEvaluations={completedEvaluations}
             onStartEvaluation={(e) => setAnsweringId(e.id)}
             onViewResults={(e) => setAnsweringId(e.id)}
-          />
+            />
+          </div>
         )}
 
         <EvaluationForm

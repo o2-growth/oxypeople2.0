@@ -1,6 +1,7 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { PulseWidget } from "@/components/dashboard/PulseWidget";
+import { EvaluationWidget } from "@/components/dashboard/EvaluationWidget";
 import { MyDayPanel } from "@/components/dashboard/MyDayPanel";
 import { TeamPanel } from "@/components/dashboard/TeamPanel";
 import { CompanyOverview } from "@/components/dashboard/CompanyOverview";
@@ -71,6 +72,8 @@ const Index = () => {
         <QuickActions />
 
         {/* Pulse ativo — self-hides quando não há pulse pendente. */}
+        <EvaluationWidget />
+
         <PulseWidget />
 
         {/* MEU DIA — visão do colaborador (todos os papéis). */}

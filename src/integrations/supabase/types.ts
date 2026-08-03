@@ -1674,6 +1674,13 @@ export type Database = {
             foreignKeyName: "nine_box_positions_evaluation_id_fkey"
             columns: ["evaluation_id"]
             isOneToOne: false
+            referencedRelation: "my_evaluation_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nine_box_positions_evaluation_id_fkey"
+            columns: ["evaluation_id"]
+            isOneToOne: false
             referencedRelation: "performance_evaluations"
             referencedColumns: ["id"]
           },
@@ -3020,6 +3027,13 @@ export type Database = {
             foreignKeyName: "pdi_plans_evaluation_id_fkey"
             columns: ["evaluation_id"]
             isOneToOne: false
+            referencedRelation: "my_evaluation_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pdi_plans_evaluation_id_fkey"
+            columns: ["evaluation_id"]
+            isOneToOne: false
             referencedRelation: "performance_evaluations"
             referencedColumns: ["id"]
           },
@@ -3065,6 +3079,13 @@ export type Database = {
           score?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "performance_answers_evaluation_id_fkey"
+            columns: ["evaluation_id"]
+            isOneToOne: false
+            referencedRelation: "my_evaluation_results"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "performance_answers_evaluation_id_fkey"
             columns: ["evaluation_id"]
@@ -4630,7 +4651,74 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      my_evaluation_results: {
+        Row: {
+          can_view: boolean | null
+          company_id: string | null
+          completed_at: string | null
+          cycle_id: string | null
+          evaluated_id: string | null
+          evaluator_id: string | null
+          id: string | null
+          overall_score: number | null
+          relationship: string | null
+          status: Database["public"]["Enums"]["evaluation_status"] | null
+        }
+        Insert: {
+          can_view?: never
+          company_id?: string | null
+          completed_at?: string | null
+          cycle_id?: string | null
+          evaluated_id?: string | null
+          evaluator_id?: string | null
+          id?: string | null
+          overall_score?: never
+          relationship?: string | null
+          status?: Database["public"]["Enums"]["evaluation_status"] | null
+        }
+        Update: {
+          can_view?: never
+          company_id?: string | null
+          completed_at?: string | null
+          cycle_id?: string | null
+          evaluated_id?: string | null
+          evaluator_id?: string | null
+          id?: string | null
+          overall_score?: never
+          relationship?: string | null
+          status?: Database["public"]["Enums"]["evaluation_status"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_evaluations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_evaluations_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "performance_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_evaluations_evaluated_id_fkey"
+            columns: ["evaluated_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_evaluations_evaluator_id_fkey"
+            columns: ["evaluator_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       activate_code_for_user: {
@@ -4659,6 +4747,10 @@ export type Database = {
       }
       can_manage_relations: {
         Args: { p_parent_obj_id: string; p_user: string }
+        Returns: boolean
+      }
+      can_view_evaluation_result: {
+        Args: { _evaluation_id: string; _user_id: string }
         Returns: boolean
       }
       can_view_objective: {
@@ -4692,6 +4784,10 @@ export type Database = {
           p_progress: number
         }
         Returns: string
+      }
+      evaluator_finished_cycle: {
+        Args: { _cycle_id: string; _evaluator_id: string }
+        Returns: boolean
       }
       get_360_evaluation_summary: {
         Args: { p_cycle_id: string }
