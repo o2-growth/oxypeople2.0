@@ -28,6 +28,19 @@ const porEmail = new Map(us.map((u) => [norm(u.email), u]));
 const statusDe = new Map(ms.map((m) => [m.user_id, m.status]));
 const ativo = (id) => statusDe.get(id) === "active";
 
+/**
+ * Casos que o backup não resolve porque o gestor de lá também saiu da empresa.
+ * Definidos pelo Andrey em 03/08/2026; o casamento é por trecho do nome, já
+ * que o banco guarda o nome civil completo.
+ */
+const MANUAL = [
+  { pessoa: "tainara", gestor: "gustavo ferreira cochlar" },
+  // "maria eduarda" sozinho casaria com uma homônima já desligada; o
+  // sobrenome desempata para a Head de Marketing.
+  { pessoa: "fernanda ribeiro", gestor: "rovani" },
+  { pessoa: "pedro fuzer", gestor: "diego marcelo rosales" },
+];
+
 // nome do gestor no backup, por e-mail da pessoa
 const gestorFeedz = new Map();
 for (const c of sheet("Colaboradores_20262907050138.xlsx")) {
@@ -44,8 +57,18 @@ const aplicaveis = [];
 const pendentes = [];
 for (const m of semGestorValido) {
   const pessoa = us.find((u) => u.id === m.user_id);
-  const gestorEmail = gestorFeedz.get(norm(pessoa?.email));
-  const gestor = gestorEmail ? porEmail.get(gestorEmail) : null;
+
+  // A definição manual tem prioridade: ela existe justamente para os casos em
+  // que o backup aponta para alguém que também não está mais aqui.
+  const regra = MANUAL.find((r) => norm(pessoa?.full_name).includes(r.pessoa));
+  let gestor = regra
+    ? us.find((u) => norm(u.full_name).includes(regra.gestor))
+    : null;
+
+  if (!gestor) {
+    const gestorEmail = gestorFeedz.get(norm(pessoa?.email));
+    gestor = gestorEmail ? porEmail.get(gestorEmail) : null;
+  }
 
   if (gestor && ativo(gestor.id) && gestor.id !== m.user_id) {
     aplicaveis.push({ membership: m.id, userId: m.user_id, gestor });
