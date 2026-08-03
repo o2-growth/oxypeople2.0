@@ -3733,14 +3733,17 @@ export type Database = {
           created_by: string
           day_of_month: number | null
           day_of_week: number | null
+          feedz_ref: string | null
           frequency: string
           id: string
+          imported_at: string | null
           last_dispatched_at: string | null
           name: string
           question: string
           question_type: string
           require_comment_below: number | null
           send_hour_utc: number
+          source: string
           target_all: boolean
           target_departments: string[] | null
           target_teams: string[] | null
@@ -3754,14 +3757,17 @@ export type Database = {
           created_by: string
           day_of_month?: number | null
           day_of_week?: number | null
+          feedz_ref?: string | null
           frequency: string
           id?: string
+          imported_at?: string | null
           last_dispatched_at?: string | null
           name: string
           question: string
           question_type?: string
           require_comment_below?: number | null
           send_hour_utc?: number
+          source?: string
           target_all?: boolean
           target_departments?: string[] | null
           target_teams?: string[] | null
@@ -3775,14 +3781,17 @@ export type Database = {
           created_by?: string
           day_of_month?: number | null
           day_of_week?: number | null
+          feedz_ref?: string | null
           frequency?: string
           id?: string
+          imported_at?: string | null
           last_dispatched_at?: string | null
           name?: string
           question?: string
           question_type?: string
           require_comment_below?: number | null
           send_hour_utc?: number
+          source?: string
           target_all?: boolean
           target_departments?: string[] | null
           target_teams?: string[] | null
