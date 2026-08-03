@@ -155,8 +155,21 @@ export default function Performance() {
             }
           />
 
-          <Tabs defaultValue="cycles">
+          {/* Admin também responde as próprias avaliações: antes esta visão só
+              tinha a gestão do ciclo, então quem era admin não tinha por onde
+              preencher a própria — e são 10 pessoas nessa situação. A aba vem
+              primeiro e já abre selecionada quando há algo pendente. */}
+          <Tabs defaultValue={pendingEvaluations.length > 0 ? "mine" : "cycles"}>
             <TabsList>
+              <TabsTrigger value="mine" className="gap-2">
+                <ClipboardCheck className="h-4 w-4" />
+                Minhas avaliações
+                {pendingEvaluations.length > 0 && (
+                  <span className="ml-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                    {pendingEvaluations.length}
+                  </span>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="cycles" className="gap-2">
                 <ClipboardCheck className="h-4 w-4" />
                 Ciclos
@@ -192,6 +205,16 @@ export default function Performance() {
                 />
               ) : (
                 <>
+                  <TabsContent value="mine" className="space-y-6 mt-0">
+                    <MyResults />
+                    <MyEvaluations
+                      pendingEvaluations={pendingEvaluations}
+                      completedEvaluations={completedEvaluations}
+                      onStartEvaluation={(e) => setAnsweringId(e.id)}
+                      onViewResults={(e) => setAnsweringId(e.id)}
+                    />
+                  </TabsContent>
+
                   <TabsContent value="cycles" className="space-y-6 mt-0">
                     <PerformanceStats
                       activeCycles={activeCycles}
@@ -297,6 +320,18 @@ export default function Performance() {
             onSubmit={handleEditCycle}
             isLoading={updateCycle.isPending}
             cycle={editingCycle}
+          />
+
+          {/* Também na visão de admin: sem isto, "Responder" não abria nada
+              para quem é admin. */}
+          <EvaluationForm
+            evaluationId={answeringId}
+            onOpenChange={(open) => !open && setAnsweringId(null)}
+          />
+
+          <CycleDetailDialog
+            cycle={openCycleId ? cycles.find((c) => c.id === openCycleId) ?? null : null}
+            onOpenChange={(open) => !open && setOpenCycleId(null)}
           />
 
           {deleteConfirmation}
