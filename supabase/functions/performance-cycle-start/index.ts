@@ -129,11 +129,32 @@ serve(async (req) => {
       timesPorUser.get(t.user_id)!.push(t.team_id);
     }
 
-    const participants: Participant[] = elegiveis.map((m) => ({
-      userId: m.user_id,
-      managerId: m.manager_id ?? null,
-      teamIds: timesPorUser.get(m.user_id) ?? [],
-    }));
+    // Gestor desligado não pode virar avaliador: a avaliação ficaria atribuída
+    // a quem não trabalha mais aqui e nunca seria respondida. Nesse caso a
+    // pessoa fica sem a avaliação do gestor, e o relatório abaixo diz quem é.
+    const { data: todosVinculos } = await supabase
+      .from("company_memberships")
+      .select("user_id,status")
+      .eq("company_id", cycle.company_id);
+    const ativo = new Set(
+      (todosVinculos ?? [])
+        .filter((v: { status: string }) => v.status === "active")
+        .map((v: { user_id: string }) => v.user_id),
+    );
+
+    const gestoresInvalidos: string[] = [];
+    const participants: Participant[] = elegiveis.map((m) => {
+      const gestorOk = m.manager_id && ativo.has(m.manager_id);
+      if (m.manager_id && !gestorOk) gestoresInvalidos.push(m.user_id);
+      return {
+        userId: m.user_id,
+        managerId: gestorOk ? m.manager_id : null,
+        teamIds: timesPorUser.get(m.user_id) ?? [],
+      };
+    });
+    if (gestoresInvalidos.length) {
+      log("warn", "cycle-start:gestor-inativo", { cycleId, quantidade: gestoresInvalidos.length });
+    }
 
     // ---- 2. avaliações ----
     const pares = buildEvaluationPairs(participants, cycle.type as CycleType);
@@ -264,6 +285,7 @@ serve(async (req) => {
         success: true,
         cycleId: cycle.id,
         participantes: participants.length,
+        semGestorAtivo: gestoresInvalidos.length,
         avaliacoesCriadas: criadas,
         avaliacoesTotais: pares.length,
         notificacoes, emails, slackDMs: slacks, durationMs,

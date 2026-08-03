@@ -9,6 +9,7 @@ import { CycleCard } from "@/components/performance/CycleCard";
 import { CreateCycleDialog } from "@/components/performance/CreateCycleDialog";
 import { EvaluationsList } from "@/components/performance/EvaluationsList";
 import { MyEvaluations } from "@/components/performance/MyEvaluations";
+import { EvaluationForm } from "@/components/performance/EvaluationForm";
 import { usePerformanceCycles } from "@/hooks/usePerformanceCycles";
 import { useEvaluations } from "@/hooks/useEvaluations";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
@@ -30,6 +31,7 @@ export default function Performance() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deletingCycleId, setDeletingCycleId] = useState<string | null>(null);
   const [editingCycleId, setEditingCycleId] = useState<string | null>(null);
+  const [answeringId, setAnsweringId] = useState<string | null>(null);
   const {
     cycles,
     isLoading: cyclesLoading,
@@ -320,8 +322,15 @@ export default function Performance() {
           <MyEvaluations
             pendingEvaluations={pendingEvaluations}
             completedEvaluations={completedEvaluations}
+            onStartEvaluation={(e) => setAnsweringId(e.id)}
+            onViewResults={(e) => setAnsweringId(e.id)}
           />
         )}
+
+        <EvaluationForm
+          evaluationId={answeringId}
+          onOpenChange={(open) => !open && setAnsweringId(null)}
+        />
       </div>
     </AppLayout>
   );
