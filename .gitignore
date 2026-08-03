@@ -40,3 +40,6 @@ dist-ssr
 
 # Supabase CLI local state
 supabase/.temp/
+
+# gerado por `deno check` nas edge functions; o deploy do Supabase não o usa
+deno.lock
