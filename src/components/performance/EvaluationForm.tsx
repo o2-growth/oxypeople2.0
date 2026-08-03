@@ -20,7 +20,8 @@ const RELACAO: Record<string, string> = {
   self: "Autoavaliação",
   manager: "Avaliação do gestor",
   peer: "Avaliação de par",
-  direct_report: "Avaliação do liderado",
+  direct_report: "Avaliação do gestor",
+  subordinate: "Avaliação do gestor",
 };
 
 interface EvaluationFormProps {

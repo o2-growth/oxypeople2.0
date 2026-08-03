@@ -55,10 +55,13 @@ export function buildEvaluationPairs(
   const seen = new Set<string>();
   const noEscopo = new Set(participants.map((p) => p.userId));
 
+  // "Full" é o ciclo completo de mão dupla: a pessoa se avalia, avalia quem a
+  // lidera, e é avaliada pelo gestor. O 180 fica sendo o corte de mão única
+  // (auto + gestor), que é o que distingue os dois.
   const querAuto = type === "full" || type === "self" || type === "180" || type === "360";
   const querGestor = type === "full" || type === "pocket" || type === "180" || type === "360";
   const querPares = type === "360";
-  const querLiderados = type === "360" || type === "leader";
+  const querLiderados = type === "full" || type === "360" || type === "leader";
 
   for (const p of participants) {
     if (querAuto) addPair(out, seen, p.userId, p.userId, "self");

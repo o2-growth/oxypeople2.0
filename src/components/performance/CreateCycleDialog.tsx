@@ -67,10 +67,10 @@ interface CreateCycleDialogProps {
 }
 
 const cycleTypes: { value: PerformanceCycleType; label: string; description: string }[] = [
-  { value: "full", label: "Full", description: "Autoavaliação + Gestor + Calibragem + Feedback" },
+  { value: "full", label: "Full", description: "Auto + você avalia seu gestor + gestor avalia liderados" },
   { value: "pocket", label: "Pocket", description: "Avaliação do Gestor + Feedback" },
   { value: "self", label: "Autoavaliação", description: "Colaborador avalia a si mesmo" },
-  { value: "180", label: "180°", description: "Gestor avalia liderado + Autoavaliação" },
+  { value: "180", label: "180°", description: "Auto + gestor avalia liderado (mão única)" },
   { value: "360", label: "360°", description: "Gestor + Pares + Auto + Liderados" },
   { value: "leader", label: "Avaliação de Líder", description: "Liderado avalia gestor" },
   { value: "custom", label: "Personalizado", description: "Configuração livre" },

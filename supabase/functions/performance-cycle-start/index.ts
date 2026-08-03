@@ -174,15 +174,19 @@ serve(async (req) => {
         `${e.evaluator_id}|${e.evaluated_id}|${e.relationship}`),
     );
 
+    const noBanco = (r: string) => (r === "direct_report" ? "subordinate" : r);
     const novas = pares
-      .filter((p) => !jaExiste.has(`${p.evaluatorId}|${p.evaluatedId}|${p.relationship}`))
+      .filter((p) => !jaExiste.has(`${p.evaluatorId}|${p.evaluatedId}|${noBanco(p.relationship)}`))
       .map((p) => ({
         company_id: cycle.company_id,
         cycle_id: cycle.id,
         evaluator_id: p.evaluatorId,
         evaluated_id: p.evaluatedId,
-        relationship: p.relationship,
-        relationship_type: p.relationship,
+        // A constraint do banco usa 'subordinate' para "liderado avalia o
+        // gestor"; internamente o nome é direct_report, que descreve melhor
+        // quem é o avaliador. Traduz aqui, na fronteira.
+        relationship: p.relationship === "direct_report" ? "subordinate" : p.relationship,
+        relationship_type: p.relationship === "direct_report" ? "subordinate" : p.relationship,
         status: "pending",
         due_date: cycle.end_date,
       }));

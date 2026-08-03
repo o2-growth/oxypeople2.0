@@ -27,11 +27,35 @@ describe("buildEvaluationPairs", () => {
     expect(p).toEqual([{ evaluatorId: "chefe", evaluatedId: "ana", relationship: "manager" }]);
   });
 
-  it("180 combina autoavaliação e gestor", () => {
+  // 180 é mão única: a pessoa se avalia e é avaliada pelo gestor, mas não
+  // avalia quem a lidera. É isso que o separa do full.
+  it("180 combina autoavaliação e gestor, sem avaliar o gestor de volta", () => {
     const p = buildEvaluationPairs([ana], "180");
     expect(rel(p, "self")).toHaveLength(1);
     expect(rel(p, "manager")).toHaveLength(1);
+    expect(rel(p, "direct_report")).toHaveLength(0);
     expect(rel(p, "peer")).toHaveLength(0);
+  });
+
+  // Full é o ciclo de mão dupla: auto + a pessoa avalia quem a lidera + o
+  // gestor avalia cada liderado.
+  it("full inclui as três direções", () => {
+    const p = buildEvaluationPairs([ana], "full");
+    expect(rel(p, "self")).toHaveLength(1);
+    expect(rel(p, "manager")).toEqual([
+      { evaluatorId: "chefe", evaluatedId: "ana", relationship: "manager" },
+    ]);
+    expect(rel(p, "direct_report")).toEqual([
+      { evaluatorId: "ana", evaluatedId: "chefe", relationship: "direct_report" },
+    ]);
+    expect(rel(p, "peer")).toHaveLength(0);
+  });
+
+  it("full sem gestor cadastrado gera só a autoavaliação", () => {
+    const solo = { userId: "solo", managerId: null, teamIds: [] };
+    const p = buildEvaluationPairs([solo], "full");
+    expect(p).toHaveLength(1);
+    expect(p[0].relationship).toBe("self");
   });
 
   it("leader faz o liderado avaliar quem o lidera", () => {
