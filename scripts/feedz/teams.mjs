@@ -63,6 +63,7 @@ export const TIME_POR_GESTOR = [
   { chave: "cochlar", time: "CAAS" },       // Gustavo Ferreira Cochlar — CFO
   { chave: "bisinella", time: "CAAS" },     // Everton Bisinella — CFO
   { chave: "dagostini", time: "CAAS" },     // Luis Eduardo Dagostini — CFO
+  { chave: "mariana luz", time: "Financeiro" },
 ];
 
 /**
