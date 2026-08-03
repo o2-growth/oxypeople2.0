@@ -32,5 +32,11 @@ dist-ssr
 .playwright-mcp/
 /*.png
 /scripts/import-*.mjs
+# exceção: o importador do Feedz é o registro de como o histórico entrou —
+# o backup é a única cópia desses dados e o Feedz não existe mais.
+!/scripts/import-feedz.mjs
 /.local/
 .vercel
+
+# Supabase CLI local state
+supabase/.temp/

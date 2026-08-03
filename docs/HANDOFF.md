@@ -9,6 +9,8 @@
 > - **Não trate as pendências/bloqueadores listados abaixo como estado atual.** Valide cada item contra o código, `supabase/migrations/` e o `git log` antes de agir.
 >
 > Seções ainda válidas: stack, convenções obrigatórias (§"Convenções"), regras de migration aditiva e RLS, e o contexto de produto (ferramenta interna, não-SaaS).
+>
+> 🔧 **Correção de banco (2026-07-24):** referências ao Supabase `pkwsbpxhwjewbiyiquad` (banco do v1 Lovable) foram trocadas por **`ixtsnaxhgyoeaotrched`** — o projeto de produção atual (Vercel). O `pkws...` só sobrevive congelado no deploy antigo em `oxy-people.o2inc.com.br`.
 
 ---
 
@@ -142,7 +144,7 @@ src/hooks/useInvitations.test.ts        (7)
 ```bash
 cd /Users/macos/oxypeople
 supabase db push
-supabase gen types typescript --project-id pkwsbpxhwjewbiyiquad > src/integrations/supabase/types.ts
+supabase gen types typescript --project-id ixtsnaxhgyoeaotrched > src/integrations/supabase/types.ts
 npm run typecheck
 ```
 
@@ -164,7 +166,7 @@ cp docs/migrations-draft/0004_pulse_survey.sql \
    supabase/migrations/$(date -u +%Y%m%d%H%M%S)_pulse_survey.sql
 
 supabase db push
-supabase gen types typescript --project-id pkwsbpxhwjewbiyiquad > src/integrations/supabase/types.ts
+supabase gen types typescript --project-id ixtsnaxhgyoeaotrched > src/integrations/supabase/types.ts
 npm run typecheck
 ```
 

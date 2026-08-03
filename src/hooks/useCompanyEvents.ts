@@ -31,12 +31,38 @@ export type CreateEventInput = {
   color?: string;
 };
 
-export function useCompanyEvents() {
+/**
+ * Data da próxima ocorrência de um evento recorrente (aniversário): mantém
+ * dia e mês, e joga para o ano seguinte se a data já passou neste ano.
+ */
+export function nextOccurrence(eventDate: string, today = new Date()): string {
+  const d = new Date(`${eventDate.slice(0, 10)}T00:00:00Z`);
+  if (isNaN(d.getTime())) return eventDate;
+
+  const mesDia = eventDate.slice(5, 10);
+  const hojeMesDia = today.toISOString().slice(5, 10);
+  const ano = today.getUTCFullYear() + (mesDia < hojeMesDia ? 1 : 0);
+  return `${ano}-${mesDia}`;
+}
+
+/**
+ * Eventos da empresa.
+ *
+ * Recorrentes (aniversários) nunca são filtrados por data: o que vale é
+ * dia/mês, e a data guardada é só a âncora. Filtrar por `event_date >= hoje`
+ * fazia sumir todo aniversário já ocorrido no ano corrente.
+ *
+ * Não-recorrentes (celebrações, datas pontuais) seguem futuros por padrão —
+ * `includePast` traz o histórico, que é o caso das 130 celebrações importadas
+ * do Feedz, todas com data passada.
+ */
+export function useCompanyEvents(options: { includePast?: boolean } = {}) {
   const { profile } = useUser();
   const companyId = profile?.primary_company_id;
+  const { includePast = false } = options;
 
   return useQuery({
-    queryKey: ["company-events", companyId],
+    queryKey: ["company-events", companyId, includePast],
     queryFn: async (): Promise<CompanyEvent[]> => {
       if (!companyId) return [];
 
@@ -44,11 +70,17 @@ export function useCompanyEvents() {
         .from("company_events")
         .select("*")
         .eq("company_id", companyId)
-        .gte("event_date", new Date().toISOString())
         .order("event_date", { ascending: true });
 
       if (error) throw error;
-      return (data || []) as CompanyEvent[];
+
+      const hoje = new Date().toISOString().slice(0, 10);
+      const eventos = (data || []) as CompanyEvent[];
+
+      return eventos
+        .filter((e) => e.is_recurring || includePast || e.event_date.slice(0, 10) >= hoje)
+        .map((e) => (e.is_recurring ? { ...e, event_date: nextOccurrence(e.event_date) } : e))
+        .sort((a, b) => a.event_date.localeCompare(b.event_date));
     },
     enabled: !!companyId,
   });

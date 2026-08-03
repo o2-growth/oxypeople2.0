@@ -1,8 +1,10 @@
 # Runbook — Deploy & configuração pós-brownfield
 
-**Última atualização:** 2026-04-30
+**Última atualização:** 2026-07-24
 **Audiência:** admin/owner do projeto oxypeople (você)
 **Objetivo:** levar todo o trabalho dos últimos commits ao ar com segurança.
+
+> ⚠️ **Correção de banco (2026-07-24).** Este runbook originalmente apontava para o projeto Supabase `pkwsbpxhwjewbiyiquad` (banco do deploy Lovable v1, hoje só servido em `oxy-people.o2inc.com.br` de forma congelada). O projeto de **produção atual é `ixtsnaxhgyoeaotrched`** (Vercel `oxypeople20.vercel.app`) — todas as referências abaixo foram atualizadas. Demais passos (paths `/Users/macos/...`, Resend, migrations `0001-0003`) permanecem como snapshot histórico e podem estar defasados; valide contra o código antes de executar.
 
 Este documento lista, em ordem, **toda ação manual** que precisa acontecer fora do código para o sistema funcionar em produção. Marque conforme avança.
 
@@ -10,12 +12,12 @@ Este documento lista, em ordem, **toda ação manual** que precisa acontecer for
 
 ## 0. Pré-requisitos
 
-- [ ] Acesso de owner ao projeto Supabase (`pkwsbpxhwjewbiyiquad`)
+- [ ] Acesso de owner ao projeto Supabase (`ixtsnaxhgyoeaotrched`)
 - [ ] Acesso ao Google Cloud Console com permissão para criar OAuth Client
 - [ ] Acesso ao DNS do domínio o2-growth (para SPF/DKIM/DMARC)
 - [ ] Conta Resend criada (ou outro provedor de e-mail transacional)
 - [ ] CLI Supabase instalada localmente: `npm i -g supabase` (ou `brew install supabase/tap/supabase`)
-- [ ] Login: `supabase login` + `supabase link --project-ref pkwsbpxhwjewbiyiquad`
+- [ ] Login: `supabase login` + `supabase link --project-ref ixtsnaxhgyoeaotrched`
 
 ---
 
@@ -55,7 +57,7 @@ Verifique no Supabase Dashboard → Database → Migrations que as 3 entradas ap
 **Após aplicar:**
 
 ```bash
-supabase gen types typescript --project-id pkwsbpxhwjewbiyiquad > src/integrations/supabase/types.ts
+supabase gen types typescript --project-id ixtsnaxhgyoeaotrched > src/integrations/supabase/types.ts
 ```
 
 Isso regenera `types.ts` com a nova schema. Os `// NOTE:` comments que adicionei manualmente serão substituídos pelos tipos gerados — sem drift.
@@ -85,16 +87,16 @@ O commit `2b726ca` removeu o broker do Lovable Cloud. Agora o login Google passa
    - Application type: **Web application**
    - Name: `oxypeople — Supabase`
    - Authorized JavaScript origins:
-     - `https://pkwsbpxhwjewbiyiquad.supabase.co`
+     - `https://ixtsnaxhgyoeaotrched.supabase.co`
      - `http://localhost:8080` (dev)
      - `https://<seu-domínio-prod>` (quando tiver)
    - Authorized redirect URIs:
-     - `https://pkwsbpxhwjewbiyiquad.supabase.co/auth/v1/callback`
+     - `https://ixtsnaxhgyoeaotrched.supabase.co/auth/v1/callback`
 4. Copie o **Client ID** e **Client Secret**
 
 ### 2.2 Supabase Dashboard
 
-1. https://supabase.com/dashboard/project/pkwsbpxhwjewbiyiquad → **Authentication → Providers**
+1. https://supabase.com/dashboard/project/ixtsnaxhgyoeaotrched → **Authentication → Providers**
 2. Encontre **Google** → ative
 3. Cole `Client ID` e `Client Secret` do passo 2.1
 4. Salvar
@@ -103,7 +105,7 @@ O commit `2b726ca` removeu o broker do Lovable Cloud. Agora o login Google passa
 
 Em `localhost:8080`, faça login com Google. Deve cair em `/` autenticado.
 
-Se ver erro `redirect_uri_mismatch` → URL no Google Cloud Console está diferente do que o Supabase usa. Confirme que tem **exatamente** `https://pkwsbpxhwjewbiyiquad.supabase.co/auth/v1/callback`.
+Se ver erro `redirect_uri_mismatch` → URL no Google Cloud Console está diferente do que o Supabase usa. Confirme que tem **exatamente** `https://ixtsnaxhgyoeaotrched.supabase.co/auth/v1/callback`.
 
 ---
 
@@ -113,9 +115,9 @@ Edite `/Users/macos/oxypeople/.env`:
 
 ```env
 # Já existentes (públicas — embed no bundle)
-VITE_SUPABASE_PROJECT_ID="pkwsbpxhwjewbiyiquad"
+VITE_SUPABASE_PROJECT_ID="ixtsnaxhgyoeaotrched"
 VITE_SUPABASE_PUBLISHABLE_KEY="..."
-VITE_SUPABASE_URL="https://pkwsbpxhwjewbiyiquad.supabase.co"
+VITE_SUPABASE_URL="https://ixtsnaxhgyoeaotrched.supabase.co"
 
 # Adicionar (públicas — Sentry/PostHog DSN são desenhadas para client-side)
 VITE_SENTRY_DSN="https://<key>@<org>.ingest.sentry.io/<project>"
