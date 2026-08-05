@@ -8,12 +8,14 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, Check } from "lucide-react";
+import { Loader2, Check, Star, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import {
-  O2_VALUES, SCALE, overallScore, answeredCount, isComplete, scaleLabel, type Answers,
-} from "@/lib/performance/values";
+  ATTITUDES, ATTITUDE_SCALE, MIN_COMMENT_LENGTH,
+  isAttitudeComplete, completedCount, isComplete, overallScore, attitudeLabel, firstIncomplete,
+  type AttitudeAnswers,
+} from "@/lib/performance/attitudes";
 import { useEvaluationDetail, useSubmitEvaluation } from "@/hooks/useEvaluationForm";
 
 const RELACAO: Record<string, string> = {
@@ -33,47 +35,60 @@ export function EvaluationForm({ evaluationId, onOpenChange }: EvaluationFormPro
   const { data, isLoading } = useEvaluationDetail(evaluationId);
   const submit = useSubmitEvaluation();
 
-  const [answers, setAnswers] = useState<Answers>({});
-  const [comment, setComment] = useState("");
+  const [answers, setAnswers] = useState<AttitudeAnswers>({});
+  const [tentouEnviar, setTentouEnviar] = useState(false);
 
-  // Recarrega o que já havia sido salvo: abrir um rascunho tem que mostrar o
-  // que a pessoa preencheu antes, não um formulário em branco.
+  // Recarrega o que já foi salvo: abrir um rascunho tem que mostrar o que a
+  // pessoa preencheu antes, não um formulário em branco.
   useEffect(() => {
     if (!data) return;
-    const porCategoria = new Map(data.questions.map((q) => [q.id, q.category]));
-    const iniciais: Answers = {};
-    let comentario = "";
+    const catPorId = new Map(data.questions.map((q) => [q.id, q.category]));
+    const iniciais: AttitudeAnswers = {};
     for (const a of data.answers) {
-      const cat = porCategoria.get(a.question_id);
-      const payload = a.answer as { type?: string; text?: string } | null;
-      if (payload?.type === "comment") comentario = payload.text ?? "";
-      else if (cat && typeof a.score === "number") iniciais[cat] = a.score;
+      const cat = catPorId.get(a.question_id);
+      if (!cat) continue;
+      const payload = a.answer as { comment?: string } | null;
+      iniciais[cat] = {
+        score: typeof a.score === "number" ? a.score : undefined,
+        comment: payload?.comment ?? "",
+      };
     }
     setAnswers(iniciais);
-    setComment(comentario);
+    setTentouEnviar(false);
   }, [data]);
 
-  const respondidas = answeredCount(answers);
+  const feitas = completedCount(answers);
   const completo = isComplete(answers);
   const nota = useMemo(() => overallScore(answers), [answers]);
+  const faltando = firstIncomplete(answers);
   const evaluation = data?.evaluation;
   const somenteLeitura = evaluation?.status === "completed";
 
-  const alvo = evaluation?.relationship === "self"
-    ? "você mesmo"
-    : evaluation?.evaluated?.full_name ?? "colaborador";
+  const setScore = (key: string, score: number) =>
+    setAnswers((a) => ({ ...a, [key]: { ...a[key], score } }));
+  const setComment = (key: string, comment: string) =>
+    setAnswers((a) => ({ ...a, [key]: { ...a[key], comment } }));
+
+  const enviar = (draft: boolean) => {
+    if (!draft && !completo) { setTentouEnviar(true); return; }
+    if (!evaluation) return;
+    submit.mutate(
+      { evaluationId: evaluation.id, cycleId: evaluation.cycle_id, answers, draft },
+      { onSuccess: () => onOpenChange(false) },
+    );
+  };
 
   return (
     <Dialog open={!!evaluationId} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[640px]">
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-[680px]">
         {isLoading || !evaluation ? (
           <div className="space-y-4 py-4">
             <Skeleton className="h-8 w-2/3" />
-            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-24" />)}
+            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-40" />)}
           </div>
         ) : (
           <>
-            <DialogHeader>
+            <DialogHeader className="border-b pb-4">
               <div className="flex items-center gap-3">
                 <Avatar className="h-11 w-11">
                   <AvatarImage src={evaluation.evaluated?.avatar_url ?? undefined} />
@@ -92,97 +107,143 @@ export function EvaluationForm({ evaluationId, onOpenChange }: EvaluationFormPro
                   </DialogDescription>
                 </div>
               </div>
+
+              <div className="mt-3 space-y-1">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {feitas} de {ATTITUDES.length} atitudes avaliadas
+                  </span>
+                  {nota != null && (
+                    <Badge variant="secondary">
+                      Nota {nota.toFixed(2)} · {attitudeLabel(nota)}
+                    </Badge>
+                  )}
+                </div>
+                <Progress value={(feitas / ATTITUDES.length) * 100} className="h-2" />
+              </div>
             </DialogHeader>
 
-            <div className="space-y-1 py-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">
-                  {respondidas} de {O2_VALUES.length} valores avaliados
-                </span>
-                {nota != null && (
-                  <Badge variant="secondary">
-                    Nota {nota.toFixed(2)} · {scaleLabel(nota)}
-                  </Badge>
-                )}
-              </div>
-              <Progress value={(respondidas / O2_VALUES.length) * 100} className="h-2" />
-            </div>
+            <div className="space-y-4">
+              {ATTITUDES.map((atitude, i) => {
+                const resposta = answers[atitude.key];
+                const pronta = isAttitudeComplete(resposta);
+                const pendente = tentouEnviar && !pronta;
 
-            <div className="space-y-5">
-              {O2_VALUES.map((valor) => (
-                <div key={valor.key} className="rounded-lg border p-4">
-                  <p className="font-medium">{valor.label}</p>
-                  <p className="mb-3 mt-0.5 text-sm text-muted-foreground">{valor.description}</p>
+                return (
+                  <div
+                    key={atitude.key}
+                    className={cn(
+                      "rounded-lg border p-4",
+                      pendente && "border-destructive/50 bg-destructive/5",
+                      pronta && "border-emerald-500/30",
+                    )}
+                  >
+                    <div className="mb-1 flex items-center gap-2">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {i + 1}/{ATTITUDES.length}
+                      </span>
+                      <h3 className="text-base font-semibold">{atitude.label}</h3>
+                      {pronta && <Check className="h-4 w-4 text-emerald-500" />}
+                    </div>
 
-                  <div className="grid grid-cols-5 gap-2">
-                    {SCALE.map((s) => {
-                      const escolhido = answers[valor.key] === s.value;
-                      return (
-                        <button
-                          key={s.value}
-                          type="button"
-                          disabled={somenteLeitura}
-                          onClick={() => setAnswers((a) => ({ ...a, [valor.key]: s.value }))}
-                          title={s.description}
-                          className={cn(
-                            "flex flex-col items-center gap-1 rounded-md border px-2 py-2 text-xs transition",
-                            "hover:border-primary hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-60",
-                            escolhido && "border-primary bg-primary/10 font-medium text-primary",
-                          )}
-                        >
-                          <span className="text-base font-semibold">{s.value}</span>
-                          <span className="leading-tight">{s.label}</span>
-                        </button>
-                      );
-                    })}
+                    {/* Os três níveis descritos: é o critério que a pessoa lê
+                        antes de pontuar, como na avaliação anterior. */}
+                    <div className="mb-3 space-y-1 text-sm text-muted-foreground">
+                      <p><strong className="text-foreground/70">Entrega Limitada:</strong> {atitude.limited}</p>
+                      <p><strong className="text-foreground/70">Entrega:</strong> {atitude.meets}</p>
+                      <p><strong className="text-foreground/70">Entrega e é Referência:</strong> {atitude.reference}</p>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="hidden shrink-0 text-xs text-muted-foreground sm:block">
+                        Entrega Limitada
+                      </span>
+                      <div className="flex flex-1 justify-center gap-2">
+                        {ATTITUDE_SCALE.map((s) => {
+                          const escolhido = resposta?.score === s.value;
+                          return (
+                            <button
+                              key={s.value}
+                              type="button"
+                              disabled={somenteLeitura}
+                              title={s.label}
+                              aria-label={s.label}
+                              aria-pressed={escolhido}
+                              onClick={() => setScore(atitude.key, s.value)}
+                              className={cn(
+                                "flex h-12 w-14 items-center justify-center rounded-lg border transition",
+                                "hover:border-primary hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-60",
+                                escolhido && "border-primary bg-primary/10",
+                              )}
+                            >
+                              <Star
+                                className={cn(
+                                  "h-5 w-5",
+                                  escolhido ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40",
+                                )}
+                              />
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <span className="hidden shrink-0 text-xs text-muted-foreground sm:block">
+                        Entrega e é Referência
+                      </span>
+                    </div>
+                    {/* Em tela estreita os polos não cabem nas laterais. */}
+                    <div className="mt-1 flex justify-between text-[11px] text-muted-foreground sm:hidden">
+                      <span>Entrega Limitada</span>
+                      <span>É Referência</span>
+                    </div>
+
+                    <div className="mt-3">
+                      <label className="mb-1 block text-sm font-medium">
+                        Comentário <span className="text-destructive">*</span>
+                        <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                          mínimo {MIN_COMMENT_LENGTH} caracteres
+                        </span>
+                      </label>
+                      <Textarea
+                        rows={3}
+                        disabled={somenteLeitura}
+                        value={resposta?.comment ?? ""}
+                        onChange={(e) => setComment(atitude.key, e.target.value)}
+                        placeholder="Justifique a nota com um exemplo concreto"
+                        className="resize-none"
+                      />
+                      {pendente && (
+                        <p className="mt-1 flex items-center gap-1 text-xs text-destructive">
+                          <AlertCircle className="h-3 w-3" />
+                          {typeof resposta?.score !== "number"
+                            ? "Escolha uma nota"
+                            : "Escreva o comentário"}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-
-              <div>
-                <label className="mb-1.5 block text-sm font-medium">
-                  Comentário {evaluation.relationship === "self" ? "sobre seu período" : "para a pessoa"}
-                  <span className="ml-1 font-normal text-muted-foreground">(opcional)</span>
-                </label>
-                <Textarea
-                  rows={4}
-                  disabled={somenteLeitura}
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  placeholder={`O que ${alvo === "você mesmo" ? "você" : alvo.split(" ")[0]} fez bem e o que pode evoluir?`}
-                  className="resize-none"
-                />
-              </div>
+                );
+              })}
             </div>
 
-            <DialogFooter className="gap-2 sm:justify-between">
+            <DialogFooter className="sticky bottom-0 -mx-6 -mb-6 gap-2 border-t bg-background px-6 py-4 sm:justify-between">
               <Button variant="ghost" onClick={() => onOpenChange(false)}>
                 Fechar
               </Button>
               {!somenteLeitura && (
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
+                  {tentouEnviar && faltando && (
+                    <span className="hidden text-xs text-destructive sm:block">
+                      Falta: {faltando.label}
+                    </span>
+                  )}
                   <Button
                     variant="outline"
-                    disabled={submit.isPending || respondidas === 0}
-                    onClick={() =>
-                      submit.mutate(
-                        { evaluationId: evaluation.id, cycleId: evaluation.cycle_id, answers, comment, draft: true },
-                        { onSuccess: () => onOpenChange(false) },
-                      )
-                    }
+                    disabled={submit.isPending || feitas === 0}
+                    onClick={() => enviar(true)}
                   >
                     Salvar rascunho
                   </Button>
-                  <Button
-                    disabled={!completo || submit.isPending}
-                    title={completo ? undefined : "Avalie os cinco valores para enviar"}
-                    onClick={() =>
-                      submit.mutate(
-                        { evaluationId: evaluation.id, cycleId: evaluation.cycle_id, answers, comment },
-                        { onSuccess: () => onOpenChange(false) },
-                      )
-                    }
-                  >
+                  <Button disabled={submit.isPending} onClick={() => enviar(false)}>
                     {submit.isPending ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (

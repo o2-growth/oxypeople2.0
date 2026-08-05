@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { O2_VALUES, overallScore, type Answers } from "@/lib/performance/values";
+import { ATTITUDES, overallScore, type AttitudeAnswers } from "@/lib/performance/attitudes";
 
 export interface EvaluationDetail {
   id: string;
@@ -60,8 +60,7 @@ export function useEvaluationDetail(evaluationId: string | null) {
 interface SubmitInput {
   evaluationId: string;
   cycleId: string;
-  answers: Answers;
-  comment: string;
+  answers: AttitudeAnswers;
   /** Rascunho não fecha a avaliação; só guarda o que já foi preenchido. */
   draft?: boolean;
 }
@@ -70,7 +69,7 @@ export function useSubmitEvaluation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ evaluationId, cycleId, answers, comment, draft = false }: SubmitInput) => {
+    mutationFn: async ({ evaluationId, cycleId, answers, draft = false }: SubmitInput) => {
       // Garante que o ciclo tem as perguntas dos valores da empresa. Ciclos
       // criados antes de existir formulário não têm nenhuma — sem isto, não
       // haveria onde pendurar as respostas.
@@ -79,9 +78,14 @@ export function useSubmitEvaluation() {
         .select("id, category")
         .eq("cycle_id", cycleId);
 
-      let perguntas = existentes ?? [];
+      // Ciclo antigo pode ter as perguntas dos 5 valores; as 12 atitudes são
+      // outro conjunto, então a checagem é por chave e não só por quantidade.
+      const chaves = new Set(ATTITUDES.map((a) => a.key));
+      const jaTemAtitudes = (existentes ?? []).some((q) => chaves.has(q.category ?? ""));
+
+      let perguntas = jaTemAtitudes ? existentes ?? [] : [];
       if (perguntas.length === 0) {
-        const novas = O2_VALUES.map((v, i) => ({
+        const novas = ATTITUDES.map((v, i) => ({
           cycle_id: cycleId,
           question_text: v.label,
           category: v.key,
@@ -103,13 +107,19 @@ export function useSubmitEvaluation() {
       // Salvar rascunho várias vezes não pode acumular respostas duplicadas.
       await supabase.from("performance_answers").delete().eq("evaluation_id", evaluationId);
 
-      const linhas = O2_VALUES
-        .filter((v) => typeof answers[v.key] === "number")
+      // Uma linha por atitude, guardando nota e o comentário dela — o
+      // comentário é por atitude, não um único no fim.
+      const linhas = ATTITUDES
+        .filter((v) => typeof answers[v.key]?.score === "number")
         .map((v) => ({
           evaluation_id: evaluationId,
           question_id: idPorCategoria.get(v.key)!,
-          score: answers[v.key]!,
-          answer: { value: answers[v.key], label: v.label },
+          score: answers[v.key]!.score!,
+          answer: {
+            value: answers[v.key]!.score,
+            label: v.label,
+            comment: answers[v.key]?.comment?.trim() ?? "",
+          },
         }))
         .filter((l) => !!l.question_id);
 
@@ -129,19 +139,6 @@ export function useSubmitEvaluation() {
         .eq("id", evaluationId);
       if (upErr) throw upErr;
 
-      // O comentário geral vai como resposta sem pergunta associada; a coluna
-      // answer é jsonb, então cabe sem alterar o schema.
-      if (comment.trim() && !draft) {
-        const primeira = idPorCategoria.get(O2_VALUES[0].key);
-        if (primeira) {
-          await supabase.from("performance_answers").insert({
-            evaluation_id: evaluationId,
-            question_id: primeira,
-            score: null,
-            answer: { type: "comment", text: comment.trim() },
-          });
-        }
-      }
 
       return { score, draft };
     },

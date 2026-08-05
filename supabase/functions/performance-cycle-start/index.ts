@@ -78,9 +78,10 @@ function emailBody(cycleName: string, prazo: string, appUrl: string | null, quan
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
                    style="background:#f4f6f8;border-radius:8px;margin:0 0 22px;">
               <tr><td style="padding:16px 20px;color:#53626b;font-size:14px;line-height:1.7;">
-                Você avalia de 1 a 5 em cada um dos nossos cinco valores, e pode
-                deixar um comentário.<br>
-                <strong style="color:#111;">Leva cerca de 5 minutos por avaliação</strong>,
+                São as <strong style="color:#111;">12 atitudes inegociáveis</strong>: em
+                cada uma você escolhe entre Entrega Limitada, Entrega e Entrega e é
+                Referência, e justifica com um comentário.<br>
+                <strong style="color:#111;">Leva cerca de 10 minutos por avaliação</strong>,
                 e dá para salvar rascunho e continuar depois.
               </td></tr>
             </table>
@@ -137,7 +138,7 @@ serve(async (req) => {
     // ---- 1. participantes ----
     let query = supabase
       .from("company_memberships")
-      .select("user_id,manager_id,department_id")
+      .select("user_id,manager_id,department_id,hire_date")
       .eq("company_id", cycle.company_id)
       .eq("status", "active");
 
@@ -160,9 +161,38 @@ serve(async (req) => {
       elegiveis = elegiveis.filter((m) => doTime.has(m.user_id));
     }
 
+    // Avaliação de desempenho é para quem tem ao menos 6 meses de casa: quem
+    // entrou há menos tempo não teve período avaliável, e a nota diria mais
+    // sobre a adaptação do que sobre o desempenho. Entra no ciclo seguinte,
+    // quando completar o tempo.
+    const MESES_MINIMOS = 6;
+    const corte = new Date();
+    corte.setMonth(corte.getMonth() - MESES_MINIMOS);
+
+    const novatos: string[] = [];
+    const semAdmissao: string[] = [];
+    elegiveis = elegiveis.filter((m) => {
+      // Sem data de admissão não dá para medir tempo de casa. Mantém a pessoa
+      // no ciclo em vez de excluí-la por falta de cadastro — excluir em
+      // silêncio seria pior que incluir a mais.
+      if (!m.hire_date) { semAdmissao.push(m.user_id); return true; }
+      const dentro = new Date(m.hire_date) <= corte;
+      if (!dentro) novatos.push(m.user_id);
+      return dentro;
+    });
+    if (novatos.length || semAdmissao.length) {
+      log("info", "cycle-start:elegibilidade", {
+        cycleId, minimoMeses: MESES_MINIMOS,
+        foraPorTempoDeCasa: novatos.length, semDataDeAdmissao: semAdmissao.length,
+      });
+    }
+
     if (!elegiveis.length) {
       return new Response(
-        JSON.stringify({ success: false, error: "Nenhum participante ativo no escopo do ciclo." }),
+        JSON.stringify({
+          success: false,
+          error: `Nenhum participante com ${MESES_MINIMOS} meses ou mais de empresa no escopo do ciclo.`,
+        }),
         { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -319,7 +349,8 @@ serve(async (req) => {
       const textoSlack =
         `📋 *Avaliação de desempenho — ${cycle.name}*\n` +
         `Você tem avaliações para preencher${prazoBR ? ` até *${prazoBR}*` : ""}.\n` +
-        `Nota de 1 a 5 nos cinco valores, ~5 min cada. Dá para salvar rascunho.\n` +
+        `12 atitudes inegociáveis, com nota e comentário. ~10 min cada.\n` +
+        `Dá para salvar rascunho e continuar depois.\n` +
         (appUrl ? `👉 ${appUrl}/performance` : "");
       if (quer("slack")) slacks = await sendSlackDMs(alvos, textoSlack, log);
     }
@@ -337,6 +368,8 @@ serve(async (req) => {
         success: true,
         cycleId: cycle.id,
         participantes: participants.length,
+        foraPorTempoDeCasa: novatos.length,
+        semDataDeAdmissao: semAdmissao.length,
         semGestorAtivo: gestoresInvalidos.length,
         avaliacoesCriadas: criadas,
         avaliacoesTotais: pares.length,
