@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Filter, Clock, CheckCircle, AlertCircle } from "lucide-react";
+import { Search, Clock, CheckCircle, AlertCircle, Bell } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { PerformanceEvaluation, EvaluationStatus } from "@/hooks/useEvaluations";
@@ -30,6 +30,9 @@ interface EvaluationsListProps {
   cycles: PerformanceCycle[];
   onViewEvaluation?: (evaluation: PerformanceEvaluation) => void;
   onSendReminder?: (evaluation: PerformanceEvaluation) => void;
+  /** Cobra de uma vez todo mundo que ainda deve no ciclo filtrado. */
+  onRemindAll?: (cycleId: string) => void;
+  isReminding?: boolean;
 }
 
 const statusConfig: Record<EvaluationStatus, { label: string; icon: React.ElementType; className: string }> = {
@@ -44,6 +47,8 @@ export function EvaluationsList({
   cycles,
   onViewEvaluation,
   onSendReminder,
+  onRemindAll,
+  isReminding,
 }: EvaluationsListProps) {
   const [search, setSearch] = useState("");
   const [cycleFilter, setCycleFilter] = useState<string>("all");
@@ -57,6 +62,14 @@ export function EvaluationsList({
     const matchesStatus = statusFilter === "all" || evaluation.status === statusFilter;
     return matchesSearch && matchesCycle && matchesStatus;
   });
+
+  // Conta sobre o ciclo escolhido, não sobre a busca: cobrar é uma ação sobre o
+  // ciclo inteiro, e o número teria que bater com o que a cobrança vai fazer.
+  const pendentesNoFiltro = evaluations.filter(
+    (e) =>
+      (cycleFilter === "all" || e.cycle_id === cycleFilter) &&
+      (e.status === "pending" || e.status === "in_progress"),
+  ).length;
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return "?";
@@ -72,8 +85,28 @@ export function EvaluationsList({
     <Card>
       <CardHeader>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <CardTitle>Avaliações</CardTitle>
-          <div className="flex items-center gap-2">
+          <div>
+            <CardTitle>Avaliações</CardTitle>
+            {pendentesNoFiltro > 0 && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                {pendentesNoFiltro} {pendentesNoFiltro === 1 ? "pessoa ainda deve" : "ainda não respondidas"}
+                {cycleFilter === "all" && " — filtre por ciclo para cobrar de uma vez"}
+              </p>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {onRemindAll && cycleFilter !== "all" && pendentesNoFiltro > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                disabled={isReminding}
+                onClick={() => onRemindAll(cycleFilter)}
+              >
+                <Bell className="h-3.5 w-3.5" />
+                Cobrar {pendentesNoFiltro} pendente{pendentesNoFiltro === 1 ? "" : "s"}
+              </Button>
+            )}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -184,22 +217,30 @@ export function EvaluationsList({
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {evaluation.status === "pending" && onSendReminder && (
+                        {(evaluation.status === "pending" || evaluation.status === "in_progress") &&
+                          onSendReminder && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1.5"
+                              disabled={isReminding}
+                              onClick={() => onSendReminder(evaluation)}
+                            >
+                              <Bell className="h-3.5 w-3.5" />
+                              Cobrar
+                            </Button>
+                          )}
+                        {/* Sem `onViewEvaluation` o botão não aparece: antes ele
+                            existia sempre e não fazia nada ao ser clicado. */}
+                        {onViewEvaluation && (
                           <Button
                             size="sm"
-                            variant="outline"
-                            onClick={() => onSendReminder(evaluation)}
+                            variant="ghost"
+                            onClick={() => onViewEvaluation(evaluation)}
                           >
-                            Lembrete
+                            Ver
                           </Button>
                         )}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => onViewEvaluation?.(evaluation)}
-                        >
-                          Ver
-                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>

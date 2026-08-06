@@ -13,7 +13,9 @@ export interface EvaluationDetail {
   due_date: string;
   overall_score: number | null;
   evaluated: { id: string; full_name: string | null; avatar_url: string | null } | null;
-  cycle: { name: string; end_date: string } | null;
+  /** Quem responde. O admin abre a avaliação de outra pessoa e precisa saber de quem é. */
+  evaluator: { id: string; full_name: string | null; avatar_url: string | null } | null;
+  cycle: { name: string; end_date: string; response_deadline: string | null } | null;
 }
 
 /** Avaliação + respostas já salvas, para abrir o formulário no ponto em que parou. */
@@ -28,7 +30,8 @@ export function useEvaluationDetail(evaluationId: string | null) {
         .select(`
           id, cycle_id, evaluator_id, evaluated_id, relationship, status, due_date, overall_score,
           evaluated:users!performance_evaluations_evaluated_id_fkey(id, full_name, avatar_url),
-          cycle:performance_cycles(name, end_date)
+          evaluator:users!performance_evaluations_evaluator_id_fkey(id, full_name, avatar_url),
+          cycle:performance_cycles(name, end_date, response_deadline)
         `)
         .eq("id", evaluationId)
         .single();

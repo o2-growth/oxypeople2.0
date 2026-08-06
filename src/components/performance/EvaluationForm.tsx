@@ -17,6 +17,7 @@ import {
   type AttitudeAnswers,
 } from "@/lib/performance/attitudes";
 import { useEvaluationDetail, useSubmitEvaluation } from "@/hooks/useEvaluationForm";
+import { useUser } from "@/hooks/useUser";
 
 const RELACAO: Record<string, string> = {
   self: "Autoavaliação",
@@ -33,6 +34,7 @@ interface EvaluationFormProps {
 
 export function EvaluationForm({ evaluationId, onOpenChange }: EvaluationFormProps) {
   const { data, isLoading } = useEvaluationDetail(evaluationId);
+  const { profile } = useUser();
   const submit = useSubmitEvaluation();
 
   const [answers, setAnswers] = useState<AttitudeAnswers>({});
@@ -62,7 +64,12 @@ export function EvaluationForm({ evaluationId, onOpenChange }: EvaluationFormPro
   const nota = useMemo(() => overallScore(answers), [answers]);
   const faltando = firstIncomplete(answers);
   const evaluation = data?.evaluation;
-  const somenteLeitura = evaluation?.status === "completed";
+  // Concluída ninguém reabre. E o admin, que consegue abrir a avaliação de
+  // qualquer pessoa pela lista de acompanhamento, olha sem poder responder no
+  // lugar dela — a nota é de quem avalia, não de quem administra.
+  const souOAvaliador = !!evaluation && evaluation.evaluator_id === profile?.id;
+  const somenteLeitura = evaluation?.status === "completed" || !souOAvaliador;
+  const aindaNaoRespondida = !souOAvaliador && evaluation?.status !== "completed";
 
   const setScore = (key: string, score: number) =>
     setAnswers((a) => ({ ...a, [key]: { ...a[key], score } }));
@@ -122,6 +129,28 @@ export function EvaluationForm({ evaluationId, onOpenChange }: EvaluationFormPro
                 <Progress value={(feitas / ATTITUDES.length) * 100} className="h-2" />
               </div>
             </DialogHeader>
+
+            {aindaNaoRespondida && (
+              <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                <p className="text-muted-foreground">
+                  <span className="font-medium text-foreground">
+                    {evaluation.evaluator?.full_name ?? "Quem avalia"} ainda não respondeu.
+                  </span>{" "}
+                  O que aparece abaixo é o rascunho, se houver. Só quem avalia pode preencher.
+                </p>
+              </div>
+            )}
+
+            {!aindaNaoRespondida && somenteLeitura && !souOAvaliador && (
+              <div className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
+                Respostas de{" "}
+                <span className="font-medium text-foreground">
+                  {evaluation.evaluator?.full_name ?? "quem avaliou"}
+                </span>{" "}
+                — somente leitura.
+              </div>
+            )}
 
             <div className="space-y-4">
               {ATTITUDES.map((atitude, i) => {

@@ -15,6 +15,7 @@ import { MyResults } from "@/components/performance/MyResults";
 import { usePerformanceCycles } from "@/hooks/usePerformanceCycles";
 import { useEvaluations } from "@/hooks/useEvaluations";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { useSendEvaluationReminder } from "@/hooks/useEvaluationReminder";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/QueryError";
@@ -34,6 +35,7 @@ export default function Performance() {
   const [deletingCycleId, setDeletingCycleId] = useState<string | null>(null);
   const [editingCycleId, setEditingCycleId] = useState<string | null>(null);
   const [answeringId, setAnsweringId] = useState<string | null>(null);
+  const sendReminder = useSendEvaluationReminder();
   const [openCycleId, setOpenCycleId] = useState<string | null>(null);
   const {
     cycles,
@@ -286,6 +288,12 @@ export default function Performance() {
                     <EvaluationsList
                       evaluations={allEvaluations}
                       cycles={cycles}
+                      onViewEvaluation={(e) => setAnsweringId(e.id)}
+                      onSendReminder={(e) =>
+                        sendReminder.mutate({ evaluationIds: [e.id] })
+                      }
+                      onRemindAll={(cycleId) => sendReminder.mutate({ cycleId })}
+                      isReminding={sendReminder.isPending}
                     />
                   </TabsContent>
 

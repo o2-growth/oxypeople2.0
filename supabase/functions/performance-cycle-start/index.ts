@@ -130,7 +130,7 @@ serve(async (req) => {
 
     const { data: cycle, error: cycleErr } = await supabase
       .from("performance_cycles")
-      .select("id,company_id,name,type,status,start_date,end_date,target_all,target_departments,target_teams,target_users")
+      .select("id,company_id,name,type,status,start_date,end_date,response_deadline,target_all,target_departments,target_teams,target_users")
       .eq("id", cycleId)
       .single();
     if (cycleErr || !cycle) throw new Error(`ciclo não encontrado: ${cycleErr?.message}`);
@@ -265,7 +265,10 @@ serve(async (req) => {
         relationship: p.relationship === "direct_report" ? "subordinate" : p.relationship,
         relationship_type: p.relationship === "direct_report" ? "subordinate" : p.relationship,
         status: "pending",
-        due_date: cycle.end_date,
+        // O prazo cobrado é o de responder. Quando o ciclo tem calibragem e
+        // devolutiva depois, `end_date` é semanas mais tarde e daria à pessoa
+        // a impressão de ter tempo que ela não tem.
+        due_date: cycle.response_deadline ?? cycle.end_date,
       }));
 
     let criadas = 0;
@@ -281,8 +284,9 @@ serve(async (req) => {
     const quantasPor = new Map<string, number>();
     for (const p of pares) quantasPor.set(p.evaluatorId, (quantasPor.get(p.evaluatorId) ?? 0) + 1);
 
-    const prazoBR = cycle.end_date
-      ? new Date(`${cycle.end_date}T12:00:00Z`).toLocaleDateString("pt-BR", { timeZone: "UTC" })
+    const prazoISO = cycle.response_deadline ?? cycle.end_date;
+    const prazoBR = prazoISO
+      ? new Date(`${prazoISO}T12:00:00Z`).toLocaleDateString("pt-BR", { timeZone: "UTC" })
       : "";
 
     let notificacoes = 0;
