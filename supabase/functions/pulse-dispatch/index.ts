@@ -6,7 +6,7 @@ import { dispatchPulse } from "./_lib/dispatchPulse.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "authorization, x-cron-secret, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 interface PulseError {
@@ -23,6 +23,21 @@ function log(level: "info" | "warn" | "error", msg: string, ctx?: Record<string,
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Quem dispara o pulse é um agendador externo. Autenticá-lo com a
+  // service_role exigiria guardar essa chave fora do Supabase — e ela bypassa
+  // toda a RLS. Um segredo dedicado faz o mesmo trabalho e, se vazar, só
+  // permite disparar o pulse.
+  const cronSecret = Deno.env.get("CRON_SECRET");
+  if (cronSecret) {
+    const enviado = req.headers.get("x-cron-secret");
+    if (enviado !== cronSecret) {
+      log("warn", "pulse-dispatch:sem-autorizacao");
+      return new Response(JSON.stringify({ success: false, error: "não autorizado" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
   }
 
   const startedAt = Date.now();

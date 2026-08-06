@@ -1,8 +1,9 @@
 name: Feedback Expire Cron
 
+# Agendamento desligado: a RPC expire_feedback_requests não está exposta pelo
+# PostgREST, então toda execução falhava. Religar exige expor a função (GRANT
+# para service_role) ou movê-la para uma edge function.
 on:
-  schedule:
-    - cron: "0 23 * * *"
   workflow_dispatch:
 
 jobs:

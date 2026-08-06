@@ -1,21 +1,22 @@
-name: One-on-One Recurrence Sweep Cron
+name: Pulse Dispatch Cron
 
-# Diário: gera as próximas ocorrências das 1:1 recorrentes.
+# De hora em hora: a própria função decide se algum pulse está no horário.
+# Concentrar a decisão nela evita ter a regra de agendamento em dois lugares.
 on:
   schedule:
-    - cron: "0 3 * * *"
+    - cron: "0 * * * *"
   workflow_dispatch:
 
 # Duas execuções simultâneas poderiam disparar o mesmo pulse duas vezes.
 concurrency:
-  group: one-on-one-recurrence
+  group: pulse-dispatch
   cancel-in-progress: false
 
 jobs:
   dispatch:
     runs-on: ubuntu-latest
     steps:
-      - name: Gerar 1:1 recorrentes
+      - name: Disparar pulses no horário
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           # Chave pública, não a service_role: quem autoriza de fato é o
@@ -33,7 +34,7 @@ jobs:
 
           RESPOSTA=$(mktemp)
           STATUS=$(curl -s -o "$RESPOSTA" -w "%{http_code}" -X POST \
-            "${SUPABASE_URL}/functions/v1/one-on-one-recurrence-sweep" \
+            "${SUPABASE_URL}/functions/v1/pulse-dispatch" \
             -H "Authorization: Bearer ${ANON_KEY}" \
             -H "x-cron-secret: ${CRON_SECRET}" \
             -H "Content-Type: application/json" \
@@ -41,17 +42,17 @@ jobs:
             -d '{}')
 
           echo "HTTP $STATUS"
-          # O corpo diz quantas 1:1 foram geradas — sem ele, uma falha
-          # silenciosa pareceria sucesso no log.
+          # O corpo diz quantos pulses saíram e quantos foram pulados — sem
+          # ele, uma falha silenciosa pareceria sucesso no log.
           cat "$RESPOSTA"
           echo
 
           if [ "$STATUS" != "200" ]; then
-            echo "::error::one-on-one-recurrence-sweep respondeu $STATUS"
+            echo "::error::pulse-dispatch respondeu $STATUS"
             exit 1
           fi
 
           if ! grep -q '"success":true' "$RESPOSTA"; then
-            echo "::error::one-on-one-recurrence-sweep retornou 200 mas sem sucesso"
+            echo "::error::pulse-dispatch retornou 200 mas sem sucesso"
             exit 1
           fi
