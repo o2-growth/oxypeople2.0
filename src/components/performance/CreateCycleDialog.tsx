@@ -12,6 +12,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -38,6 +39,7 @@ const formSchema = z
     type: z.enum(["full", "pocket", "self", "180", "360", "leader", "custom"]),
     start_date: z.string().min(1, "Data de início é obrigatória"),
     end_date: z.string().min(1, "Data de término é obrigatória"),
+    response_deadline: z.string().optional(),
     target_all: z.boolean().default(false),
   })
   .refine(
@@ -49,6 +51,19 @@ const formSchema = z
       message: "Data final deve ser posterior à inicial.",
       path: ["end_date"],
     },
+  )
+  .refine(
+    (data) => {
+      if (!data.response_deadline) return true;
+      return (
+        new Date(data.response_deadline) >= new Date(data.start_date) &&
+        new Date(data.response_deadline) <= new Date(data.end_date)
+      );
+    },
+    {
+      message: "O prazo de resposta precisa cair dentro do período do ciclo.",
+      path: ["response_deadline"],
+    },
   );
 
 type FormData = z.infer<typeof formSchema>;
@@ -59,9 +74,13 @@ interface CreateCycleDialogProps {
   onSubmit: (data: CreateCycleInput) => void;
   isLoading?: boolean;
   /**
-   * Ciclo a editar. Só faz sentido em rascunho: depois de iniciado, as
-   * avaliações já existem e mudar tipo ou público deixaria o que foi gerado
-   * inconsistente com a configuração.
+   * Ciclo a editar.
+   *
+   * Em rascunho tudo é editável. Depois de iniciado, tipo e público ficam
+   * travados — as avaliações já foram geradas a partir deles e mudá-los
+   * deixaria o que existe inconsistente. Nome, descrição e datas continuam
+   * editáveis porque é justamente o que precisa de correção com o ciclo
+   * rodando: uma data errada no comunicado, um texto confuso.
    */
   cycle?: PerformanceCycle | null;
 }
@@ -82,6 +101,7 @@ const VAZIO: FormData = {
   type: "full",
   start_date: "",
   end_date: "",
+  response_deadline: "",
   target_all: true,
 };
 
@@ -93,6 +113,9 @@ export function CreateCycleDialog({
   cycle,
 }: CreateCycleDialogProps) {
   const editando = !!cycle;
+  // Tipo e público geraram as avaliações que já existem: mudá-los agora deixaria
+  // o que foi gerado sem relação com o que a tela diz.
+  const jaGerou = !!cycle && cycle.status !== "draft";
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -112,6 +135,7 @@ export function CreateCycleDialog({
             type: cycle.type,
             start_date: cycle.start_date?.slice(0, 10) ?? "",
             end_date: cycle.end_date?.slice(0, 10) ?? "",
+            response_deadline: cycle.response_deadline?.slice(0, 10) ?? "",
             target_all: cycle.target_all ?? true,
           }
         : VAZIO,
@@ -125,6 +149,7 @@ export function CreateCycleDialog({
       type: data.type,
       start_date: data.start_date,
       end_date: data.end_date,
+      response_deadline: data.response_deadline || null,
       target_all: data.target_all,
     });
     form.reset();
@@ -159,13 +184,23 @@ export function CreateCycleDialog({
                 <FormItem>
                   <FormLabel>Descrição (opcional)</FormLabel>
                   <FormControl>
+                    {/* Espaço para o texto que as pessoas vão ler: cabe uma
+                        linha em branco entre parágrafos, e ela é preservada
+                        quando o ciclo aparece na tela. */}
                     <Textarea
-                      placeholder="Descreva o objetivo deste ciclo de avaliação..."
-                      className="resize-none"
-                      rows={3}
+                      placeholder={
+                        "Damos início à avaliação...\n\n" +
+                        "🗓️ Etapa 1 – Avaliações: até 00/00/0000\n" +
+                        "🗓️ Etapa 2 – Calibragem: 00 a 00/00/0000"
+                      }
+                      rows={8}
                       {...field}
                     />
                   </FormControl>
+                  <FormDescription>
+                    Linha em branco separa parágrafos e a quebra simples mantém a lista junta —
+                    o texto aparece na tela do jeito que for escrito aqui.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -179,7 +214,7 @@ export function CreateCycleDialog({
                   <FormLabel>Tipo de Avaliação</FormLabel>
                   {/* controlado (value, não defaultValue): em edição o form.reset
                       precisa refletir o tipo salvo no seletor */}
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={jaGerou}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o tipo" />
@@ -198,6 +233,12 @@ export function CreateCycleDialog({
                       ))}
                     </SelectContent>
                   </Select>
+                  {jaGerou && (
+                    <FormDescription>
+                      As avaliações já foram geradas com este tipo — mudá-lo agora
+                      deixaria o que existe sem relação com o que a tela diz.
+                    </FormDescription>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
@@ -223,7 +264,7 @@ export function CreateCycleDialog({
                 name="end_date"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Data de Término</FormLabel>
+                    <FormLabel>Fim do processo</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -235,6 +276,25 @@ export function CreateCycleDialog({
 
             <FormField
               control={form.control}
+              name="response_deadline"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Prazo para responder (opcional)</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} value={field.value ?? ""} />
+                  </FormControl>
+                  <FormDescription>
+                    É este prazo que a plataforma cobra. Deixe em branco quando o
+                    ciclo terminar junto com as respostas; preencha quando ainda
+                    houver calibragem e devolutivas depois.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="target_all"
               render={({ field }) => (
                 <FormItem className="flex items-center space-x-2 space-y-0">
@@ -242,6 +302,7 @@ export function CreateCycleDialog({
                     <Checkbox
                       checked={field.value}
                       onCheckedChange={field.onChange}
+                      disabled={jaGerou}
                     />
                   </FormControl>
                   <FormLabel className="font-normal">

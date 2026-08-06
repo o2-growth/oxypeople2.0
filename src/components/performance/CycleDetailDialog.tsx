@@ -12,6 +12,7 @@ import { Check, Clock, CircleDashed } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { TextoFormatado } from "@/components/ui/texto-formatado";
 import type { PerformanceCycle } from "@/hooks/usePerformanceCycles";
 
 const RELACAO: Record<string, string> = {
@@ -91,13 +92,26 @@ export function CycleDetailDialog({ cycle, onOpenChange }: CycleDetailDialogProp
           <>
             <DialogHeader>
               <DialogTitle>{cycle.name}</DialogTitle>
+              {/* Só as datas aqui. A descrição tem parágrafos e uma lista de
+                  etapas: espremida na linha do subtítulo, virava um paredão. */}
               <DialogDescription>
-                {cycle.description?.trim() || "Acompanhamento do ciclo"}
-                {" · "}
                 {format(parseISO(cycle.start_date), "dd MMM", { locale: ptBR })} –{" "}
                 {format(parseISO(cycle.end_date), "dd MMM yyyy", { locale: ptBR })}
+                {cycle.response_deadline && (
+                  <> · respostas até{" "}
+                    {format(parseISO(cycle.response_deadline), "dd 'de' MMMM", { locale: ptBR })}
+                  </>
+                )}
               </DialogDescription>
             </DialogHeader>
+
+            {cycle.description?.trim() && (
+              <div className="rounded-lg border bg-muted/30 p-4">
+                <TextoFormatado className="text-sm text-muted-foreground">
+                  {cycle.description}
+                </TextoFormatado>
+              </div>
+            )}
 
             <div className="grid grid-cols-3 gap-3 py-2">
               <div className="rounded-lg border p-3">

@@ -16,7 +16,7 @@ interface Pendente {
   relationship: string;
   status: string;
   due_date: string;
-  cycle: { id: string; name: string; end_date: string } | null;
+  cycle: { id: string; name: string; end_date: string; response_deadline: string | null } | null;
   evaluated: { full_name: string | null } | null;
 }
 
@@ -33,7 +33,7 @@ function useMyPendingEvaluations() {
         .from("performance_evaluations")
         .select(`
           id, relationship, status, due_date,
-          cycle:performance_cycles!inner(id, name, end_date, status),
+          cycle:performance_cycles!inner(id, name, end_date, response_deadline, status),
           evaluated:users!performance_evaluations_evaluated_id_fkey(full_name)
         `)
         .eq("evaluator_id", userId)
@@ -57,7 +57,10 @@ export function EvaluationWidget() {
   const progresso = Math.round((feitas / todas.length) * 100);
   const ciclo = todas[0].cycle;
 
-  const dias = ciclo ? differenceInCalendarDays(parseISO(ciclo.end_date), new Date()) : null;
+  // Prazo de responder, não fim do processo: quem vê este card tem que entregar
+  // na Etapa 1, e as devolutivas seguem semanas depois.
+  const prazo = ciclo ? (ciclo.response_deadline ?? ciclo.end_date) : null;
+  const dias = prazo ? differenceInCalendarDays(parseISO(prazo), new Date()) : null;
   const urgente = dias != null && dias <= 3;
 
   // Tudo respondido: confirma e sai do caminho, em vez de continuar cobrando.
@@ -121,7 +124,7 @@ export function EvaluationWidget() {
 
             <p className="mt-0.5 text-sm text-muted-foreground">
               {ciclo?.name}
-              {ciclo && ` · até ${format(parseISO(ciclo.end_date), "dd 'de' MMMM", { locale: ptBR })}`}
+              {prazo && ` · responda até ${format(parseISO(prazo), "dd 'de' MMMM", { locale: ptBR })}`}
             </p>
 
             {/* Diz o que é cada uma: "3 avaliações" sozinho não explica o que

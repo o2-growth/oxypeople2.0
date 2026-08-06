@@ -3113,6 +3113,7 @@ export type Database = {
           id: string
           imported_at: string | null
           name: string
+          response_deadline: string | null
           source: string
           start_date: string
           status: Database["public"]["Enums"]["performance_cycle_status"]
@@ -3133,6 +3134,7 @@ export type Database = {
           id?: string
           imported_at?: string | null
           name: string
+          response_deadline?: string | null
           source?: string
           start_date: string
           status?: Database["public"]["Enums"]["performance_cycle_status"]
@@ -3153,6 +3155,7 @@ export type Database = {
           id?: string
           imported_at?: string | null
           name?: string
+          response_deadline?: string | null
           source?: string
           start_date?: string
           status?: Database["public"]["Enums"]["performance_cycle_status"]

@@ -265,7 +265,11 @@ export default function Performance() {
                                 }
                                 onOpen={() => setOpenCycleId(cycle.id)}
                                 onEdit={
-                                  cycle.status === "draft"
+                                  // Também com o ciclo rodando: corrigir uma data
+                                  // errada ou um texto confuso é justamente o que
+                                  // aparece depois de começar. O diálogo trava o
+                                  // que não pode mudar.
+                                  cycle.status === "draft" || cycle.status === "active"
                                     ? () => setEditingCycleId(cycle.id)
                                     : undefined
                                 }

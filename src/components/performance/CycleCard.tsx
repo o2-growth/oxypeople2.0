@@ -14,6 +14,7 @@ import {
 import { format, differenceInCalendarDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { TextoFormatado } from "@/components/ui/texto-formatado";
 import type { PerformanceCycle, PerformanceCycleStatus, PerformanceCycleType } from "@/hooks/usePerformanceCycles";
 
 interface CycleCardProps {
@@ -76,17 +77,20 @@ export function CycleCard({
   const progress = evaluationsCount > 0 ? Math.round((completedCount / evaluationsCount) * 100) : 0;
 
   const fim = parseISO(cycle.end_date);
-  const diasRestantes = differenceInCalendarDays(fim, new Date());
+  // O contador cobra o prazo de responder, não o fim do processo: calibragem e
+  // devolutivas vêm depois e não são trabalho de quem recebe o card.
+  const prazo = parseISO(cycle.response_deadline ?? cycle.end_date);
+  const diasRestantes = differenceInCalendarDays(prazo, new Date());
   const emAndamento = cycle.status === "active";
   const atrasado = emAndamento && diasRestantes < 0;
 
   const prazoTexto = !emAndamento
     ? null
     : atrasado
-      ? `Encerrado há ${Math.abs(diasRestantes)} dia${Math.abs(diasRestantes) === 1 ? "" : "s"}`
+      ? `Prazo encerrado há ${Math.abs(diasRestantes)} dia${Math.abs(diasRestantes) === 1 ? "" : "s"}`
       : diasRestantes === 0
-        ? "Último dia"
-        : `Faltam ${diasRestantes} dia${diasRestantes === 1 ? "" : "s"}`;
+        ? "Último dia para responder"
+        : `Faltam ${diasRestantes} dia${diasRestantes === 1 ? "" : "s"} para responder`;
 
   return (
     <Card
@@ -111,9 +115,9 @@ export function CycleCard({
 
             {/* Sem line-clamp: a descrição é o que explica o ciclo para quem vai
                 responder — cortá-la esconde justamente o contexto. */}
-            <p className="text-sm text-muted-foreground">
+            <TextoFormatado className="text-sm text-muted-foreground">
               {cycle.description?.trim() || typeSummary[cycle.type]}
-            </p>
+            </TextoFormatado>
           </div>
 
           <div className="flex shrink-0 items-center gap-1">

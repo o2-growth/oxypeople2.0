@@ -15,6 +15,8 @@ export interface PerformanceCycle {
   type: PerformanceCycleType;
   start_date: string;
   end_date: string;
+  /** Até quando dá para responder. Nulo = cobra pelo `end_date`. */
+  response_deadline: string | null;
   status: PerformanceCycleStatus;
   created_by: string;
   target_departments: string[];
@@ -31,6 +33,7 @@ export interface CreateCycleInput {
   type: PerformanceCycleType;
   start_date: string;
   end_date: string;
+  response_deadline?: string | null;
   target_departments?: string[];
   target_teams?: string[];
   target_users?: string[];
