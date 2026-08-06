@@ -33,6 +33,7 @@ interface TeamData {
   id: string;
   name: string;
   department_id: string | null;
+  parent_team_id: string | null;
   members: {
     user_id: string;
     role: string | null;
@@ -101,6 +102,7 @@ export function useOrganizationHierarchy() {
           id,
           name,
           department_id,
+          parent_team_id,
           members:team_members(
             user_id,
             role,
@@ -163,6 +165,10 @@ function buildHierarchy(
   });
 
   // Build team nodes
+  //
+  // Squad entra debaixo do time dele, não ao lado. Sem isto os 13 squads
+  // apareciam como irmãos dos times na área, exatamente o que a tela de Times
+  // já tinha corrigido — este hook tinha ficado para trás.
   const buildTeamNode = (team: TeamData): HierarchyNode => {
     const leader = team.members?.find((m) => isTeamLead(m.role));
     const regularMembers = team.members?.filter((m) => !isTeamLead(m.role)) || [];
@@ -178,6 +184,10 @@ function buildHierarchy(
       children: [],
     }));
 
+    const squadNodes = (teams || [])
+      .filter((s) => s.parent_team_id === team.id)
+      .map(buildTeamNode);
+
     return {
       id: `team-${team.id}`,
       type: "team",
@@ -185,14 +195,16 @@ function buildHierarchy(
       role: leader?.user?.full_name || "Sem líder",
       avatarUrl: leader?.user?.avatar_url || undefined,
       email: leader?.user?.email,
-      children: memberNodes,
+      children: [...squadNodes, ...memberNodes],
     };
   };
 
   // Build department nodes
   const departmentNodes: HierarchyNode[] = (departments || []).map((dept) => {
     // Get teams for this department
-    const deptTeams = (teams || []).filter((t) => t.department_id === dept.id);
+    const deptTeams = (teams || []).filter(
+      (t) => t.department_id === dept.id && !t.parent_team_id,
+    );
     const teamNodes = deptTeams.map(buildTeamNode);
 
     // Get members directly in department (not in any team)
@@ -234,7 +246,7 @@ function buildHierarchy(
   });
 
   // Get teams without department
-  const teamsWithoutDept = (teams || []).filter((t) => !t.department_id);
+  const teamsWithoutDept = (teams || []).filter((t) => !t.department_id && !t.parent_team_id);
   const orphanTeamNodes = teamsWithoutDept.map(buildTeamNode);
 
   // Get members without department or team
