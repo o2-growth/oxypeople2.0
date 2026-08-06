@@ -183,7 +183,13 @@ export function useCreateTeam() {
   const { profile } = useUser();
 
   return useMutation({
-    mutationFn: async (team: { name: string; description?: string; department?: string }) => {
+    mutationFn: async (team: {
+      name: string;
+      description?: string;
+      department?: string;
+      /** Preenchido = está criando um squad dentro deste time. */
+      parent_team_id?: string | null;
+    }) => {
       if (!profile?.primary_company_id) throw new Error("No company selected");
 
       const { data, error } = await supabase

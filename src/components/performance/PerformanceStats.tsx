@@ -14,34 +14,36 @@ export function PerformanceStats({
   completionRate,
   averageScore,
 }: PerformanceStatsProps) {
+  // Tokens do tema, não paleta crua: `bg-blue-100` não responde ao tema escuro
+  // e ficava como um quadrado claro no meio da tela preta.
   const stats = [
     {
-      label: "Ciclos Ativos",
+      label: "Ciclos ativos",
       value: activeCycles,
       icon: ClipboardCheck,
-      color: "text-blue-600",
-      bgColor: "bg-blue-100",
+      color: "text-primary",
+      bgColor: "bg-primary/10",
     },
     {
-      label: "Avaliações Pendentes",
+      label: "Avaliações pendentes",
       value: pendingEvaluations,
       icon: Clock,
-      color: "text-amber-600",
-      bgColor: "bg-amber-100",
+      color: "text-warning",
+      bgColor: "bg-warning/10",
     },
     {
-      label: "Taxa de Conclusão",
+      label: "Taxa de conclusão",
       value: `${completionRate}%`,
       icon: TrendingUp,
-      color: "text-emerald-600",
-      bgColor: "bg-emerald-100",
+      color: "text-success",
+      bgColor: "bg-success/10",
     },
     {
-      label: "Média Geral",
+      label: "Média geral",
       value: averageScore.toFixed(1),
       icon: Target,
-      color: "text-purple-600",
-      bgColor: "bg-purple-100",
+      color: "text-foreground",
+      bgColor: "bg-muted",
     },
   ];
 

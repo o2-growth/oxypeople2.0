@@ -83,14 +83,17 @@ export function HRCollaboratorsTab({
   const userIds = useMemo(() => people?.map((p) => p.user_id) || [], [people]);
   const { data: birthdaysMap = new Map() } = useUserBirthdays(userIds);
 
+  // "Ativos" é como a lista nasce, não um filtro que alguém escolheu: contá-lo
+  // como ativo fazia o botão "Limpar" aparecer numa tela recém-aberta, e
+  // limpar revelava os 109 desligados sem ninguém ter pedido.
   const hasActiveFilters = useMemo(() => {
-    return searchQuery.trim() !== "" || departmentFilter !== "all" || statusFilter !== "all" || birthdayFilter !== "all";
+    return searchQuery.trim() !== "" || departmentFilter !== "all" || statusFilter !== "active" || birthdayFilter !== "all";
   }, [searchQuery, departmentFilter, statusFilter, birthdayFilter]);
 
   const clearFilters = () => {
     setSearchQuery("");
     setDepartmentFilter("all");
-    setStatusFilter("all");
+    setStatusFilter("active");
     setBirthdayFilter("all");
   };
 
@@ -268,6 +271,8 @@ export function HRCollaboratorsTab({
                   birthDate={birthdaysMap.get(person.user_id)}
                   isAdmin={isAdmin}
                   onToggleStatus={handleToggleStatus}
+                  onOpenDetail={() => setDetailMembershipId(person.id)}
+                  onEdit={setEditingMember}
                 />
               ))}
             </div>

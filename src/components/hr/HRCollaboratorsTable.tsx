@@ -120,7 +120,8 @@ export function HRCollaboratorsTable({
         </TableHeader>
         <TableBody>
           {people.map((person) => {
-            const initials = person.user?.full_name?.split(" ").map((n) => n[0]).join("").slice(0, 2) || "?";
+            const initials =
+              person.user?.full_name?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "?";
             return (
               <TableRow
                 key={person.id}
@@ -146,7 +147,9 @@ export function HRCollaboratorsTable({
                       <AvatarFallback>{initials}</AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="font-medium hover:underline">{person.user?.full_name || "Sem nome"}</p>
+                      <p className="font-medium hover:underline">
+                        {person.user?.full_name || person.user?.email || "Sem nome"}
+                      </p>
                       <p className="text-sm text-muted-foreground">{person.user?.email}</p>
                     </div>
                   </button>

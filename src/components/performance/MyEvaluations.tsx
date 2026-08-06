@@ -74,8 +74,8 @@ export function MyEvaluations({
               {pendingEvaluations.map((evaluation) => (
                 <Card key={evaluation.id} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex min-w-0 flex-1 items-center gap-4">
                         <Avatar className="h-10 w-10">
                           <AvatarImage
                             src={
@@ -92,11 +92,11 @@ export function MyEvaluations({
                             )}
                           </AvatarFallback>
                         </Avatar>
-                        <div>
-                          <h4 className="font-medium">
+                        <div className="min-w-0">
+                          <h4 className="truncate font-medium">
                             {getEvaluationTitle(evaluation)}
                           </h4>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="truncate text-sm text-muted-foreground">
                             {evaluation.cycle?.name}
                           </p>
                         </div>
@@ -141,8 +141,8 @@ export function MyEvaluations({
               {completedEvaluations.map((evaluation) => (
                 <Card key={evaluation.id}>
                   <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex min-w-0 flex-1 items-center gap-4">
                         <Avatar className="h-10 w-10">
                           <AvatarImage
                             src={evaluation.evaluated?.avatar_url || undefined}
@@ -151,8 +151,8 @@ export function MyEvaluations({
                             {getInitials(evaluation.evaluated?.full_name)}
                           </AvatarFallback>
                         </Avatar>
-                        <div>
-                          <h4 className="font-medium">
+                        <div className="min-w-0">
+                          <h4 className="truncate font-medium">
                             {evaluation.cycle?.name}
                           </h4>
                           <p className="text-sm text-muted-foreground">
@@ -166,7 +166,7 @@ export function MyEvaluations({
                       </div>
                       <div className="flex items-center gap-3">
                         {evaluation.overall_score && (
-                          <div className="flex items-center gap-1 text-amber-600">
+                          <div className="flex items-center gap-1 text-warning">
                             <Star className="h-4 w-4 fill-current" />
                             <span className="font-medium">
                               {evaluation.overall_score.toFixed(1)}

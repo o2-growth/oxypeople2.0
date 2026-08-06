@@ -63,11 +63,11 @@ export function CycleDetailDialog({ cycle, onOpenChange }: CycleDetailDialogProp
   // Agrupa por avaliador: o que interessa acompanhar é quem ainda não
   // respondeu, não a lista solta de avaliações.
   const porPessoa = useMemo(() => {
-    const mapa = new Map<string, { nome: string; avatar: string | null; itens: Row[] }>();
+    const mapa = new Map<string, { id: string; nome: string; avatar: string | null; itens: Row[] }>();
     for (const l of linhas ?? []) {
       const id = l.evaluator?.id ?? "?";
       if (!mapa.has(id)) {
-        mapa.set(id, { nome: l.evaluator?.full_name ?? "—", avatar: l.evaluator?.avatar_url ?? null, itens: [] });
+        mapa.set(id, { id, nome: l.evaluator?.full_name ?? "—", avatar: l.evaluator?.avatar_url ?? null, itens: [] });
       }
       mapa.get(id)!.itens.push(l);
     }
@@ -132,9 +132,9 @@ export function CycleDetailDialog({ cycle, onOpenChange }: CycleDetailDialogProp
 
             <div className="mt-2 space-y-1">
               <p className="mb-2 text-sm font-medium">
-                Quem ainda precisa responder
+                Progresso por pessoa
                 <span className="ml-1.5 font-normal text-muted-foreground">
-                  — em ordem de pendência
+                  — quem menos respondeu primeiro
                 </span>
               </p>
 
@@ -148,7 +148,7 @@ export function CycleDetailDialog({ cycle, onOpenChange }: CycleDetailDialogProp
 
               {porPessoa.map((p) => (
                 <div
-                  key={p.nome}
+                  key={p.id}
                   className={cn(
                     "flex items-center gap-3 rounded-lg border p-3",
                     p.pct === 100 && "bg-muted/30",

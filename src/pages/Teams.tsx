@@ -32,15 +32,11 @@ function TeamsGridSkeleton() {
 }
 
 export default function Teams() {
-  const navigate = useNavigate();
+  // Quem não é admin enxerga a estrutura e não a altera. Antes a página
+  // expulsava com "Sem permissão", mas o item "Times" aparece no menu do
+  // gestor — ele clicava e era mandado de volta para a home. Saber quem está
+  // em que time não é informação restrita; mexer é que é.
   const { isAdmin, isLoading: permsLoading } = useUserPermissions();
-
-  useEffect(() => {
-    if (!permsLoading && !isAdmin) {
-      toast.error("Sem permissão para gerenciar equipes.");
-      navigate("/", { replace: true });
-    }
-  }, [isAdmin, permsLoading, navigate]);
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [membersDialogOpen, setMembersDialogOpen] = useState(false);
@@ -101,8 +97,7 @@ export default function Teams() {
     refetchCounts();
   };
 
-  // Enquanto valida permissão, evita piscar a página (redireciona no efeito).
-  if (permsLoading || !isAdmin) {
+  if (permsLoading) {
     return (
       <AppLayout>
         <TeamsGridSkeleton />
@@ -120,13 +115,19 @@ export default function Teams() {
       <div className="space-y-6">
         <PageHeader
           title="Times"
-          description="Gerencie as equipes da sua empresa"
+          description={
+            isAdmin
+              ? "Gerencie as equipes da sua empresa"
+              : "Áreas, times e squads da empresa"
+          }
           icon={Users}
           actions={
-            <Button className="gap-2" onClick={() => setCreateDialogOpen(true)}>
-              <Plus className="h-4 w-4" />
-              Novo Time
-            </Button>
+            isAdmin ? (
+              <Button className="gap-2" onClick={() => setCreateDialogOpen(true)}>
+                <Plus className="h-4 w-4" />
+                Novo Time
+              </Button>
+            ) : undefined
           }
         />
 
@@ -141,11 +142,16 @@ export default function Teams() {
           <EmptyState
             icon={Users}
             title="Nenhum time criado"
-            description="Crie seu primeiro time para organizar os membros da empresa."
-            action={{
-              label: "Criar time",
-              onClick: () => setCreateDialogOpen(true),
-            }}
+            description={
+              isAdmin
+                ? "Crie seu primeiro time para organizar os membros da empresa."
+                : "A empresa ainda não organizou os times."
+            }
+            action={
+              isAdmin
+                ? { label: "Criar time", onClick: () => setCreateDialogOpen(true) }
+                : undefined
+            }
           />
         ) : (
           <>
@@ -165,8 +171,9 @@ export default function Teams() {
               teams={filteredTeams}
               membersByTeam={membersByTeam}
               onManageMembers={handleManageMembers}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
+              onEdit={isAdmin ? handleEdit : undefined}
+              onDelete={isAdmin ? handleDelete : undefined}
+              canManage={isAdmin}
               isSearching={!!searchQuery}
             />
           </>

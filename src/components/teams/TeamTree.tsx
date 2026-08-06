@@ -4,7 +4,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
-  Users, ChevronRight, Settings2, Layers, ArrowLeft, Building2, Search,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Users, ChevronRight, Layers, ArrowLeft, Building2, Search,
+  MoreHorizontal, Trash2, Pencil,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Team } from "@/hooks/useTeams";
@@ -14,8 +22,10 @@ interface TeamTreeProps {
   /** user_ids por time — a contagem sai daqui para não somar ninguém duas vezes. */
   membersByTeam: Record<string, string[]>;
   onManageMembers: (team: Team) => void;
-  onEdit: (team: Team) => void;
-  onDelete?: (team: Team) => void;
+  onEdit?: (team: Team) => void;
+  onDelete?: (teamId: string) => void;
+  /** Sem isto a árvore é só de leitura: nenhum botão de alterar aparece. */
+  canManage?: boolean;
   /** Busca ativa: mostra tudo de uma vez, sem exigir navegar até o item. */
   isSearching?: boolean;
 }
@@ -38,9 +48,45 @@ const CORES: Record<string, string> = {
  * Durante uma busca a navegação é ignorada e o resultado aparece plano — quem
  * digita já sabe o que procura e não deveria ter que achar a área antes.
  */
-export function TeamTree({
-  teams, membersByTeam, onManageMembers, onEdit, onDelete, isSearching,
-}: TeamTreeProps) {
+export function TeamTree(props: TeamTreeProps) {
+  const [excluindo, setExcluindo] = useState<Team | null>(null);
+  const { onDelete } = props;
+
+  return (
+    <>
+      <Niveis {...props} onPedirExclusao={setExcluindo} />
+
+      <AlertDialog open={!!excluindo} onOpenChange={(o) => !o && setExcluindo(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir "{excluindo?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Os vínculos das pessoas com este time são apagados junto. Elas
+              continuam na empresa — só deixam de pertencer a ele. Não dá para desfazer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (excluindo) onDelete?.(excluindo.id);
+                setExcluindo(null);
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+function Niveis({
+  teams, membersByTeam, onManageMembers, onEdit, onDelete, canManage = true, isSearching,
+  onPedirExclusao,
+}: TeamTreeProps & { onPedirExclusao: (t: Team) => void }) {
   const [areaAberta, setAreaAberta] = useState<string | null>(null);
   const [timeAberto, setTimeAberto] = useState<string | null>(null);
 
@@ -101,8 +147,13 @@ export function TeamTree({
             key={t.id} team={t}
             total={t.parent_team_id ? (membersByTeam[t.id] ?? []).length : dados.totalDoTime(t)}
             squads={t.parent_team_id ? 0 : dados.squadsDe(t.id).length}
-            caminho={t.department ?? undefined}
-            onManageMembers={onManageMembers} onEdit={onEdit} onDelete={onDelete}
+            caminho={
+              t.parent_team_id
+                ? teams.find((p) => p.id === t.parent_team_id)?.name ?? undefined
+                : t.department ?? undefined
+            }
+            canManage={canManage}
+            onManageMembers={onManageMembers} onEdit={onEdit} onDelete={onDelete ? onPedirExclusao : undefined}
           />
         ))}
       </div>
@@ -136,7 +187,7 @@ export function TeamTree({
             {dados.totalDoTime(time)} no time
           </span>
           <Button variant="outline" size="sm" onClick={() => onManageMembers(time)}>
-            Membros do time
+            {canManage ? "Membros do time" : "Ver membros"}
           </Button>
         </div>
 
@@ -154,7 +205,8 @@ export function TeamTree({
             {squads.map((s) => (
               <LinhaTime
                 key={s.id} team={s} total={(membersByTeam[s.id] ?? []).length} squads={0}
-                onManageMembers={onManageMembers} onEdit={onEdit} onDelete={onDelete}
+                canManage={canManage}
+                onManageMembers={onManageMembers} onEdit={onEdit} onDelete={onDelete ? onPedirExclusao : undefined}
               />
             ))}
           </div>
@@ -190,7 +242,8 @@ export function TeamTree({
               <LinhaTime
                 key={t.id} team={t} total={dados.totalDoTime(t)} squads={qtdSquads}
                 onAbrir={qtdSquads > 0 ? () => setTimeAberto(t.id) : undefined}
-                onManageMembers={onManageMembers} onEdit={onEdit} onDelete={onDelete}
+                canManage={canManage}
+                onManageMembers={onManageMembers} onEdit={onEdit} onDelete={onDelete ? onPedirExclusao : undefined}
               />
             );
           })}
@@ -267,11 +320,12 @@ function Trilha({
 }
 
 function LinhaTime({
-  team, total, squads, caminho, onAbrir, onManageMembers, onEdit, onDelete,
+  team, total, squads, caminho, onAbrir, canManage, onManageMembers, onEdit, onDelete,
 }: {
   team: Team; total: number; squads: number; caminho?: string;
   onAbrir?: () => void;
-  onManageMembers: (t: Team) => void; onEdit: (t: Team) => void; onDelete?: (t: Team) => void;
+  canManage?: boolean;
+  onManageMembers: (t: Team) => void; onEdit?: (t: Team) => void; onDelete?: (t: Team) => void;
 }) {
   return (
     <div
@@ -309,9 +363,31 @@ function LinhaTime({
         <Button variant="ghost" size="sm" onClick={() => onManageMembers(team)}>
           Membros
         </Button>
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(team)}>
-          <Settings2 className="h-4 w-4" />
-        </Button>
+        {/* Excluir não existia na tela nova: o único lugar com a ação era o card
+            antigo, que ficou órfão na reformulação. */}
+        {canManage && (onEdit || onDelete) && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Ações de ${team.name}`}>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {onEdit && (
+                <DropdownMenuItem onClick={() => onEdit(team)}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Editar
+                </DropdownMenuItem>
+              )}
+              {onDelete && (
+                <DropdownMenuItem onClick={() => onDelete(team)} className="text-destructive">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Excluir
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
       {onAbrir && <ChevronRight className="h-4 w-4 shrink-0 text-primary" />}

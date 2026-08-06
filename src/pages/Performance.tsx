@@ -3,7 +3,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, ClipboardCheck, ListChecks, BarChart3, Settings2 } from "lucide-react";
+import { Plus, ClipboardCheck, ListChecks } from "lucide-react";
 import { PerformanceStats } from "@/components/performance/PerformanceStats";
 import { CycleCard } from "@/components/performance/CycleCard";
 import { CreateCycleDialog } from "@/components/performance/CreateCycleDialog";
@@ -162,7 +162,9 @@ export default function Performance() {
               preencher a própria — e são 10 pessoas nessa situação. A aba vem
               primeiro e já abre selecionada quando há algo pendente. */}
           <Tabs defaultValue={pendingEvaluations.length > 0 ? "mine" : "cycles"}>
-            <TabsList>
+            {/* h-auto + flex-wrap: cinco abas com ícone não cabem em 390px e
+                ficavam cortadas, sem como alcançar as últimas. */}
+            <TabsList className="h-auto flex-wrap justify-start gap-1">
               <TabsTrigger value="mine" className="gap-2">
                 <ClipboardCheck className="h-4 w-4" />
                 Minhas avaliações
@@ -180,14 +182,7 @@ export default function Performance() {
                 <ListChecks className="h-4 w-4" />
                 Avaliações
               </TabsTrigger>
-              <TabsTrigger value="results" className="gap-2">
-                <BarChart3 className="h-4 w-4" />
-                Resultados
-              </TabsTrigger>
-              <TabsTrigger value="automation" className="gap-2">
-                <Settings2 className="h-4 w-4" />
-                Automação
-              </TabsTrigger>
+
             </TabsList>
 
             <div className="mt-6">
@@ -297,21 +292,7 @@ export default function Performance() {
                     />
                   </TabsContent>
 
-                  <TabsContent value="results" className="mt-0">
-                    <EmptyState
-                      icon={BarChart3}
-                      title="Em breve"
-                      description="Resultados e relatórios de desempenho aparecerão aqui quando estiverem disponíveis."
-                    />
-                  </TabsContent>
 
-                  <TabsContent value="automation" className="mt-0">
-                    <EmptyState
-                      icon={Settings2}
-                      title="Em breve"
-                      description="A configuração de automações de avaliação estará disponível em breve."
-                    />
-                  </TabsContent>
                 </>
               )}
             </div>

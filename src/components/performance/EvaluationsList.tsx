@@ -35,11 +35,13 @@ interface EvaluationsListProps {
   isReminding?: boolean;
 }
 
+// Tokens semânticos em vez de paleta crua: `bg-amber-100` não muda no tema
+// escuro e virava um bloco claro berrante no meio da tabela.
 const statusConfig: Record<EvaluationStatus, { label: string; icon: React.ElementType; className: string }> = {
-  pending: { label: "Pendente", icon: Clock, className: "text-amber-600 bg-amber-100" },
-  in_progress: { label: "Em Andamento", icon: AlertCircle, className: "text-blue-600 bg-blue-100" },
-  completed: { label: "Concluída", icon: CheckCircle, className: "text-emerald-600 bg-emerald-100" },
-  expired: { label: "Expirada", icon: AlertCircle, className: "text-red-600 bg-red-100" },
+  pending: { label: "Pendente", icon: Clock, className: "text-warning bg-warning/10 border-warning/20" },
+  in_progress: { label: "Em andamento", icon: AlertCircle, className: "text-primary bg-primary/10 border-primary/20" },
+  completed: { label: "Concluída", icon: CheckCircle, className: "text-success bg-success/10 border-success/20" },
+  expired: { label: "Expirada", icon: AlertCircle, className: "text-destructive bg-destructive/10 border-destructive/20" },
 };
 
 export function EvaluationsList({
@@ -107,17 +109,17 @@ export function EvaluationsList({
                 Cobrar {pendentesNoFiltro} pendente{pendentesNoFiltro === 1 ? "" : "s"}
               </Button>
             )}
-            <div className="relative">
+            <div className="relative w-full sm:w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 w-[200px]"
+                className="pl-9"
               />
             </div>
             <Select value={cycleFilter} onValueChange={setCycleFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Ciclo" />
               </SelectTrigger>
               <SelectContent>
@@ -130,7 +132,7 @@ export function EvaluationsList({
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[150px]">
+              <SelectTrigger className="w-full sm:w-[150px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>

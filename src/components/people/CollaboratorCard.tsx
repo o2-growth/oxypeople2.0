@@ -9,9 +9,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Mail, UserX, UserCheck, Calendar } from "lucide-react";
+import { MoreVertical, Mail, UserX, UserCheck, Calendar, Pencil } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 import type { CompanyMember } from "@/hooks/usePeopleList";
 
 interface CollaboratorCardProps {
@@ -19,6 +20,9 @@ interface CollaboratorCardProps {
   birthDate?: string | null;
   isAdmin?: boolean;
   onToggleStatus?: (membershipId: string, currentStatus: string) => void;
+  /** Abre a ficha, como o clique no nome já faz na tabela. */
+  onOpenDetail?: (member: CompanyMember) => void;
+  onEdit?: (member: CompanyMember) => void;
 }
 
 const roleLabels: Record<string, string> = {
@@ -33,13 +37,17 @@ export function CollaboratorCard({
   birthDate,
   isAdmin,
   onToggleStatus,
+  onOpenDetail,
+  onEdit,
 }: CollaboratorCardProps) {
+  // Sem o uppercase, o mesmo avatar aparecia "jo" aqui e "JO" na ficha e em Times.
   const initials =
     member.user?.full_name
       ?.split(" ")
       .map((n) => n[0])
       .join("")
-      .slice(0, 2) || "?";
+      .slice(0, 2)
+      .toUpperCase() || "?";
 
   const departmentColor = member.department_info?.color || "#3B82F6";
 
@@ -48,13 +56,21 @@ export function CollaboratorCard({
     : null;
 
   return (
-    <Card className="overflow-hidden hover:shadow-md transition-shadow">
+    <Card
+      onClick={onOpenDetail ? () => onOpenDetail(member) : undefined}
+      className={cn(
+        "overflow-hidden transition-shadow hover:shadow-md",
+        onOpenDetail && "cursor-pointer",
+      )}
+    >
       {/* Department Header */}
       <div
-        className="px-4 py-2 flex items-center justify-between"
-        style={{ backgroundColor: departmentColor }}
+        className="flex items-center justify-between border-b px-4 py-2"
+        style={{ backgroundColor: `${departmentColor}1f` }}
       >
-        <span className="text-sm font-medium text-white truncate">
+        {/* A cor da área entra a 12% como fundo e cheia no texto: com o hex
+            puro atrás de texto branco fixo, uma área amarela ficava ilegível. */}
+        <span className="truncate text-sm font-medium" style={{ color: departmentColor }}>
           {member.department_info?.name || "Sem área"}
         </span>
         {isAdmin && (
@@ -63,12 +79,20 @@ export function CollaboratorCard({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 text-white/80 hover:text-white hover:bg-white/20"
+                className="h-6 w-6"
+                aria-label={`Ações de ${member.user?.full_name ?? "colaborador"}`}
+                onClick={(e) => e.stopPropagation()}
               >
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+              {onEdit && (
+                <DropdownMenuItem onClick={() => onEdit(member)}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Editar
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 onClick={() =>
                   window.open(`mailto:${member.user?.email}`, "_blank")
@@ -113,7 +137,7 @@ export function CollaboratorCard({
 
         {/* Name */}
         <h3 className="font-semibold text-foreground truncate w-full">
-          {member.user?.full_name || "Sem nome"}
+          {member.user?.full_name || member.user?.email || "Sem nome"}
         </h3>
 
         {/* Position */}
