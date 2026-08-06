@@ -162,20 +162,14 @@ export default function Teams() {
               />
             </div>
 
-            {filteredTeams.length === 0 ? (
-              <EmptyState
-                icon={Search}
-                title="Nenhum time encontrado"
-                description="Tente buscar com outros termos."
-              />
-            ) : (
-              <TeamTree
-                teams={filteredTeams}
-                memberCounts={memberCounts}
-                onManageMembers={handleManageMembers}
-                onEdit={handleEdit}
-              />
-            )}
+            <TeamTree
+              teams={filteredTeams}
+              memberCounts={memberCounts}
+              onManageMembers={handleManageMembers}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              isSearching={!!searchQuery}
+            />
           </>
         )}
 
