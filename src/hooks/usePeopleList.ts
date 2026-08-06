@@ -28,6 +28,8 @@ export interface CompanyMember {
     name: string;
     color: string | null;
   } | null;
+  /** Quem lidera a pessoa — é daqui que sai a hierarquia da avaliação de desempenho. */
+  manager_id: string | null;
   role: "owner" | "admin" | "manager" | "member" | null;
 }
 
@@ -226,19 +228,30 @@ export function useUpdateMember() {
       position,
       department_id,
       role,
+      manager_id,
+      teamIds,
     }: {
       membershipId: string;
       userId: string;
       position?: string;
       department_id?: string | null;
       role?: "owner" | "admin" | "manager" | "member";
+      /** Quem lidera a pessoa. `null` remove o gestor. */
+      manager_id?: string | null;
+      /** Times e squads onde a pessoa fica. Substitui os vínculos atuais. */
+      teamIds?: string[];
     }) => {
       const companyId = profile?.primary_company_id;
       if (!companyId) throw new Error("Company not found");
 
+      if (manager_id === userId) {
+        throw new Error("Uma pessoa não pode ser gestora de si mesma");
+      }
+
       const membershipUpdates: Record<string, unknown> = {};
       if (position !== undefined) membershipUpdates.position = position || null;
       if (department_id !== undefined) membershipUpdates.department_id = department_id || null;
+      if (manager_id !== undefined) membershipUpdates.manager_id = manager_id;
 
       if (Object.keys(membershipUpdates).length > 0) {
         const { error } = await supabase
@@ -254,10 +267,43 @@ export function useUpdateMember() {
           .upsert({ user_id: userId, company_id: companyId, role }, { onConflict: "user_id,company_id" });
         if (error) throw error;
       }
+
+      // Times: calcula a diferença em vez de apagar e reinserir tudo — recriar
+      // o vínculo perderia o papel de líder de quem já era líder ali.
+      if (teamIds !== undefined) {
+        const { data: atuais, error: readErr } = await supabase
+          .from("team_members")
+          .select("id, team_id")
+          .eq("user_id", userId);
+        if (readErr) throw readErr;
+
+        const tinha = new Set((atuais ?? []).map((t) => t.team_id));
+        const quer = new Set(teamIds);
+
+        const sair = (atuais ?? []).filter((t) => !quer.has(t.team_id)).map((t) => t.id);
+        const entrar = teamIds.filter((id) => !tinha.has(id));
+
+        if (sair.length) {
+          const { error } = await supabase.from("team_members").delete().in("id", sair);
+          if (error) throw error;
+        }
+        if (entrar.length) {
+          const { error } = await supabase
+            .from("team_members")
+            .insert(entrar.map((team_id) => ({ team_id, user_id: userId, role: "member" })));
+          if (error) throw error;
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["people-list"] });
       queryClient.invalidateQueries({ queryKey: ["people-stats"] });
+      // A mudança de time e de gestor reflete em Times e no organograma.
+      queryClient.invalidateQueries({ queryKey: ["teams-by-user"] });
+      queryClient.invalidateQueries({ queryKey: ["team-members-by-team"] });
+      queryClient.invalidateQueries({ queryKey: ["team-members"] });
+      queryClient.invalidateQueries({ queryKey: ["organization-hierarchy"] });
+      queryClient.invalidateQueries({ queryKey: ["areas-teams-hierarchy"] });
       toast.success("Colaborador atualizado com sucesso!");
     },
     onError: (error) => {
