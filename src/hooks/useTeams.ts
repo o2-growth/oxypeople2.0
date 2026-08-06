@@ -12,6 +12,10 @@ export interface Team {
   company_id: string;
   created_at: string;
   updated_at: string;
+  /** Time ao qual este squad pertence. Nulo = é um time, não um squad. */
+  parent_team_id: string | null;
+  status: string;
+  order_index: number;
 }
 
 export interface TeamMember {

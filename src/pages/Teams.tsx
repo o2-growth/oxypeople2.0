@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/QueryError";
+import { TeamTree } from "@/components/teams/TeamTree";
 import { TeamCard } from "@/components/teams/TeamCard";
 import { CreateTeamDialog } from "@/components/teams/CreateTeamDialog";
 import { TeamMembersDialog } from "@/components/teams/TeamMembersDialog";
@@ -168,18 +169,12 @@ export default function Teams() {
                 description="Tente buscar com outros termos."
               />
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {filteredTeams.map((team) => (
-                  <TeamCard
-                    key={team.id}
-                    team={team}
-                    memberCount={memberCounts[team.id] ?? 0}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                    onManageMembers={handleManageMembers}
-                  />
-                ))}
-              </div>
+              <TeamTree
+                teams={filteredTeams}
+                memberCounts={memberCounts}
+                onManageMembers={handleManageMembers}
+                onEdit={handleEdit}
+              />
             )}
           </>
         )}

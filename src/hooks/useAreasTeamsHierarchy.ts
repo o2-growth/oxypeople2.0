@@ -19,31 +19,48 @@ export function useAreasTeamsHierarchy() {
           supabase
             .from("teams")
             .select(`
-              id, name, department_id,
+              id, name, department_id, parent_team_id, status, order_index,
               team_members(
                 user_id, role,
                 users!team_members_user_id_fkey(id, full_name, avatar_url, email)
               )
             `)
             .eq("company_id", companyId)
-            .order("name"),
+            .order("order_index"),
         ]);
 
       if (deptsErr) throw deptsErr;
       if (teamsErr) throw teamsErr;
 
+      // Membros de um time/squad viram folhas da árvore.
+      const membrosDe = (team: any): HierarchyNode[] =>
+        ((team.team_members as any[]) ?? []).map((m) => ({
+          id: `member-${m.user_id}`,
+          type: "member" as const,
+          name: m.users?.full_name || m.users?.email || "Sem nome",
+          role: m.role === "lead" || m.role === "leader" ? "Líder" : "Membro",
+          email: m.users?.email ?? "",
+          avatarUrl: m.users?.avatar_url ?? "",
+          children: [],
+        }));
+
       const deptNodes: HierarchyNode[] = (departments ?? []).map((dept) => {
-        const deptTeams = (teams ?? []).filter((t) => t.department_id === dept.id);
+        // Só os times (sem pai) penduram direto na área; squads entram sob o
+        // time deles. Sem esta separação os 13 squads apareceriam no mesmo
+        // nível dos times, como se fossem irmãos.
+        const deptTeams = (teams ?? []).filter(
+          (t) => t.department_id === dept.id && !t.parent_team_id,
+        );
 
         const teamNodes: HierarchyNode[] = deptTeams.map((team) => {
-          const memberNodes: HierarchyNode[] = ((team.team_members as any[]) ?? []).map((m) => ({
-            id: `member-${m.user_id}`,
-            type: "member" as const,
-            name: m.users?.full_name || m.users?.email || "Sem nome",
-            role: m.role === "leader" ? "Líder" : "Membro",
-            email: m.users?.email ?? "",
-            avatarUrl: m.users?.avatar_url ?? "",
-            children: [],
+          const squads = (teams ?? []).filter((s) => s.parent_team_id === team.id);
+
+          const squadNodes: HierarchyNode[] = squads.map((squad) => ({
+            id: `team-${squad.id}`,
+            type: "team" as const,
+            name: squad.name,
+            role: squad.status === "building" ? "Squad · em construção" : "Squad",
+            children: membrosDe(squad),
           }));
 
           return {
@@ -51,7 +68,9 @@ export function useAreasTeamsHierarchy() {
             type: "team" as const,
             name: team.name,
             role: "Time",
-            children: memberNodes,
+            // Squads primeiro, depois quem está direto no time: a subdivisão
+            // é a informação principal quando ela existe.
+            children: [...squadNodes, ...membrosDe(team)],
           };
         });
 
