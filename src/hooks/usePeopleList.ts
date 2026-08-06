@@ -217,6 +217,45 @@ export function useInviteMember() {
   });
 }
 
+/**
+ * Deixa a pessoa exatamente nos times pedidos.
+ *
+ * Calcula a diferença em vez de apagar tudo e reinserir: recriar o vínculo
+ * gravaria `role: member` e rebaixaria quem liderava aquele time. Só sai de
+ * onde saiu e só entra onde entrou.
+ */
+async function sincronizarTimes(userId: string, teamIds: string[]) {
+  const { data: atuais, error: readErr } = await supabase
+    .from("team_members")
+    .select("id, team_id")
+    .eq("user_id", userId);
+  if (readErr) throw readErr;
+
+  const tinha = new Set((atuais ?? []).map((t) => t.team_id));
+  const quer = new Set(teamIds);
+
+  const sair = (atuais ?? []).filter((t) => !quer.has(t.team_id)).map((t) => t.id);
+  const entrar = teamIds.filter((id) => !tinha.has(id));
+
+  if (sair.length) {
+    const { error } = await supabase.from("team_members").delete().in("id", sair);
+    if (error) throw error;
+  }
+  if (entrar.length) {
+    const { error } = await supabase
+      .from("team_members")
+      .insert(entrar.map((team_id) => ({ team_id, user_id: userId, role: "member" })));
+    if (error) throw error;
+  }
+}
+
+/** Times, gestor e organograma leem as mesmas linhas — todos precisam recarregar juntos. */
+const CHAVES_DE_ESTRUTURA = [
+  "people-list", "people-stats", "collaborator-detail",
+  "teams-by-user", "team-members-by-team", "team-members",
+  "organization-hierarchy", "areas-teams-hierarchy",
+];
+
 export function useUpdateMember() {
   const queryClient = useQueryClient();
   const { profile } = useUser();
@@ -268,42 +307,10 @@ export function useUpdateMember() {
         if (error) throw error;
       }
 
-      // Times: calcula a diferença em vez de apagar e reinserir tudo — recriar
-      // o vínculo perderia o papel de líder de quem já era líder ali.
-      if (teamIds !== undefined) {
-        const { data: atuais, error: readErr } = await supabase
-          .from("team_members")
-          .select("id, team_id")
-          .eq("user_id", userId);
-        if (readErr) throw readErr;
-
-        const tinha = new Set((atuais ?? []).map((t) => t.team_id));
-        const quer = new Set(teamIds);
-
-        const sair = (atuais ?? []).filter((t) => !quer.has(t.team_id)).map((t) => t.id);
-        const entrar = teamIds.filter((id) => !tinha.has(id));
-
-        if (sair.length) {
-          const { error } = await supabase.from("team_members").delete().in("id", sair);
-          if (error) throw error;
-        }
-        if (entrar.length) {
-          const { error } = await supabase
-            .from("team_members")
-            .insert(entrar.map((team_id) => ({ team_id, user_id: userId, role: "member" })));
-          if (error) throw error;
-        }
-      }
+      if (teamIds !== undefined) await sincronizarTimes(userId, teamIds);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["people-list"] });
-      queryClient.invalidateQueries({ queryKey: ["people-stats"] });
-      // A mudança de time e de gestor reflete em Times e no organograma.
-      queryClient.invalidateQueries({ queryKey: ["teams-by-user"] });
-      queryClient.invalidateQueries({ queryKey: ["team-members-by-team"] });
-      queryClient.invalidateQueries({ queryKey: ["team-members"] });
-      queryClient.invalidateQueries({ queryKey: ["organization-hierarchy"] });
-      queryClient.invalidateQueries({ queryKey: ["areas-teams-hierarchy"] });
+      for (const k of CHAVES_DE_ESTRUTURA) queryClient.invalidateQueries({ queryKey: [k] });
       toast.success("Colaborador atualizado com sucesso!");
     },
     onError: (error) => {
@@ -519,6 +526,7 @@ export interface CollaboratorDetail {
   employment_type: string | null;
   status: "active" | "invited" | "pending" | "inactive";
   role: "owner" | "admin" | "manager" | "member" | null;
+  manager_id: string | null;
 }
 
 export function useCollaboratorDetail(membershipId: string | null) {
@@ -530,7 +538,7 @@ export function useCollaboratorDetail(membershipId: string | null) {
       const { data: mb, error: mbError } = await supabase
         .from("company_memberships")
         .select(`
-          id, user_id, position, department_id, hire_date, employment_type, status,
+          id, user_id, position, department_id, hire_date, employment_type, status, manager_id,
           department_info:departments(id, name, color),
           user:users!company_memberships_user_id_fkey(id, full_name, email, avatar_url, metadata)
         `)
@@ -570,6 +578,7 @@ export function useCollaboratorDetail(membershipId: string | null) {
         employment_type: mb.employment_type,
         status: mb.status as CollaboratorDetail["status"],
         role: (roleRow?.role as CollaboratorDetail["role"]) ?? "member",
+        manager_id: mb.manager_id ?? null,
       };
     },
     enabled: !!membershipId,
@@ -592,6 +601,8 @@ export function useAdminUpdateCollaborator() {
       employment_type,
       status,
       role,
+      manager_id,
+      teamIds,
     }: {
       membershipId: string;
       userId: string;
@@ -603,9 +614,12 @@ export function useAdminUpdateCollaborator() {
       employment_type?: string | null;
       status?: "active" | "inactive";
       role?: "owner" | "admin" | "manager" | "member";
+      manager_id?: string | null;
+      teamIds?: string[];
     }) => {
       const companyId = profile?.primary_company_id;
       if (!companyId) throw new Error("Empresa não identificada");
+      if (manager_id === userId) throw new Error("Uma pessoa não pode ser gestora de si mesma");
 
       // Update user table (full_name + metadata) — requires admin RLS policy
       const userUpdates: Record<string, unknown> = {};
@@ -623,6 +637,7 @@ export function useAdminUpdateCollaborator() {
       if (hire_date !== undefined) mbUpdates.hire_date = hire_date || null;
       if (employment_type !== undefined) mbUpdates.employment_type = employment_type || null;
       if (status !== undefined) mbUpdates.status = status;
+      if (manager_id !== undefined) mbUpdates.manager_id = manager_id;
       if (Object.keys(mbUpdates).length > 0) {
         const { error } = await supabase.from("company_memberships").update(mbUpdates).eq("id", membershipId);
         if (error) throw error;
@@ -635,11 +650,11 @@ export function useAdminUpdateCollaborator() {
           .upsert({ user_id: userId, company_id: companyId, role }, { onConflict: "user_id,company_id" });
         if (error) throw error;
       }
+
+      if (teamIds !== undefined) await sincronizarTimes(userId, teamIds);
     },
-    onSuccess: (_, { membershipId }) => {
-      queryClient.invalidateQueries({ queryKey: ["collaborator-detail", membershipId] });
-      queryClient.invalidateQueries({ queryKey: ["people-list"] });
-      queryClient.invalidateQueries({ queryKey: ["people-stats"] });
+    onSuccess: () => {
+      for (const k of CHAVES_DE_ESTRUTURA) queryClient.invalidateQueries({ queryKey: [k] });
       toast.success("Colaborador atualizado!");
     },
     onError: (error) => {

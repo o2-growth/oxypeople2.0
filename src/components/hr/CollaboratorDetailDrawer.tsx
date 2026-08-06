@@ -35,6 +35,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUser } from "@/hooks/useUser";
 import { toast } from "sonner";
 import { useDepartmentOptions } from "@/hooks/usePeopleWithBirthdays";
+import { useTeamsByUser } from "@/hooks/useTeams";
+import { ManagerSelect, SEM_GESTOR } from "@/components/people/ManagerSelect";
+import { TeamsSelect } from "@/components/people/TeamsSelect";
 
 const NO_DEPT = "__none__";
 
@@ -73,6 +76,8 @@ interface Props {
 
 export function CollaboratorDetailDrawer({ membershipId, open, onOpenChange, isAdmin }: Props) {
   const { data, isLoading } = useCollaboratorDetail(membershipId);
+  const { data: timesPorPessoa = {} } = useTeamsByUser();
+  const [times, setTimes] = useState<string[]>([]);
   const { data: departments = [] } = useDepartmentOptions();
   const updateCollaborator = useAdminUpdateCollaborator();
   const { profile } = useUser();
@@ -112,6 +117,7 @@ export function CollaboratorDetailDrawer({ membershipId, open, onOpenChange, isA
     employment_type: "",
     status: "active" as "active" | "inactive",
     role: "member" as "owner" | "admin" | "manager" | "member",
+    manager_id: SEM_GESTOR,
     phone: "",
     personal_email: "",
     cpf: "",
@@ -132,6 +138,7 @@ export function CollaboratorDetailDrawer({ membershipId, open, onOpenChange, isA
         employment_type: data.employment_type ?? "",
         status: data.status === "active" ? "active" : "inactive",
         role: data.role ?? "member",
+        manager_id: data.manager_id ?? SEM_GESTOR,
         phone: data.phone ?? "",
         personal_email: data.personal_email ?? "",
         cpf: data.cpf ?? "",
@@ -141,8 +148,9 @@ export function CollaboratorDetailDrawer({ membershipId, open, onOpenChange, isA
         razao_social: data.razao_social ?? "",
         calendar_link: data.calendar_link ?? "",
       });
+      setTimes((timesPorPessoa[data.userId] ?? []).map((t) => t.id));
     }
-  }, [data]);
+  }, [data, timesPorPessoa]);
 
   const set = (field: string, value: string) =>
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -172,6 +180,8 @@ export function CollaboratorDetailDrawer({ membershipId, open, onOpenChange, isA
       employment_type: form.employment_type || null,
       status: form.status,
       role: form.role,
+      manager_id: form.manager_id === SEM_GESTOR ? null : form.manager_id,
+      teamIds: times,
     });
   };
 
@@ -241,8 +251,29 @@ export function CollaboratorDetailDrawer({ membershipId, open, onOpenChange, isA
                       </SelectContent>
                     </Select>
                   </div>
+                  {/* Gestor e times ficam junto do resto do vínculo: eram os
+                      dois únicos campos da ficha que só existiam por script ou
+                      entrando no time por outra tela. */}
                   <div className="space-y-1.5">
-                    <Label>Função</Label>
+                    <Label>Gestor</Label>
+                    <ManagerSelect
+                      value={form.manager_id}
+                      onChange={(v) => set("manager_id", v)}
+                      excludeUserId={data?.userId}
+                      disabled={!isAdmin}
+                    />
+                  </div>
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label>Times e squads</Label>
+                    <TeamsSelect
+                      value={times}
+                      onChange={setTimes}
+                      userId={data?.userId}
+                      disabled={!isAdmin}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Acesso na plataforma</Label>
                     <Select value={form.role} onValueChange={(v) => set("role", v)} disabled={!isAdmin}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
