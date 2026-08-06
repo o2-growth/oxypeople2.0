@@ -32,6 +32,30 @@ const Auth = () => {
     }
   }, [user, from, navigate]);
 
+  // O Supabase devolve o erro do OAuth na URL de retorno, não na chamada que
+  // iniciou o fluxo — sem ler daqui, a pessoa via o JSON cru da API na tela.
+  useEffect(() => {
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const query = new URLSearchParams(window.location.search);
+    const code = hash.get("error_code") ?? query.get("error_code");
+    const desc = hash.get("error_description") ?? query.get("error_description");
+    if (!code && !desc) return;
+
+    const provedorDesligado =
+      code === "validation_failed" || /provider is not enabled/i.test(desc ?? "");
+
+    toast({
+      title: provedorDesligado ? "Login com Google indisponível" : "Não foi possível entrar",
+      description: provedorDesligado
+        ? "Ainda não está habilitado. Use e-mail e senha por enquanto."
+        : desc ?? "Tente novamente.",
+      variant: "destructive",
+    });
+
+    // Limpa a URL para o erro não reaparecer a cada recarga.
+    window.history.replaceState({}, "", window.location.pathname);
+  }, [toast]);
+
   if (user) {
     // Não renderiza o formulário para quem já está autenticado.
     return null;
