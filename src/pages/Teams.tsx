@@ -8,14 +8,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/QueryError";
 import { TeamTree } from "@/components/teams/TeamTree";
-import { TeamCard } from "@/components/teams/TeamCard";
 import { CreateTeamDialog } from "@/components/teams/CreateTeamDialog";
 import { TeamMembersDialog } from "@/components/teams/TeamMembersDialog";
 import {
   Team,
   useTeams,
   useDeleteTeam,
-  useTeamMemberCounts,
+  useTeamMembersByTeam,
 } from "@/hooks/useTeams";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { Users, Plus, Search } from "lucide-react";
@@ -58,11 +57,11 @@ export default function Teams() {
 
   const teamIds = teams.map((team) => team.id);
   const {
-    data: memberCounts = {},
+    data: membersByTeam = {},
     isLoading: countsLoading,
     isError: countsError,
     refetch: refetchCounts,
-  } = useTeamMemberCounts(teamIds);
+  } = useTeamMembersByTeam(teamIds);
 
   const deleteTeam = useDeleteTeam();
 
@@ -164,7 +163,7 @@ export default function Teams() {
 
             <TeamTree
               teams={filteredTeams}
-              memberCounts={memberCounts}
+              membersByTeam={membersByTeam}
               onManageMembers={handleManageMembers}
               onEdit={handleEdit}
               onDelete={handleDelete}

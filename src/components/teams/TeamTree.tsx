@@ -11,7 +11,8 @@ import type { Team } from "@/hooks/useTeams";
 
 interface TeamTreeProps {
   teams: Team[];
-  memberCounts: Record<string, number>;
+  /** user_ids por time — a contagem sai daqui para não somar ninguém duas vezes. */
+  membersByTeam: Record<string, string[]>;
   onManageMembers: (team: Team) => void;
   onEdit: (team: Team) => void;
   onDelete?: (team: Team) => void;
@@ -38,7 +39,7 @@ const CORES: Record<string, string> = {
  * digita já sabe o que procura e não deveria ter que achar a área antes.
  */
 export function TeamTree({
-  teams, memberCounts, onManageMembers, onEdit, onDelete, isSearching,
+  teams, membersByTeam, onManageMembers, onEdit, onDelete, isSearching,
 }: TeamTreeProps) {
   const [areaAberta, setAreaAberta] = useState<string | null>(null);
   const [timeAberto, setTimeAberto] = useState<string | null>(null);
@@ -50,10 +51,22 @@ export function TeamTree({
         .filter((s) => s.parent_team_id === id)
         .sort((a, b) => a.order_index - b.order_index || a.name.localeCompare(b.name));
 
+    /**
+     * Pessoas distintas de um recorte de times.
+     *
+     * Somar as contagens daria número inflado onde alguém ocupa duas cadeiras
+     * na mesma área — a líder de Serviços Especiais também atende como CFO
+     * dentro do CAAS, e apareceria como duas pessoas na Operação.
+     */
+    const distintas = (ids: string[]) => {
+      const vistos = new Set<string>();
+      for (const id of ids) for (const u of membersByTeam[id] ?? []) vistos.add(u);
+      return vistos.size;
+    };
+
     // O total do time inclui quem está nos squads: contar só o vínculo direto
     // mostraria "0" no CAAS, cujas 15 pessoas estão todas em squads.
-    const totalDoTime = (t: Team) =>
-      (memberCounts[t.id] ?? 0) + squadsDe(t.id).reduce((a, s) => a + (memberCounts[s.id] ?? 0), 0);
+    const totalDoTime = (t: Team) => distintas([t.id, ...squadsDe(t.id).map((s) => s.id)]);
 
     const areas = new Map<string, Team[]>();
     for (const t of times) {
@@ -69,12 +82,12 @@ export function TeamTree({
         .map(([nome, lista]) => ({
           nome,
           times: lista.sort((a, b) => a.order_index - b.order_index || a.name.localeCompare(b.name)),
-          pessoas: lista.reduce((a, t) => a + totalDoTime(t), 0),
+          pessoas: distintas(lista.flatMap((t) => [t.id, ...squadsDe(t.id).map((s) => s.id)])),
           squads: lista.reduce((a, t) => a + squadsDe(t.id).length, 0),
         }))
         .sort((a, b) => b.pessoas - a.pessoas),
     };
-  }, [teams, memberCounts]);
+  }, [teams, membersByTeam]);
 
   // ---- busca: resultado plano ----
   if (isSearching) {
@@ -86,7 +99,7 @@ export function TeamTree({
         {teams.map((t) => (
           <LinhaTime
             key={t.id} team={t}
-            total={t.parent_team_id ? memberCounts[t.id] ?? 0 : dados.totalDoTime(t)}
+            total={t.parent_team_id ? (membersByTeam[t.id] ?? []).length : dados.totalDoTime(t)}
             squads={t.parent_team_id ? 0 : dados.squadsDe(t.id).length}
             caminho={t.department ?? undefined}
             onManageMembers={onManageMembers} onEdit={onEdit} onDelete={onDelete}
@@ -140,7 +153,7 @@ export function TeamTree({
             </p>
             {squads.map((s) => (
               <LinhaTime
-                key={s.id} team={s} total={memberCounts[s.id] ?? 0} squads={0}
+                key={s.id} team={s} total={(membersByTeam[s.id] ?? []).length} squads={0}
                 onManageMembers={onManageMembers} onEdit={onEdit} onDelete={onDelete}
               />
             ))}

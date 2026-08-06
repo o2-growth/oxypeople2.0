@@ -104,36 +104,77 @@ export function useTeamMembers(teamId: string | null) {
  *
  * Sem mudança de schema — apenas leitura.
  */
-export function useTeamMemberCounts(teamIds: string[]) {
+export function useTeamMembersByTeam(teamIds: string[]) {
   // Chave estável independente da ordem de `teamIds`.
   const sortedIds = [...teamIds].sort();
 
   return useQuery({
-    queryKey: ["team-member-counts", sortedIds],
-    queryFn: async (): Promise<Record<string, number>> => {
-      const counts: Record<string, number> = {};
-      // Pré-inicializa todos os times em 0 para não faltar chave no consumidor.
-      for (const id of teamIds) counts[id] = 0;
+    queryKey: ["team-members-by-team", sortedIds],
+    queryFn: async (): Promise<Record<string, string[]>> => {
+      const porTime: Record<string, string[]> = {};
+      // Pré-inicializa todos os times para não faltar chave no consumidor.
+      for (const id of teamIds) porTime[id] = [];
 
-      if (teamIds.length === 0) return counts;
+      if (teamIds.length === 0) return porTime;
 
       const { data, error } = await supabase
         .from("team_members")
-        .select("team_id")
+        .select("team_id, user_id")
         .in("team_id", teamIds);
 
       if (error) {
-        console.error("Error fetching team member counts:", error);
+        console.error("Error fetching team members:", error);
         throw error;
       }
 
       for (const row of data ?? []) {
-        if (row.team_id) counts[row.team_id] = (counts[row.team_id] ?? 0) + 1;
+        if (row.team_id) (porTime[row.team_id] ??= []).push(row.user_id);
       }
 
-      return counts;
+      return porTime;
     },
     enabled: teamIds.length > 0,
+  });
+}
+
+/**
+ * Em que times cada pessoa está — pelo nome, para exibir.
+ *
+ * Estar em dois times é raro e proposital: quem lidera uma frente e ainda
+ * atende como CFO ocupa duas cadeiras. Sem mostrar isso, o segundo vínculo
+ * parece cadastro repetido e alguém "conserta" removendo.
+ */
+export function useTeamsByUser() {
+  const { profile } = useUser();
+  const companyId = profile?.primary_company_id;
+
+  return useQuery({
+    queryKey: ["teams-by-user", companyId],
+    queryFn: async (): Promise<Record<string, { id: string; name: string; role: string | null }[]>> => {
+      if (!companyId) return {};
+
+      const { data, error } = await supabase
+        .from("team_members")
+        .select("user_id, role, team:teams!inner(id, name, company_id)")
+        .eq("team.company_id", companyId);
+
+      if (error) {
+        console.error("Error fetching teams by user:", error);
+        throw error;
+      }
+
+      const porPessoa: Record<string, { id: string; name: string; role: string | null }[]> = {};
+      for (const row of (data ?? []) as any[]) {
+        if (!row.team) continue;
+        (porPessoa[row.user_id] ??= []).push({
+          id: row.team.id,
+          name: row.team.name,
+          role: row.role,
+        });
+      }
+      return porPessoa;
+    },
+    enabled: !!companyId,
   });
 }
 

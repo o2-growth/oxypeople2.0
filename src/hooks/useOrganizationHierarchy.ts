@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useUser } from "./useUser";
+import { isTeamLead } from "@/lib/teams/roles";
 
 export interface HierarchyNode {
   id: string;
@@ -163,8 +164,8 @@ function buildHierarchy(
 
   // Build team nodes
   const buildTeamNode = (team: TeamData): HierarchyNode => {
-    const leader = team.members?.find((m) => m.role === "leader");
-    const regularMembers = team.members?.filter((m) => m.role !== "leader") || [];
+    const leader = team.members?.find((m) => isTeamLead(m.role));
+    const regularMembers = team.members?.filter((m) => !isTeamLead(m.role)) || [];
 
     const memberNodes: HierarchyNode[] = regularMembers.map((member) => ({
       id: `member-${member.user_id}`,

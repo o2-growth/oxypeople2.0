@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useUser } from "./useUser";
 import type { HierarchyNode } from "./useOrganizationHierarchy";
+import { isTeamLead } from "@/lib/teams/roles";
 
 export function useAreasTeamsHierarchy() {
   const { profile } = useUser();
@@ -38,7 +39,7 @@ export function useAreasTeamsHierarchy() {
           id: `member-${m.user_id}`,
           type: "member" as const,
           name: m.users?.full_name || m.users?.email || "Sem nome",
-          role: m.role === "lead" || m.role === "leader" ? "Líder" : "Membro",
+          role: isTeamLead(m.role) ? "Líder" : "Membro",
           email: m.users?.email ?? "",
           avatarUrl: m.users?.avatar_url ?? "",
           children: [],

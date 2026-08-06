@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUser } from "./useUser";
 import { useOkrAccessLevels, type OkrAccessLevel } from "./useOkrAccessLevels";
+import { isTeamLead } from "@/lib/teams/roles";
 
 export type OkrTier = OkrAccessLevel | "unknown";
 
@@ -51,18 +52,20 @@ export function useUserPermissions() {
     queryFn: async () => {
       if (!user?.id) return [];
 
+      // Filtrar por papel no banco exigiria acertar a grafia ('lead' na prática,
+      // 'leader' no comentário da coluna). Trazer os vínculos e decidir aqui
+      // aceita as duas — são poucas linhas por pessoa.
       const { data, error } = await supabase
         .from("team_members")
-        .select("team_id")
-        .eq("user_id", user.id)
-        .eq("role", "leader");
+        .select("team_id, role")
+        .eq("user_id", user.id);
 
       if (error) {
         console.error("Error fetching led teams:", error);
         return [];
       }
 
-      return data.map((tm) => tm.team_id);
+      return data.filter((tm) => isTeamLead(tm.role)).map((tm) => tm.team_id);
     },
     enabled: !!user?.id,
   });

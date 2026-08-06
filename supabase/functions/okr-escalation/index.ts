@@ -138,11 +138,14 @@ serve(async (req) => {
             if (obj.owner_id) notifyUserIds.add(obj.owner_id);
 
             if (obj.type === "operational" && obj.team_id) {
+              // 'lead' é o que os cadastros gravam; 'leader' é a grafia do
+              // comentário original da coluna. Filtrar só por uma delas
+              // deixaria o líder sem o aviso de OKR fora da curva.
               const { data: leaders } = await supabase
                 .from("team_members")
                 .select("user_id")
                 .eq("team_id", obj.team_id)
-                .eq("role", "leader");
+                .in("role", ["lead", "leader"]);
               leaders?.forEach((l) => notifyUserIds.add(l.user_id));
             }
 

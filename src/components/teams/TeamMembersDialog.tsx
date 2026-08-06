@@ -16,8 +16,10 @@ import {
   useCompanyMembers,
   useAddTeamMember,
   useRemoveTeamMember,
+  useTeamsByUser,
 } from "@/hooks/useTeams";
 import { Search, UserPlus, UserMinus, Loader2, Users } from "lucide-react";
+import { isTeamLead } from "@/lib/teams/roles";
 
 interface TeamMembersDialogProps {
   open: boolean;
@@ -31,7 +33,16 @@ export function TeamMembersDialog({ open, onOpenChange, team }: TeamMembersDialo
 
   const { data: teamMembers = [], isLoading: loadingMembers } = useTeamMembers(team?.id || null);
   const { data: companyMembers = [], isLoading: loadingCompany } = useCompanyMembers();
-  
+  const { data: timesPorPessoa = {} } = useTeamsByUser();
+
+  /**
+   * Os outros times da pessoa. Aparece como aviso ao lado do nome para que o
+   * vínculo duplo — proposital em quem acumula duas frentes — não seja lido
+   * como cadastro repetido por quem estiver arrumando a lista.
+   */
+  const outrosTimes = (userId: string) =>
+    (timesPorPessoa[userId] ?? []).filter((t) => t.id !== team?.id);
+
   const addMember = useAddTeamMember();
   const removeMember = useRemoveTeamMember();
 
@@ -204,11 +215,16 @@ export function TeamMembersDialog({ open, onOpenChange, team }: TeamMembersDialo
                             {member.user?.email}
                           </p>
                         </div>
-                        {member.role === "leader" && (
+                        {isTeamLead(member.role) && (
                           <Badge variant="secondary" className="text-xs">
                             Líder
                           </Badge>
                         )}
+                        {outrosTimes(member.user_id).map((t) => (
+                          <Badge key={t.id} variant="outline" className="text-xs font-normal">
+                            também em {t.name}
+                          </Badge>
+                        ))}
                       </div>
                       <Button
                         variant="ghost"
