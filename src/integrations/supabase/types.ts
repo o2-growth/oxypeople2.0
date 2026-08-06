@@ -4243,6 +4243,9 @@ export type Database = {
           description: string | null
           id: string
           name: string
+          order_index: number
+          parent_team_id: string | null
+          status: string
           updated_at: string
         }
         Insert: {
@@ -4253,6 +4256,9 @@ export type Database = {
           description?: string | null
           id?: string
           name: string
+          order_index?: number
+          parent_team_id?: string | null
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -4263,6 +4269,9 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
+          order_index?: number
+          parent_team_id?: string | null
+          status?: string
           updated_at?: string
         }
         Relationships: [
@@ -4278,6 +4287,13 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "teams_parent_team_id_fkey"
+            columns: ["parent_team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
         ]
