@@ -8,15 +8,15 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, Check, Star, AlertCircle } from "lucide-react";
+import { Loader2, Check, Star, AlertCircle, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { format, parseISO } from "date-fns";
+import { format, isBefore, parseISO, startOfDay } from "date-fns";
 import {
   ATTITUDES, ATTITUDE_SCALE, MIN_COMMENT_LENGTH,
   isAttitudeComplete, completedCount, isComplete, overallScore, attitudeLabel, firstIncomplete,
   type AttitudeAnswers,
 } from "@/lib/performance/attitudes";
-import { useEvaluationDetail, useSubmitEvaluation } from "@/hooks/useEvaluationForm";
+import { useEvaluationDetail, useSubmitEvaluation, useReopenEvaluation } from "@/hooks/useEvaluationForm";
 import { useUser } from "@/hooks/useUser";
 
 const RELACAO: Record<string, string> = {
@@ -36,6 +36,7 @@ export function EvaluationForm({ evaluationId, onOpenChange }: EvaluationFormPro
   const { data, isLoading } = useEvaluationDetail(evaluationId);
   const { profile } = useUser();
   const submit = useSubmitEvaluation();
+  const reopen = useReopenEvaluation();
 
   const [answers, setAnswers] = useState<AttitudeAnswers>({});
   const [tentouEnviar, setTentouEnviar] = useState(false);
@@ -64,12 +65,19 @@ export function EvaluationForm({ evaluationId, onOpenChange }: EvaluationFormPro
   const nota = useMemo(() => overallScore(answers), [answers]);
   const faltando = firstIncomplete(answers);
   const evaluation = data?.evaluation;
-  // Concluída ninguém reabre. E o admin, que consegue abrir a avaliação de
-  // qualquer pessoa pela lista de acompanhamento, olha sem poder responder no
-  // lugar dela — a nota é de quem avalia, não de quem administra.
+  // O admin, que consegue abrir a avaliação de qualquer pessoa pela lista de
+  // acompanhamento, olha sem poder responder no lugar dela — a nota é de quem
+  // avalia, não de quem administra.
   const souOAvaliador = !!evaluation && evaluation.evaluator_id === profile?.id;
   const somenteLeitura = evaluation?.status === "completed" || !souOAvaliador;
   const aindaNaoRespondida = !souOAvaliador && evaluation?.status !== "completed";
+  // Enviou errado? O próprio avaliador reabre e corrige, desde que a janela de
+  // resposta do ciclo ainda esteja aberta — o prazo é o mesmo de responder.
+  const prazoResposta = evaluation?.cycle
+    ? parseISO(evaluation.cycle.response_deadline ?? evaluation.cycle.end_date)
+    : null;
+  const dentroDoPrazo = !prazoResposta || !isBefore(prazoResposta, startOfDay(new Date()));
+  const podeCorrigir = souOAvaliador && evaluation?.status === "completed" && dentroDoPrazo;
 
   const setScore = (key: string, score: number) =>
     setAnswers((a) => ({ ...a, [key]: { ...a[key], score } }));
@@ -258,6 +266,20 @@ export function EvaluationForm({ evaluationId, onOpenChange }: EvaluationFormPro
               <Button variant="ghost" onClick={() => onOpenChange(false)}>
                 Fechar
               </Button>
+              {podeCorrigir && (
+                <Button
+                  variant="outline"
+                  disabled={reopen.isPending}
+                  onClick={() => reopen.mutate(evaluation.id)}
+                >
+                  {reopen.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Undo2 className="mr-2 h-4 w-4" />
+                  )}
+                  Corrigir avaliação
+                </Button>
+              )}
               {!somenteLeitura && (
                 <div className="flex items-center gap-2">
                   {tentouEnviar && faltando && (

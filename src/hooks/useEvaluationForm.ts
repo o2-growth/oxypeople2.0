@@ -60,6 +60,35 @@ export function useEvaluationDetail(evaluationId: string | null) {
   });
 }
 
+/**
+ * Reabre uma avaliação já enviada para o avaliador corrigir e reenviar.
+ * As respostas ficam como estão — quem corrige edita em cima do que enviou,
+ * não redigita tudo. A RLS já garante que só o próprio avaliador consegue
+ * este update; o prazo de resposta é verificado por quem mostra o botão.
+ */
+export function useReopenEvaluation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (evaluationId: string) => {
+      const { error } = await supabase
+        .from("performance_evaluations")
+        .update({ status: "in_progress", completed_at: null })
+        .eq("id", evaluationId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["evaluations"] });
+      queryClient.invalidateQueries({ queryKey: ["evaluation-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["performance-cycles"] });
+      toast.success("Avaliação reaberta", {
+        description: "Corrija o que precisar e envie de novo.",
+      });
+    },
+    onError: (e: Error) => toast.error("Erro ao reabrir a avaliação", { description: e.message }),
+  });
+}
+
 interface SubmitInput {
   evaluationId: string;
   cycleId: string;
