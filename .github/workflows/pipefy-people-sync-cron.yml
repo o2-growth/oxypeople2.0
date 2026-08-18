@@ -1,0 +1,61 @@
+name: Pipefy People Sync Cron
+
+# Diário, 10:00 UTC (07:00 BRT): espelha a table Pessoas do Pipefy na
+# plataforma — status ativo/inativo, data e motivo de desligamento,
+# aniversário, admissão e cargo. A config (table + mapeamento de campos)
+# vive em pipefy_sync_config; o body vazio manda a função usá-la.
+on:
+  schedule:
+    - cron: "0 10 * * *"
+  workflow_dispatch:
+
+# O sync pagina a table inteira e escreve por pessoa; duas execuções
+# simultâneas duplicariam trabalho e log.
+concurrency:
+  group: pipefy-people-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sincronizar pessoas do Pipefy
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          # Chave pública, não a service_role: quem autoriza de fato é o
+          # CRON_SECRET abaixo. A service_role bypassa toda a RLS e não deve
+          # existir fora do Supabase.
+          ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -uo pipefail
+
+          if [ -z "${SUPABASE_URL}" ] || [ -z "${ANON_KEY}" ] || [ -z "${CRON_SECRET}" ]; then
+            echo "::error::Faltam secrets: SUPABASE_URL, SUPABASE_ANON_KEY ou CRON_SECRET"
+            exit 1
+          fi
+
+          RESPOSTA=$(mktemp)
+          STATUS=$(curl -s -o "$RESPOSTA" -w "%{http_code}" -X POST \
+            "${SUPABASE_URL}/functions/v1/pipefy-sync" \
+            -H "Authorization: Bearer ${ANON_KEY}" \
+            -H "x-cron-secret: ${CRON_SECRET}" \
+            -H "Content-Type: application/json" \
+            --max-time 300 \
+            -d '{}')
+
+          echo "HTTP $STATUS"
+          # O corpo diz quantos registros foram criados/atualizados/pulados —
+          # sem ele, uma falha silenciosa pareceria sucesso no log.
+          cat "$RESPOSTA"
+          echo
+
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::pipefy-sync respondeu $STATUS"
+            exit 1
+          fi
+
+          if ! grep -q '"success":true' "$RESPOSTA"; then
+            echo "::error::pipefy-sync retornou 200 mas sem sucesso"
+            exit 1
+          fi

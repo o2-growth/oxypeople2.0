@@ -527,6 +527,9 @@ export interface CollaboratorDetail {
   status: "active" | "invited" | "pending" | "inactive";
   role: "owner" | "admin" | "manager" | "member" | null;
   manager_id: string | null;
+  /** Desligamento — preenchidos pelo pipefy-sync/import Feedz para inativos. */
+  last_working_day: string | null;
+  termination_reason: string | null;
 }
 
 export function useCollaboratorDetail(membershipId: string | null) {
@@ -539,6 +542,7 @@ export function useCollaboratorDetail(membershipId: string | null) {
         .from("company_memberships")
         .select(`
           id, user_id, position, department_id, hire_date, employment_type, status, manager_id,
+          last_working_day, termination_reason,
           department_info:departments(id, name, color),
           user:users!company_memberships_user_id_fkey(id, full_name, email, avatar_url, metadata)
         `)
@@ -579,6 +583,8 @@ export function useCollaboratorDetail(membershipId: string | null) {
         status: mb.status as CollaboratorDetail["status"],
         role: (roleRow?.role as CollaboratorDetail["role"]) ?? "member",
         manager_id: mb.manager_id ?? null,
+        last_working_day: mb.last_working_day ?? null,
+        termination_reason: mb.termination_reason ?? null,
       };
     },
     enabled: !!membershipId,

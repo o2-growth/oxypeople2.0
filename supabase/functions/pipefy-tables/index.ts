@@ -6,6 +6,10 @@ const corsHeaders = {
 };
 
 async function getPipefyToken(): Promise<string> {
+  // Mesmo secret do pipefy-timeoff-sync; OAuth abaixo é fallback.
+  const direct = Deno.env.get('PIPEFY_TOKEN');
+  if (direct) return direct;
+
   const clientId = Deno.env.get('PIPEFY_CLIENT_ID');
   const clientSecret = Deno.env.get('PIPEFY_CLIENT_SECRET');
   

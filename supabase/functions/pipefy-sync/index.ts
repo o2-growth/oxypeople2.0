@@ -7,6 +7,11 @@ const corsHeaders = {
 };
 
 async function getPipefyToken(): Promise<string> {
+  // Token direto de service account — o mesmo secret que o pipefy-timeoff-sync
+  // já usa. O fluxo OAuth abaixo fica como fallback para quem tiver app próprio.
+  const direct = Deno.env.get('PIPEFY_TOKEN');
+  if (direct) return direct;
+
   const clientId = Deno.env.get('PIPEFY_CLIENT_ID');
   const clientSecret = Deno.env.get('PIPEFY_CLIENT_SECRET');
   
@@ -186,10 +191,55 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    const { companyId, tableId, fieldMapping } = await req.json();
-    
+    const body = await req.json().catch(() => ({} as Record<string, unknown>));
+
+    // Parâmetros explícitos (chamada da UI) ou config salva (chamada do cron,
+    // que manda body vazio e usa o que está em pipefy_sync_config).
+    let companyId = body.companyId as string | undefined;
+    let tableId = body.tableId as string | undefined;
+    let fieldMapping = body.fieldMapping as Record<string, string> | undefined;
+
+    if (!tableId || !fieldMapping) {
+      let q = supabase.from('pipefy_sync_config').select('company_id, table_id, field_mapping');
+      if (companyId) q = q.eq('company_id', companyId);
+      const { data: cfgs, error: cfgError } = await q;
+      if (cfgError) throw cfgError;
+      if (!cfgs?.length) throw new Error('Nenhuma configuração encontrada em pipefy_sync_config');
+      if (cfgs.length > 1) throw new Error('Mais de uma empresa configurada — informe companyId');
+      companyId = cfgs[0].company_id;
+      tableId = cfgs[0].table_id;
+      fieldMapping = cfgs[0].field_mapping;
+    }
+
     if (!companyId || !tableId || !fieldMapping) {
       throw new Error('Missing required parameters: companyId, tableId, fieldMapping');
+    }
+
+    // Autorização: ou o cron (segredo próprio no header), ou um usuário logado
+    // que seja owner/admin da empresa — o sync cria e desativa contas.
+    const cronSecret = Deno.env.get('CRON_SECRET');
+    const viaCron = !!cronSecret && req.headers.get('x-cron-secret') === cronSecret;
+    if (!viaCron) {
+      const jwt = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '');
+      const { data: userData, error: authError } = await supabase.auth.getUser(jwt);
+      if (authError || !userData?.user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: adminRole } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userData.user.id)
+        .eq('company_id', companyId)
+        .in('role', ['owner', 'admin'])
+        .limit(1)
+        .maybeSingle();
+      if (!adminRole) {
+        return new Response(JSON.stringify({ error: 'Apenas owner/admin pode sincronizar' }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     // Create sync log
@@ -261,6 +311,21 @@ serve(async (req) => {
           // Parse dates from Brazilian format to ISO
           const hireDate = parseDate(hireDateStr);
           const birthDate = parseDate(birthDateStr);
+
+          // Situação e desligamento (Pipefy é a fonte da verdade do RH):
+          // "Inativo" desativa a membership e carrega data/motivo da saída;
+          // "Ativo" garante membership ativa. Sem o campo mapeado, o status
+          // não é tocado — comportamento antigo.
+          const situacaoRaw = fieldMapping.situation
+            ? extractFieldValue(fields, fieldMapping.situation)
+            : null;
+          const situacao = situacaoRaw?.trim().toLowerCase() ?? null;
+          const terminationDate = fieldMapping.termination_date
+            ? parseDate(extractFieldValue(fields, fieldMapping.termination_date))
+            : null;
+          const terminationReason = fieldMapping.termination_reason
+            ? extractFieldValue(fields, fieldMapping.termination_reason)
+            : null;
 
           // Handle department creation/lookup
           let departmentId: string | null = null;
@@ -338,6 +403,15 @@ serve(async (req) => {
               membershipData.is_new_hire = isNewHire(hireDate);
             }
             if (employmentType) membershipData.employment_type = employmentType;
+            if (situacao === 'inativo') {
+              membershipData.status = 'inactive';
+              if (terminationDate) membershipData.last_working_day = terminationDate;
+              if (terminationReason) membershipData.termination_reason = terminationReason;
+            } else if (situacao === 'ativo') {
+              membershipData.status = 'active';
+              membershipData.last_working_day = null;
+              membershipData.termination_reason = null;
+            }
 
             if (existingMembership) {
               await supabase
@@ -368,6 +442,14 @@ serve(async (req) => {
 
             recordsUpdated++;
           } else {
+            // Ex-colaborador sem conta na plataforma: não cria login para quem
+            // já saiu — só registraria acesso morto.
+            if (situacao === 'inativo') {
+              recordsSkipped++;
+              skipReasons.push({ email: normalizedEmail, reason: 'inativo no Pipefy, sem conta na plataforma — não criado' });
+              continue;
+            }
+
             // User does NOT exist - CREATE NEW USER via Admin API
             console.log(`Creating new user: ${normalizedEmail}`);
             

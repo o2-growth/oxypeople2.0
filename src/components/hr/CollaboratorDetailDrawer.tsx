@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { format, parseISO } from "date-fns";
 import {
   Sheet,
   SheetContent,
@@ -297,6 +298,18 @@ export function CollaboratorDetailDrawer({ membershipId, open, onOpenChange, isA
                     <Label>Data de contratação</Label>
                     <Input type="date" value={form.hire_date} onChange={(e) => set("hire_date", e.target.value)} disabled={!isAdmin} />
                   </div>
+                  {/* Desligamento vem do Pipefy via pipefy-sync — leitura, não edição. */}
+                  {form.status === "inactive" && data?.last_working_day && (
+                    <div className="space-y-1.5">
+                      <Label>Desligamento</Label>
+                      <p className="text-sm py-2">
+                        {format(parseISO(data.last_working_day), "dd/MM/yyyy")}
+                        {data.termination_reason && (
+                          <span className="block text-xs text-muted-foreground">{data.termination_reason}</span>
+                        )}
+                      </p>
+                    </div>
+                  )}
                   <div className="space-y-1.5 sm:col-span-2">
                     <Label>Tipo de contratação</Label>
                     <Input value={form.employment_type} onChange={(e) => set("employment_type", e.target.value)} placeholder="PJ, CLT..." disabled={!isAdmin} />

@@ -34,6 +34,9 @@ const PEOPLE_HUB_FIELDS = [
   { key: "hire_date", label: "Data de Admissão", required: false },
   { key: "birth_date", label: "Data de Nascimento", required: false },
   { key: "employment_type", label: "Tipo de Contrato", required: false },
+  { key: "situation", label: "Situação (Ativo/Inativo)", required: false, hint: "Governa o status na plataforma" },
+  { key: "termination_date", label: "Data de Desligamento", required: false },
+  { key: "termination_reason", label: "Motivo de Desligamento", required: false },
 ];
 
 export function PipefyConfigDialog({ open, onOpenChange }: PipefyConfigDialogProps) {
