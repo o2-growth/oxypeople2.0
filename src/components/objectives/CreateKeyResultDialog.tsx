@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { useCreateKeyResult } from "@/hooks/useCreateKeyResult";
 import { toast } from "sonner";
+import { toastDbError } from "@/lib/db-errors";
 
 interface CreateKeyResultDialogProps {
   open: boolean;
@@ -76,8 +77,10 @@ export function CreateKeyResultDialog({
           resetForm();
           onOpenChange(false);
         },
-        onError: (err: any) => {
-          toast.error("Erro ao criar KR: " + err.message);
+        onError: (err: unknown) => {
+          // toastDbError traduz os erros de trigger (ex.: P0001 "Key Results
+          // can only be added to operational objectives") para pt-BR.
+          toastDbError(err, "Erro ao criar KR");
         },
       }
     );

@@ -162,7 +162,19 @@ export function CreateObjectiveDialog({
 
   const handleSubmit = async (data: FormData) => {
     try {
-      // Defensive: KRs are only valid for operational objectives.
+      // KRs só valem para objetivo operacional. Antes isto descartava em
+      // silêncio o que o usuário digitou (trocar o tipo esconde a seção mas o
+      // form guarda os dados) e ainda mostrava "criado com sucesso" — o
+      // clássico "criei um KR e ele sumiu". Agora a escolha é consciente:
+      // ou remove os KRs, ou volta o tipo para operacional.
+      const krsDigitados = data.keyResults.filter((kr) => kr.title?.trim());
+      if (data.type !== "operational" && krsDigitados.length > 0) {
+        toast.error(
+          `Você digitou ${krsDigitados.length} resultado(s)-chave, mas objetivo ${data.type === "tactical" ? "tático" : "estratégico"} não aceita KRs. ` +
+          `Mude o tipo para operacional ou remova os KRs na aba "Key Results".`,
+        );
+        return;
+      }
       if (data.type !== "operational") {
         data.keyResults = [];
       }
@@ -581,6 +593,11 @@ export function CreateObjectiveDialog({
                 {!showKRSection && (
                   <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-sm text-yellow-600">
                     Resultados-chave só são permitidos em objetivos operacionais.
+                    {hasKRs && (
+                      <span className="block mt-1 font-medium">
+                        Você digitou {watchedKRs.length} KR(s) — eles NÃO serão criados com este tipo de objetivo.
+                      </span>
+                    )}
                   </div>
                 )}
 

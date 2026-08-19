@@ -460,6 +460,7 @@ function OperationalContent({
           open={isCreateKROpen}
           onOpenChange={setIsCreateKROpen}
           objectiveId={objective.id}
+          objectiveType={objective.type}
         />
       </>
     );
