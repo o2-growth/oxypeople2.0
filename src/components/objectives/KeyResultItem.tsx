@@ -95,6 +95,15 @@ export function KeyResultItem({ keyResult, canEdit = false, canCheckin = false, 
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const deleteKR = useDeleteKeyResult();
+  const { user } = useAuth();
+
+  // Dono do KR gerencia o que é dele — editar, confiança e check-in — seja
+  // qual for o tier: a RLS (can_edit_kr) já autoriza pelo owner_user_id; a UI
+  // liberava só gestor/admin. Excluir continua com a permissão do caller
+  // (espelha can_delete_objective, que não olha o dono do KR).
+  const souDonoDoKr = !!user?.id && keyResult.owner_user_id === user.id;
+  const podeEditar = canEdit || souDonoDoKr;
+  const podeCheckin = canCheckin || souDonoDoKr;
 
   // Progresso via lib canônica de KR — respeita tipo (binary) e direção (down),
   // que a fórmula inline anterior ignorava (down ficava travado em 0%).
@@ -178,12 +187,12 @@ export function KeyResultItem({ keyResult, canEdit = false, canCheckin = false, 
           <KrConfidenceSlider
             keyResultId={keyResult.id}
             value={keyResult.confidence ?? null}
-            canEdit={canEdit}
+            canEdit={podeEditar}
             compact
             className="shrink-0"
           />
 
-          {canCheckin && keyResult.objective_id && (
+          {podeCheckin && keyResult.objective_id && (
             <Button
               size="sm"
               variant="outline"
@@ -195,7 +204,7 @@ export function KeyResultItem({ keyResult, canEdit = false, canCheckin = false, 
             </Button>
           )}
 
-          {canEdit && (
+          {podeEditar && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground">
@@ -207,11 +216,15 @@ export function KeyResultItem({ keyResult, canEdit = false, canCheckin = false, 
                   <Pencil className="h-4 w-4 mr-2" />
                   Editar KR
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setShowDeleteAlert(true)} className="text-destructive">
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Excluir KR
-                </DropdownMenuItem>
+                {canEdit && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setShowDeleteAlert(true)} className="text-destructive">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Excluir KR
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}

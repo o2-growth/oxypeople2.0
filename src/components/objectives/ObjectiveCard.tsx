@@ -122,6 +122,8 @@ export function ObjectiveCard({ objective, onEdit }: ObjectiveCardProps) {
     // visões (down/binary via lib canônica), sem divergência.
     kr_type: kr.kr_type,
     direction: kr.direction,
+    // Sem isto o KeyResultItem não reconhece o dono e nega a edição a ele.
+    owner_user_id: kr.owner_user_id,
   }));
 
   return (
