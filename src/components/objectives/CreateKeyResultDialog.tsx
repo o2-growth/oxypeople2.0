@@ -195,7 +195,7 @@ export function CreateKeyResultDialog({
           )}
 
           <div className="space-y-1.5">
-            <Label className="text-xs">Peso (%)</Label>
+            <Label className="text-xs">Peso (%) — opcional</Label>
             <Input
               type="number"
               min={0}
@@ -204,6 +204,9 @@ export function CreateKeyResultDialog({
               onChange={(e) => setWeight(e.target.value)}
               className="h-9 text-sm"
             />
+            <p className="text-[10px] text-muted-foreground">
+              Sem pesos definidos, todos os KRs contam igual. Com pesos, KR de peso 0 não conta.
+            </p>
           </div>
         </div>
 

@@ -19,15 +19,23 @@ const clampPct = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
 /**
  * Progresso (0-100) de um KR para um VALOR arbitrário — a base do preview ao
  * vivo do check-in (antes→depois). Respeita tipo e direção:
- * - `binary`: 100 só ao atingir a meta;
+ * - `binary`: crédito parcial proporcional à meta (100 ao atingir) — o dono
+ *   registra o avanço do entregável sem ser obrigado ao "100% ou nada";
  * - `direction === "down"`: progride conforme o valor cai rumo à meta;
  * - demais: proporcional entre `initial_value` e `target_value`.
+ *
+ * Espelha o cálculo do banco (update_objective_progress) — mudanças aqui
+ * exigem a migração correspondente.
  */
 export function krProgressForValue(value: number | string | null, kr: KrProgressShape): number {
   const target = Number(kr.target_value ?? 0);
   const initial = Number(kr.initial_value ?? 0);
   const current = Number(value ?? 0);
-  if (kr.kr_type === "binary") return current >= target ? 100 : 0;
+  if (kr.kr_type === "binary") {
+    if (current >= target) return 100;
+    if (target === 0) return 0;
+    return clampPct((current / target) * 100);
+  }
   if (kr.direction === "down") {
     const span = initial - target;
     if (span === 0) return current <= target ? 100 : 0;

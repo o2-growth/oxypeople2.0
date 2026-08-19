@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -152,38 +153,45 @@ export function CheckinDialog({ open, onOpenChange, keyResult }: CheckinDialogPr
             <p className="text-xs text-muted-foreground mt-1">
               Atual:{" "}
               {isBinary
-                ? (keyResult.current_value >= keyResult.target_value ? "Concluído" : "Não concluído")
+                ? (keyResult.current_value >= keyResult.target_value
+                    ? "Concluído"
+                    : `${Math.round(beforePct)}% concluído`)
                 : formatKrValue(keyResult.current_value, krType, keyResult.unit)}
             </p>
           </div>
 
           {/* Novo valor — input por tipo de KR */}
           <div className="space-y-3">
-            <Label>{isBinary ? "Este KR foi concluído?" : "Valor atualizado *"}</Label>
+            <Label>{isBinary ? "Quanto deste entregável está pronto?" : "Valor atualizado *"}</Label>
 
             {isBinary ? (
-              <div className="grid grid-cols-2 gap-2">
+              // Avanço parcial em entregável: o dono reporta o % real, sem ser
+              // obrigado ao "100% ou nada". Concluído é só o atalho para 100.
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Slider
+                    value={[Math.round(afterPct)]}
+                    onValueChange={([v]) => setNewValue((v / 100) * keyResult.target_value)}
+                    max={100}
+                    step={5}
+                    className="flex-1"
+                  />
+                  <span className="w-12 text-right text-sm font-semibold tabular-nums">
+                    {Math.round(afterPct)}%
+                  </span>
+                </div>
                 <button
                   type="button"
-                  onClick={() => setNewValue(keyResult.target_value)}
+                  onClick={() =>
+                    setNewValue(isDone ? (keyResult.initial_value ?? 0) : keyResult.target_value)
+                  }
                   className={cn(
-                    "flex items-center justify-center gap-2 rounded-lg border-2 border-muted p-3 text-sm font-medium transition-all",
+                    "flex w-full items-center justify-center gap-2 rounded-lg border-2 border-muted p-3 text-sm font-medium transition-all",
                     isDone && "border-primary bg-primary/5 text-primary",
                   )}
                 >
-                  <CheckCircle2 className="h-4 w-4" />
-                  Concluído
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setNewValue(keyResult.initial_value ?? 0)}
-                  className={cn(
-                    "flex items-center justify-center gap-2 rounded-lg border-2 border-muted p-3 text-sm font-medium transition-all",
-                    !isDone && "border-primary bg-primary/5 text-primary",
-                  )}
-                >
-                  <Circle className="h-4 w-4" />
-                  Ainda não
+                  {isDone ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
+                  {isDone ? "Concluído — clique para desfazer" : "Marcar como concluído"}
                 </button>
               </div>
             ) : (
@@ -364,7 +372,9 @@ export function CheckinDialog({ open, onOpenChange, keyResult }: CheckinDialogPr
                               </Avatar>
                             )}
                             <span className="text-xs font-medium">
-                              {checkin.previous_value} → {Number(checkin.new_value)}
+                              {isBinary
+                                ? `${krProgressForValue(checkin.previous_value, keyResult)}% → ${krProgressForValue(checkin.new_value, keyResult)}%`
+                                : `${checkin.previous_value} → ${Number(checkin.new_value)}`}
                             </span>
                             <div className={cn("h-2 w-2 rounded-full", riskConfig[checkin.perceived_risk as keyof typeof riskConfig]?.color || "bg-muted")} />
                           </div>

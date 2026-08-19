@@ -16,9 +16,12 @@ describe("krProgress (valor atual)", () => {
     expect(krProgress({ direction: "down", initial_value: 100, current_value: 50, target_value: 0 })).toBe(50);
   });
 
-  it("binary: 100 só quando atinge a meta", () => {
+  it("binary: crédito parcial proporcional, 100 ao atingir a meta", () => {
     expect(krProgress({ kr_type: "binary", current_value: 0, target_value: 1 })).toBe(0);
+    expect(krProgress({ kr_type: "binary", current_value: 0.4, target_value: 1 })).toBe(40);
     expect(krProgress({ kr_type: "binary", current_value: 1, target_value: 1 })).toBe(100);
+    // meta 0 degenerada não divide por zero
+    expect(krProgress({ kr_type: "binary", current_value: 0, target_value: 0 })).toBe(100);
   });
 
   it("span zero: 100 se já atingiu, senão 0", () => {
@@ -46,9 +49,10 @@ describe("krProgressForValue (preview ao vivo antes→depois)", () => {
     expect(krProgressForValue(0, down)).toBe(100);
   });
 
-  it("binário no preview: só 100 ao atingir a meta", () => {
+  it("binário no preview: avanço parcial conta, 100 ao atingir a meta", () => {
     const bin = { initial_value: 0, target_value: 1, kr_type: "binary" as const };
     expect(krProgressForValue(0, bin)).toBe(0);
+    expect(krProgressForValue(0.65, bin)).toBe(65);
     expect(krProgressForValue(1, bin)).toBe(100);
   });
 });
