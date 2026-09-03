@@ -4897,6 +4897,22 @@ export type Database = {
         Args: { p_team_id: string; p_user_id: string }
         Returns: boolean
       }
+      is_direct_manager: {
+        Args: { p_company: string; p_manager: string; p_person: string }
+        Returns: boolean
+      }
+      leads_anyone: {
+        Args: { p_company: string; p_leader: string }
+        Returns: boolean
+      }
+      leads_person: {
+        Args: { p_company: string; p_leader: string; p_person: string }
+        Returns: boolean
+      }
+      led_user_ids: {
+        Args: { p_company: string; p_leader: string }
+        Returns: string[]
+      }
       is_user_manager: {
         Args: { comp_id: string; manager_uid: string; subordinate_uid: string }
         Returns: boolean

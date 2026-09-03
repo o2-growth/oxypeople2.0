@@ -45,11 +45,11 @@ export function PersonSelector({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const { profile } = useUser();
-  const { isAdmin, ledTeamIds } = useUserPermissions();
+  const { isAdmin, ledPeopleIds } = useUserPermissions();
   const companyId = profile?.primary_company_id;
 
   const { data: people, isLoading } = useQuery({
-    queryKey: ["people-for-selector", companyId, isAdmin, ledTeamIds],
+    queryKey: ["people-for-selector", companyId, isAdmin, ledPeopleIds],
     queryFn: async (): Promise<Person[]> => {
       if (!companyId) return [];
 
@@ -77,35 +77,33 @@ export function PersonSelector({
           avatar_url: m.users.avatar_url,
           department: m.department,
         }));
-      } else if (ledTeamIds.length > 0) {
-        // Team leader can see members of their teams
+      } else if (ledPeopleIds.length > 0) {
+        // Quem lidera vê quem lidera — pela regra única, não só pelos times.
+        // Buscar por team_members trazia desligado junto: o vínculo de time
+        // sobrevive ao desligamento, e o gestor sem time não via ninguém.
         const { data, error } = await supabase
-          .from("team_members")
+          .from("company_memberships")
           .select(`
             user_id,
+            department,
             users:user_id(id, full_name, email, avatar_url)
           `)
-          .in("team_id", ledTeamIds);
+          .eq("company_id", companyId)
+          .eq("status", "active")
+          .in("user_id", ledPeopleIds);
 
         if (error) {
-          console.error("Error fetching team members:", error);
+          console.error("Error fetching led people:", error);
           return [];
         }
 
-        // Deduplicate by user_id
-        const uniqueUsers = new Map();
-        (data || []).forEach((m: any) => {
-          if (!uniqueUsers.has(m.users.id)) {
-            uniqueUsers.set(m.users.id, {
-              id: m.users.id,
-              full_name: m.users.full_name,
-              email: m.users.email,
-              avatar_url: m.users.avatar_url,
-            });
-          }
-        });
-
-        return Array.from(uniqueUsers.values());
+        return (data || []).map((m: any) => ({
+          id: m.users.id,
+          full_name: m.users.full_name,
+          email: m.users.email,
+          avatar_url: m.users.avatar_url,
+          department: m.department,
+        }));
       }
 
       return [];
@@ -114,6 +112,12 @@ export function PersonSelector({
   });
 
   const filteredPeople = (people || [])
+    .slice()
+    .sort((a, b) =>
+      (a.full_name ?? a.email).localeCompare(b.full_name ?? b.email, "pt-BR", {
+        sensitivity: "base",
+      }),
+    )
     .filter((p) => {
       if (excludeCurrentUser && p.id === profile?.id) return false;
       if (!search) return true;

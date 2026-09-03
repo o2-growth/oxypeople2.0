@@ -9,8 +9,9 @@ import { useOkrSettings } from "@/hooks/useCheckins";
 /**
  * Agregador LEVE do "Painel do Time" (Onda 3 — §3.2, visão gestor/admin).
  *
- * Estilo "Mural do Gestor" (Feedz) / "My Team Dashboard" (15Five): compõe os
- * liderados diretos (useIsManager → company_memberships.manager_id) com os
+ * Estilo "Mural do Gestor" (Feedz) / "My Team Dashboard" (15Five): compõe quem
+ * a pessoa lidera (useIsManager → led_user_ids: gestor na cadeia, líder do time
+ * ou da área) com os
  * objetivos da empresa (useObjectives) e as 1:1s (useOneOnOnes) já em cache —
  * SEM query nova. Deriva progresso de OKR por liderado, check-ins atrasados do
  * time e as 1:1s da semana.
