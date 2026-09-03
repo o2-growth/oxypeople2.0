@@ -83,10 +83,11 @@ export default function TimeOffPage() {
     return map;
   }, [records]);
 
-  // Alerta por pessoa
+  // Alerta por pessoa — só quem está na casa. Desligado não tem férias a tirar,
+  // e eram 111 deles enchendo a lista de "Falta tirar".
   const peopleWithAlert = useMemo(() => {
     const now = new Date();
-    return people.map((p) => {
+    return people.filter((p) => p.status === "active").map((p) => {
       const recs = recordsByMember.get(p.id) ?? [];
       const alert = computeAlert(
         { hire_date: p.hire_date ?? null },

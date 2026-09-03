@@ -91,23 +91,37 @@ export function MultiPersonSelector({
         if (filterByTeamIds.length > 0) {
           const { data: teamMembers } = await supabase
             .from("team_members")
-            .select(`
-              user_id,
-              users:user_id(id, full_name, email, avatar_url)
-            `)
+            .select("user_id")
             .in("team_id", filterByTeamIds);
 
-          (teamMembers || []).forEach((m: any) => {
-            if (m.users) {
-              userIdSet.add(m.users.id);
-              usersMap.set(m.users.id, {
-                id: m.users.id,
-                full_name: m.users.full_name,
-                email: m.users.email,
-                avatar_url: m.users.avatar_url,
-              });
-            }
-          });
+          const idsDoTime = (teamMembers || []).map((m: any) => m.user_id);
+
+          // O vínculo de time não guarda status e ninguém o limpa no
+          // desligamento: buscar direto em team_members trazia gente que já
+          // saiu. A membership ativa é o que diz quem ainda está na casa.
+          if (idsDoTime.length > 0) {
+            const { data: ativos } = await supabase
+              .from("company_memberships")
+              .select(`
+                user_id,
+                users:user_id(id, full_name, email, avatar_url)
+              `)
+              .eq("company_id", companyId)
+              .eq("status", "active")
+              .in("user_id", idsDoTime);
+
+            (ativos || []).forEach((m: any) => {
+              if (m.users) {
+                userIdSet.add(m.users.id);
+                usersMap.set(m.users.id, {
+                  id: m.users.id,
+                  full_name: m.users.full_name,
+                  email: m.users.email,
+                  avatar_url: m.users.avatar_url,
+                });
+              }
+            });
+          }
         }
 
         return Array.from(usersMap.values());
@@ -141,6 +155,12 @@ export function MultiPersonSelector({
   });
 
   const filteredPeople = (people || [])
+    .slice()
+    .sort((a, b) =>
+      (a.full_name ?? a.email).localeCompare(b.full_name ?? b.email, "pt-BR", {
+        sensitivity: "base",
+      }),
+    )
     .filter((p) => {
       if (excludeIds.includes(p.id)) return false;
       if (value.includes(p.id)) return false;

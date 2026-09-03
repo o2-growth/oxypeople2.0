@@ -156,10 +156,17 @@ function buildHierarchy(
     if (m.position) positionByUserId.set(m.user_id, m.position);
   });
 
+  // Só quem está na casa. As memberships já vêm filtradas por status ativo, mas
+  // team_members não guarda status e ninguém apaga a linha no desligamento —
+  // sem este cruzamento o desligado continua pendurado no nó do time.
+  const ativos = new Set((memberships || []).map((m) => m.user_id));
+  const membrosAtivos = (team: TeamData) =>
+    (team.members || []).filter((m) => ativos.has(m.user_id));
+
   // Get all users who are team members
   const teamMemberUserIds = new Set<string>();
   teams?.forEach((team) => {
-    team.members?.forEach((member) => {
+    membrosAtivos(team).forEach((member) => {
       teamMemberUserIds.add(member.user_id);
     });
   });
@@ -170,8 +177,9 @@ function buildHierarchy(
   // apareciam como irmãos dos times na área, exatamente o que a tela de Times
   // já tinha corrigido — este hook tinha ficado para trás.
   const buildTeamNode = (team: TeamData): HierarchyNode => {
-    const leader = team.members?.find((m) => isTeamLead(m.role));
-    const regularMembers = team.members?.filter((m) => !isTeamLead(m.role)) || [];
+    const membros = membrosAtivos(team);
+    const leader = membros.find((m) => isTeamLead(m.role));
+    const regularMembers = membros.filter((m) => !isTeamLead(m.role));
 
     const memberNodes: HierarchyNode[] = regularMembers.map((member) => ({
       id: `member-${member.user_id}`,

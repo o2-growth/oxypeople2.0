@@ -46,9 +46,13 @@ export function TimeOffForm({ open, onOpenChange }: TimeOffFormProps) {
     setDays(1); setStatus("realizada"); setNotes("");
   };
 
+  // usePeopleList devolve o histórico inteiro — 111 das 164 memberships são de
+  // desligados. Registrar férias de quem saiu não existe.
   const sortedPeople = useMemo(
-    () => [...people].sort((a, b) =>
-      (a.user?.full_name ?? "").localeCompare(b.user?.full_name ?? "", "pt-BR", { sensitivity: "base" })),
+    () => people
+      .filter((p) => p.status === "active")
+      .sort((a, b) =>
+        (a.user?.full_name ?? "").localeCompare(b.user?.full_name ?? "", "pt-BR", { sensitivity: "base" })),
     [people],
   );
 

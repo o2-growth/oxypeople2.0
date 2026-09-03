@@ -138,7 +138,9 @@ export function useObjectivesFilters() {
         });
       }
     });
-    return Array.from(usersMap.values());
+    return Array.from(usersMap.values()).sort((a, b) =>
+      a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }),
+    );
   }, [flatObjectives]);
 
   // Determine user's department for "department" view
