@@ -1,0 +1,60 @@
+name: Celebrations Cron
+
+# Diário, 10:00 UTC (07:00 BRT): quem faz aniversário ou completa mais um ano
+# de O2 hoje ganha um post no canal do Slack, e a empresa recebe um e-mail com
+# as datas do dia. O mural não depende desta rotina — lá o card é derivado da
+# data de nascimento e da admissão a cada leitura.
+on:
+  schedule:
+    - cron: "0 10 * * *"
+  workflow_dispatch:
+
+# Duas execuções ao mesmo tempo mandariam o parabéns em dobro: o registro em
+# celebration_dispatches só protege entre execuções, não durante.
+concurrency:
+  group: celebrations-dispatch
+  cancel-in-progress: false
+
+jobs:
+  celebrar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comunicar aniversários e o2versários
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          # Chave pública, não a service_role: quem autoriza de fato é o
+          # CRON_SECRET abaixo.
+          ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -uo pipefail
+
+          if [ -z "${SUPABASE_URL}" ] || [ -z "${ANON_KEY}" ] || [ -z "${CRON_SECRET}" ]; then
+            echo "::error::Faltam secrets: SUPABASE_URL, SUPABASE_ANON_KEY ou CRON_SECRET"
+            exit 1
+          fi
+
+          RESPOSTA=$(mktemp)
+          STATUS=$(curl -s -o "$RESPOSTA" -w "%{http_code}" -X POST \
+            "${SUPABASE_URL}/functions/v1/celebrations-dispatch" \
+            -H "Authorization: Bearer ${ANON_KEY}" \
+            -H "x-cron-secret: ${CRON_SECRET}" \
+            -H "Content-Type: application/json" \
+            --max-time 300 \
+            -d '{}')
+
+          echo "HTTP $STATUS"
+          # O corpo diz quantas celebrações saíram e por qual canal — sem ele,
+          # um dia sem aniversário e um dia com o Slack fora pareceriam iguais.
+          cat "$RESPOSTA"
+          echo
+
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::celebrations-dispatch respondeu $STATUS"
+            exit 1
+          fi
+
+          if ! grep -q '"success":true' "$RESPOSTA"; then
+            echo "::error::celebrations-dispatch retornou 200 mas sem sucesso"
+            exit 1
+          fi

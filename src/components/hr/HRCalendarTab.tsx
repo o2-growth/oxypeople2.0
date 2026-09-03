@@ -5,13 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Cake, Clock, FileText, CalendarDays } from "lucide-react";
+import { Loader2, Cake, Clock, FileText, CalendarDays, PartyPopper } from "lucide-react";
 import { useHRCalendar, type HREventType } from "@/hooks/useHRCalendar";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 const eventConfig: Record<HREventType, { icon: typeof Cake; label: string; color: string }> = {
   birthday: { icon: Cake, label: "Aniversário", color: "bg-pink-500/10 text-pink-600 border-pink-200" },
+  work_anniversary: { icon: PartyPopper, label: "O2versário", color: "bg-violet-500/10 text-violet-600 border-violet-200" },
   experience_end: { icon: Clock, label: "Fim Experiência", color: "bg-amber-500/10 text-amber-600 border-amber-200" },
   contract_expiry: { icon: FileText, label: "Venc. Contrato", color: "bg-red-500/10 text-red-600 border-red-200" },
 };
@@ -47,6 +48,7 @@ export function HRCalendarTab() {
               <SelectContent>
                 <SelectItem value="all">Todos os tipos</SelectItem>
                 <SelectItem value="birthday">Aniversários</SelectItem>
+                <SelectItem value="work_anniversary">O2versários</SelectItem>
                 <SelectItem value="experience_end">Fim Experiência</SelectItem>
                 <SelectItem value="contract_expiry">Venc. Contrato</SelectItem>
               </SelectContent>

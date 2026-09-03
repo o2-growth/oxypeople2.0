@@ -33,7 +33,11 @@ export function MiniCalendar({ events, hrEvents }: MiniCalendarProps) {
     });
     hrEvents.forEach((e) => {
       if (isSameDay(e.date, selected)) {
-        items.push({ title: e.description, color: e.type === "birthday" ? "#ec4899" : "#f59e0b", type: e.type });
+        const cor =
+          e.type === "birthday" ? "#ec4899"
+          : e.type === "work_anniversary" ? "#8b5cf6"
+          : "#f59e0b";
+        items.push({ title: e.description, color: cor, type: e.type });
       }
     });
     return items;

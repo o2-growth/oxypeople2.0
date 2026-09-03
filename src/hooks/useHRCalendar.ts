@@ -14,7 +14,11 @@ import {
   startOfWeek,
 } from "date-fns";
 
-export type HREventType = "birthday" | "experience_end" | "contract_expiry";
+export type HREventType =
+  | "birthday"
+  | "work_anniversary"
+  | "experience_end"
+  | "contract_expiry";
 
 export interface HREvent {
   id: string;
@@ -24,6 +28,8 @@ export interface HREvent {
   avatarUrl: string | null;
   description: string;
   department: string | null;
+  /** Anos completos de casa — só no o2versário. */
+  years?: number;
 }
 
 export function useHRCalendar(filter: "all" | "week" | "month" = "month") {
@@ -84,6 +90,29 @@ export function useHRCalendar(filter: "all" | "week" | "month" = "month") {
               avatarUrl,
               description: `Aniversário de ${userName}`,
               department: deptName,
+            });
+          }
+        }
+
+        // O2versário — anos completos de casa. O Feedz publicava isso todo ano
+        // ("completa hoje mais um ano na nossa empresa") e era o que sumiu na
+        // migração: o calendário sabia o aniversário de nascimento e ignorava
+        // o de casa.
+        if (m.hire_date) {
+          const admissao = parseISO(m.hire_date);
+          const noAno = new Date(now.getFullYear(), getMonth(admissao), getDate(admissao));
+          const anos = now.getFullYear() - admissao.getFullYear();
+          // Ano zero é boas-vindas, não o2versário.
+          if (anos >= 1 && isWithinInterval(noAno, interval)) {
+            events.push({
+              id: `wa-${m.id}`,
+              type: "work_anniversary",
+              date: noAno,
+              userName,
+              avatarUrl,
+              description: `${userName} completa ${anos} ${anos === 1 ? "ano" : "anos"} de O2`,
+              department: deptName,
+              years: anos,
             });
           }
         }

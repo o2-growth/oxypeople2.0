@@ -19,8 +19,14 @@ const Feed = () => {
 
   const [selectedEvent, setSelectedEvent] = useState<CompanyEvent | null>(null);
 
+  // Aniversário e o2versário dividem o mesmo card do mural: são as duas datas
+  // que a empresa comemora, e separá-las em dois blocos deixaria os dois vazios
+  // na maior parte dos meses.
   const birthdays = useMemo(
-    () => (hrEvents || []).filter((e) => e.type === "birthday"),
+    () =>
+      (hrEvents || []).filter(
+        (e) => e.type === "birthday" || e.type === "work_anniversary",
+      ),
     [hrEvents]
   );
 
