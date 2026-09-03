@@ -13,10 +13,11 @@ import { FeedbackTab } from "@/components/people/FeedbackTab";
 import { NPSTab } from "@/components/people/NPSTab";
 import { InviteModal } from "@/components/company/InviteModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TimeOffPanel } from "@/components/time-off/TimeOffPanel";
 import { Button } from "@/components/ui/button";
 import {
   Briefcase, LayoutDashboard, Users, CalendarDays,
-  FileBarChart, Network, ClipboardList, BarChart3, UserPlus, Smile,
+  FileBarChart, Network, ClipboardList, BarChart3, UserPlus, Smile, Palmtree,
 } from "lucide-react";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { useInviteMember } from "@/hooks/usePeopleList";
@@ -100,6 +101,10 @@ export default function HR() {
                 <Smile className="h-4 w-4" />
                 Humor
               </TabsTrigger>
+              <TabsTrigger value="timeoff" className="gap-2">
+                <Palmtree className="h-4 w-4" />
+                Férias
+              </TabsTrigger>
             </>
           )}
           <TabsTrigger value="calendar" className="gap-2">
@@ -153,6 +158,13 @@ export default function HR() {
         <TabsContent value="mood">
           {isAdmin && <HRMoodTab />}
         </TabsContent>
+
+        {/* Férias vive aqui e na rota /time-off: o painel é o mesmo componente. */}
+        {isAdmin && (
+          <TabsContent value="timeoff">
+            <TimeOffPanel />
+          </TabsContent>
+        )}
 
         <TabsContent value="calendar">
           <HRCalendarTab />
