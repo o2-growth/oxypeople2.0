@@ -3053,6 +3053,42 @@ export type Database = {
           },
         ]
       }
+      performance_calibrations: {
+        Row: {
+          calibrated_by: string
+          company_id: string
+          created_at: string
+          cycle_id: string
+          evaluated_id: string
+          id: string
+          question_id: string
+          score: number
+          updated_at: string
+        }
+        Insert: {
+          calibrated_by: string
+          company_id: string
+          created_at?: string
+          cycle_id: string
+          evaluated_id: string
+          id?: string
+          question_id: string
+          score: number
+          updated_at?: string
+        }
+        Update: {
+          calibrated_by?: string
+          company_id?: string
+          created_at?: string
+          cycle_id?: string
+          evaluated_id?: string
+          id?: string
+          question_id?: string
+          score?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       performance_answers: {
         Row: {
           answer: Json
@@ -4895,6 +4931,10 @@ export type Database = {
       }
       is_team_leader: {
         Args: { p_team_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      can_calibrate_evaluated: {
+        Args: { _cycle_id: string; _evaluated_id: string; _user_id: string }
         Returns: boolean
       }
       is_direct_manager: {

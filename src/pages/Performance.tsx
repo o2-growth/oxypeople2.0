@@ -3,7 +3,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, ClipboardCheck, ListChecks } from "lucide-react";
+import { Plus, ClipboardCheck, ListChecks, Scale } from "lucide-react";
 import { PerformanceStats } from "@/components/performance/PerformanceStats";
 import { CycleCard } from "@/components/performance/CycleCard";
 import { CreateCycleDialog } from "@/components/performance/CreateCycleDialog";
@@ -12,6 +12,7 @@ import { MyEvaluations } from "@/components/performance/MyEvaluations";
 import { EvaluationForm } from "@/components/performance/EvaluationForm";
 import { CycleDetailDialog } from "@/components/performance/CycleDetailDialog";
 import { MyResults } from "@/components/performance/MyResults";
+import { CalibrationPanel } from "@/components/performance/CalibrationPanel";
 import { usePerformanceCycles } from "@/hooks/usePerformanceCycles";
 import { useEvaluations } from "@/hooks/useEvaluations";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
@@ -55,7 +56,14 @@ export default function Performance() {
     isError: evaluationsError,
     refetch: refetchEvaluations,
   } = useEvaluations();
-  const { isAdmin, isLoading: permissionsLoading } = useUserPermissions();
+  const {
+    isAdmin,
+    isTeamLeader,
+    isLoading: permissionsLoading,
+  } = useUserPermissions();
+  // Calibrar é ato de quem lidera. A visão de avaliações inteira era de admin,
+  // e por isso a calibragem existia só para uma pessoa na empresa.
+  const podeCalibrar = isAdmin || isTeamLeader;
 
   const isLoading = cyclesLoading || evaluationsLoading || permissionsLoading;
 
@@ -182,6 +190,10 @@ export default function Performance() {
                 <ListChecks className="h-4 w-4" />
                 Avaliações
               </TabsTrigger>
+              <TabsTrigger value="calibration" className="gap-2">
+                <Scale className="h-4 w-4" />
+                Calibragem
+              </TabsTrigger>
 
             </TabsList>
 
@@ -292,7 +304,9 @@ export default function Performance() {
                     />
                   </TabsContent>
 
-
+                  <TabsContent value="calibration" className="mt-0">
+                    <CalibrationPanel cycles={cycles} />
+                  </TabsContent>
                 </>
               )}
             </div>
@@ -353,6 +367,38 @@ export default function Performance() {
             message="Não foi possível carregar suas avaliações."
             onRetry={handleRetry}
           />
+        ) : podeCalibrar ? (
+          // Quem lidera gente tem duas coisas para fazer aqui: responder o que
+          // deve e calibrar quem avaliou. Sem as abas, a calibragem ficaria
+          // empurrada para o fim de uma página de uso pessoal.
+          <Tabs defaultValue="mine">
+            <TabsList className="h-auto flex-wrap justify-start gap-1">
+              <TabsTrigger value="mine" className="gap-2">
+                <ClipboardCheck className="h-4 w-4" />
+                Minhas avaliações
+              </TabsTrigger>
+              <TabsTrigger value="calibration" className="gap-2">
+                <Scale className="h-4 w-4" />
+                Calibragem
+              </TabsTrigger>
+            </TabsList>
+
+            <div className="mt-6">
+              <TabsContent value="mine" className="space-y-6 mt-0">
+                <MyResults />
+                <MyEvaluations
+                  pendingEvaluations={pendingEvaluations}
+                  completedEvaluations={completedEvaluations}
+                  onStartEvaluation={(e) => setAnsweringId(e.id)}
+                  onViewResults={(e) => setAnsweringId(e.id)}
+                />
+              </TabsContent>
+
+              <TabsContent value="calibration" className="mt-0">
+                <CalibrationPanel cycles={cycles} />
+              </TabsContent>
+            </div>
+          </Tabs>
         ) : (
           <div className="space-y-6">
             <MyResults />
