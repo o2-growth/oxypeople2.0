@@ -15,7 +15,12 @@ export interface EvaluationDetail {
   evaluated: { id: string; full_name: string | null; avatar_url: string | null } | null;
   /** Quem responde. O admin abre a avaliação de outra pessoa e precisa saber de quem é. */
   evaluator: { id: string; full_name: string | null; avatar_url: string | null } | null;
-  cycle: { name: string; end_date: string; response_deadline: string | null } | null;
+  cycle: {
+    name: string;
+    end_date: string;
+    response_deadline: string | null;
+    status: string;
+  } | null;
 }
 
 /** Avaliação + respostas já salvas, para abrir o formulário no ponto em que parou. */
@@ -31,7 +36,7 @@ export function useEvaluationDetail(evaluationId: string | null) {
           id, cycle_id, evaluator_id, evaluated_id, relationship, status, due_date, overall_score,
           evaluated:users!performance_evaluations_evaluated_id_fkey(id, full_name, avatar_url),
           evaluator:users!performance_evaluations_evaluator_id_fkey(id, full_name, avatar_url),
-          cycle:performance_cycles(name, end_date, response_deadline)
+          cycle:performance_cycles(name, end_date, response_deadline, status)
         `)
         .eq("id", evaluationId)
         .single();
@@ -64,7 +69,7 @@ export function useEvaluationDetail(evaluationId: string | null) {
  * Reabre uma avaliação já enviada para o avaliador corrigir e reenviar.
  * As respostas ficam como estão — quem corrige edita em cima do que enviou,
  * não redigita tudo. A RLS já garante que só o próprio avaliador consegue
- * este update; o prazo de resposta é verificado por quem mostra o botão.
+ * este update; a janela para corrigir é verificada por quem mostra o botão.
  */
 export function useReopenEvaluation() {
   const queryClient = useQueryClient();
@@ -82,7 +87,8 @@ export function useReopenEvaluation() {
       queryClient.invalidateQueries({ queryKey: ["evaluation-detail"] });
       queryClient.invalidateQueries({ queryKey: ["performance-cycles"] });
       toast.success("Avaliação reaberta", {
-        description: "Corrija o que precisar e envie de novo.",
+        description:
+          "Corrija o que precisar e envie de novo. Enquanto estiver reaberta, o resultado volta a ficar oculto para a pessoa avaliada.",
       });
     },
     onError: (e: Error) => toast.error("Erro ao reabrir a avaliação", { description: e.message }),

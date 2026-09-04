@@ -71,13 +71,21 @@ export function EvaluationForm({ evaluationId, onOpenChange }: EvaluationFormPro
   const souOAvaliador = !!evaluation && evaluation.evaluator_id === profile?.id;
   const somenteLeitura = evaluation?.status === "completed" || !souOAvaliador;
   const aindaNaoRespondida = !souOAvaliador && evaluation?.status !== "completed";
-  // Enviou errado? O próprio avaliador reabre e corrige, desde que a janela de
-  // resposta do ciclo ainda esteja aberta — o prazo é o mesmo de responder.
+  // Enviou errado? O próprio avaliador reabre e corrige.
+  //
+  // A janela é o ciclo estar aberto, não o prazo de resposta. Os dois foram a
+  // mesma coisa até 04/09/2026, e o resultado prático foi ninguém conseguir
+  // corrigir: o ciclo 02/2026 tem response_deadline em 28/08 — a mesma data em
+  // que começou — e vai até 11/09. Cobrar a entrega e permitir consertar um
+  // erro são coisas diferentes: entregar atrasado atrapalha o processo, uma
+  // nota errada parada no sistema contamina a calibragem e o resultado.
   const prazoResposta = evaluation?.cycle
     ? parseISO(evaluation.cycle.response_deadline ?? evaluation.cycle.end_date)
     : null;
   const dentroDoPrazo = !prazoResposta || !isBefore(prazoResposta, startOfDay(new Date()));
-  const podeCorrigir = souOAvaliador && evaluation?.status === "completed" && dentroDoPrazo;
+  const cicloAberto = evaluation?.cycle?.status === "active";
+  const podeCorrigir =
+    souOAvaliador && evaluation?.status === "completed" && (cicloAberto || dentroDoPrazo);
 
   const setScore = (key: string, score: number) =>
     setAnswers((a) => ({ ...a, [key]: { ...a[key], score } }));
