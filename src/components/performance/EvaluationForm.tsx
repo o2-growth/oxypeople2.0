@@ -10,13 +10,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2, Check, Star, AlertCircle, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { format, isBefore, parseISO, startOfDay } from "date-fns";
+import { format, parseISO } from "date-fns";
 import {
   ATTITUDES, ATTITUDE_SCALE, MIN_COMMENT_LENGTH,
   isAttitudeComplete, completedCount, isComplete, overallScore, attitudeLabel, firstIncomplete,
   type AttitudeAnswers,
 } from "@/lib/performance/attitudes";
 import { useEvaluationDetail, useSubmitEvaluation, useReopenEvaluation } from "@/hooks/useEvaluationForm";
+import { podeCorrigirAvaliacao } from "@/lib/performance/correcao";
 import { useUser } from "@/hooks/useUser";
 
 const RELACAO: Record<string, string> = {
@@ -71,21 +72,13 @@ export function EvaluationForm({ evaluationId, onOpenChange }: EvaluationFormPro
   const souOAvaliador = !!evaluation && evaluation.evaluator_id === profile?.id;
   const somenteLeitura = evaluation?.status === "completed" || !souOAvaliador;
   const aindaNaoRespondida = !souOAvaliador && evaluation?.status !== "completed";
-  // Enviou errado? O próprio avaliador reabre e corrige.
-  //
-  // A janela é o ciclo estar aberto, não o prazo de resposta. Os dois foram a
-  // mesma coisa até 04/09/2026, e o resultado prático foi ninguém conseguir
-  // corrigir: o ciclo 02/2026 tem response_deadline em 28/08 — a mesma data em
-  // que começou — e vai até 11/09. Cobrar a entrega e permitir consertar um
-  // erro são coisas diferentes: entregar atrasado atrapalha o processo, uma
-  // nota errada parada no sistema contamina a calibragem e o resultado.
-  const prazoResposta = evaluation?.cycle
-    ? parseISO(evaluation.cycle.response_deadline ?? evaluation.cycle.end_date)
-    : null;
-  const dentroDoPrazo = !prazoResposta || !isBefore(prazoResposta, startOfDay(new Date()));
-  const cicloAberto = evaluation?.cycle?.status === "active";
-  const podeCorrigir =
-    souOAvaliador && evaluation?.status === "completed" && (cicloAberto || dentroDoPrazo);
+  // Enviou errado? O próprio avaliador reabre e corrige. A regra de quando isso
+  // ainda vale é compartilhada com a lista, que precisa dizer no card quais
+  // avaliações dão para consertar.
+  const podeCorrigir = podeCorrigirAvaliacao(evaluation, profile?.id);
+  // É sua, já foi enviada, e ainda assim não dá para mexer: o ciclo fechou.
+  const janelaFechada =
+    souOAvaliador && evaluation?.status === "completed" && !podeCorrigir;
 
   const setScore = (key: string, score: number) =>
     setAnswers((a) => ({ ...a, [key]: { ...a[key], score } }));
@@ -155,6 +148,21 @@ export function EvaluationForm({ evaluationId, onOpenChange }: EvaluationFormPro
                   </span>{" "}
                   O que aparece abaixo é o rascunho, se houver. Só quem avalia pode preencher.
                 </p>
+              </div>
+            )}
+
+            {podeCorrigir && (
+              <div className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
+                Avaliação enviada. Para mudar uma nota ou um comentário, use{" "}
+                <span className="font-medium text-foreground">Corrigir avaliação</span>,
+                no rodapé.
+              </div>
+            )}
+
+            {janelaFechada && (
+              <div className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
+                O ciclo foi encerrado — esta avaliação não pode mais ser
+                alterada. Fale com o RH se houver algo errado nela.
               </div>
             )}
 

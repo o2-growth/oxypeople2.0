@@ -3,11 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ClipboardList, Clock, CheckCircle, Star } from "lucide-react";
+import { ClipboardList, Clock, CheckCircle, Star, Undo2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { PerformanceEvaluation } from "@/hooks/useEvaluations";
 import { useAuth } from "@/contexts/AuthContext";
+import { podeCorrigirAvaliacao } from "@/lib/performance/correcao";
 
 interface MyEvaluationsProps {
   pendingEvaluations: PerformanceEvaluation[];
@@ -32,6 +33,19 @@ export function MyEvaluations({
       return `Avaliar: ${evaluation.evaluated?.full_name || "Colaborador"}`;
     }
     return `Avaliação de: ${evaluation.evaluator?.full_name || "Colaborador"}`;
+  };
+
+  // No histórico o que importa é de quem é a avaliação, não como ela se chama:
+  // o título era o nome do ciclo, igual em todos os cards, com as que a pessoa
+  // fez e as que fizeram sobre ela misturadas na mesma lista.
+  const getHistoryTitle = (evaluation: PerformanceEvaluation) => {
+    if (evaluation.evaluator_id === evaluation.evaluated_id) {
+      return "Autoavaliação";
+    }
+    if (evaluation.evaluator_id === user?.id) {
+      return `Você avaliou ${evaluation.evaluated?.full_name || "um colaborador"}`;
+    }
+    return `${evaluation.evaluator?.full_name || "Um colaborador"} avaliou você`;
   };
 
   const getInitials = (name: string | null | undefined) => {
@@ -138,54 +152,69 @@ export function MyEvaluations({
             </Card>
           ) : (
             <div className="space-y-3">
-              {completedEvaluations.map((evaluation) => (
-                <Card key={evaluation.id}>
-                  <CardContent className="p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex min-w-0 flex-1 items-center gap-4">
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage
-                            src={evaluation.evaluated?.avatar_url || undefined}
-                          />
-                          <AvatarFallback>
-                            {getInitials(evaluation.evaluated?.full_name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0">
-                          <h4 className="truncate font-medium">
-                            {evaluation.cycle?.name}
-                          </h4>
-                          <p className="text-sm text-muted-foreground">
-                            {format(
-                              new Date(evaluation.completed_at || evaluation.updated_at),
-                              "dd/MM/yyyy",
-                              { locale: ptBR }
-                            )}
-                          </p>
+              {completedEvaluations.map((evaluation) => {
+                const souOAvaliador = evaluation.evaluator_id === user?.id;
+                // Quem está do outro lado: nas que a pessoa fez é o avaliado,
+                // nas que fizeram sobre ela é quem avaliou. O avatar mostrava
+                // sempre o avaliado — nas recebidas, a foto da própria pessoa.
+                const contraparte = souOAvaliador
+                  ? evaluation.evaluated
+                  : evaluation.evaluator;
+                const corrigivel = podeCorrigirAvaliacao(evaluation, user?.id);
+
+                return (
+                  <Card key={evaluation.id}>
+                    <CardContent className="p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex min-w-0 flex-1 items-center gap-4">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={contraparte?.avatar_url || undefined} />
+                            <AvatarFallback>
+                              {getInitials(contraparte?.full_name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <h4 className="truncate font-medium">
+                              {getHistoryTitle(evaluation)}
+                            </h4>
+                            <p className="truncate text-sm text-muted-foreground">
+                              {evaluation.cycle?.name}
+                              {" · "}
+                              {format(
+                                new Date(evaluation.completed_at || evaluation.updated_at),
+                                "dd/MM/yyyy",
+                                { locale: ptBR }
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {evaluation.overall_score && (
+                            <div className="flex items-center gap-1 text-warning">
+                              <Star className="h-4 w-4 fill-current" />
+                              <span className="font-medium">
+                                {evaluation.overall_score.toFixed(1)}
+                              </span>
+                            </div>
+                          )}
+                          <Badge variant="secondary">Concluída</Badge>
+                          {/* Enquanto o ciclo estiver aberto, quem avaliou pode
+                              consertar o que enviou. Dizer isso no card evita
+                              abrir uma a uma para descobrir onde tem o botão. */}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => onViewResults?.(evaluation)}
+                          >
+                            {corrigivel && <Undo2 className="mr-2 h-4 w-4" />}
+                            {corrigivel ? "Ver e corrigir" : "Ver Detalhes"}
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        {evaluation.overall_score && (
-                          <div className="flex items-center gap-1 text-warning">
-                            <Star className="h-4 w-4 fill-current" />
-                            <span className="font-medium">
-                              {evaluation.overall_score.toFixed(1)}
-                            </span>
-                          </div>
-                        )}
-                        <Badge variant="secondary">Concluída</Badge>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => onViewResults?.(evaluation)}
-                        >
-                          Ver Detalhes
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </TabsContent>

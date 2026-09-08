@@ -24,6 +24,10 @@ export interface PerformanceEvaluation {
     id: string;
     name: string;
     type: string;
+    /** A janela para corrigir uma avaliação enviada depende disto. */
+    status: string;
+    end_date: string;
+    response_deadline: string | null;
   };
   evaluator?: {
     id: string;
@@ -61,7 +65,7 @@ export function useEvaluations(cycleId?: string) {
         .from("performance_evaluations")
         .select(`
           *,
-          cycle:performance_cycles(id, name, type),
+          cycle:performance_cycles(id, name, type, status, end_date, response_deadline),
           evaluator:users!performance_evaluations_evaluator_id_fkey(id, full_name, avatar_url),
           evaluated:users!performance_evaluations_evaluated_id_fkey(id, full_name, avatar_url)
         `)
@@ -89,7 +93,7 @@ export function useEvaluations(cycleId?: string) {
         .from("performance_evaluations")
         .select(`
           *,
-          cycle:performance_cycles(id, name, type),
+          cycle:performance_cycles(id, name, type, status, end_date, response_deadline),
           evaluator:users!performance_evaluations_evaluator_id_fkey(id, full_name, avatar_url),
           evaluated:users!performance_evaluations_evaluated_id_fkey(id, full_name, avatar_url)
         `)
