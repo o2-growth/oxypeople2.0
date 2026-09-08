@@ -122,6 +122,8 @@ export function ObjectiveCard({ objective, onEdit }: ObjectiveCardProps) {
     // visões (down/binary via lib canônica), sem divergência.
     kr_type: kr.kr_type,
     direction: kr.direction,
+    // Sem isto o item não distingue "teto ainda não medido" de "medi e deu 0".
+    last_checkin_at: kr.last_checkin_at,
     // Sem isto o KeyResultItem não reconhece o dono e nega a edição a ele.
     owner_user_id: kr.owner_user_id,
   }));

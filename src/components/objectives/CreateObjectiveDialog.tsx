@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { DIRECTION_LABELS } from "@/lib/kr-progress";
 
 const keyResultSchema = z.object({
   title: z.string().min(1, "Título obrigatório"),
@@ -721,8 +722,9 @@ export function CreateObjectiveDialog({
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="up">↑ Maior é melhor</SelectItem>
-                                  <SelectItem value="down">↓ Menor é melhor</SelectItem>
+                                  {Object.entries(DIRECTION_LABELS).map(([v, l]) => (
+                                    <SelectItem key={v} value={v}>{l}</SelectItem>
+                                  ))}
                                 </SelectContent>
                               </Select>
                             </FormControl>

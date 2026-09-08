@@ -23,7 +23,10 @@ const CONSUMERS = [
 ];
 
 // Assinaturas de fórmula de progresso de KR calculada à mão (proibidas fora da lib).
-const INLINE_FORMULA = /target_value\s*-\s*initial|new_value\s*-\s*initial|current_value\s*\)?\s*\/\s*(Number\()?\s*(kr\.)?target_value/;
+// A razão invertida (`target/current`) é a do modo teto; a heurística de
+// medição (`last_checkin_at || current_value`) decide se o KR vale 0 — as duas
+// passariam batidas pelo regex antigo e voltariam a divergir por visão.
+const INLINE_FORMULA = /target_value\s*-\s*initial|new_value\s*-\s*initial|current_value\s*\)?\s*\/\s*(Number\()?\s*(kr\.)?target_value|target_value\s*\)?\s*\/\s*(Number\()?\s*(kr?\.)?current_value|last_checkin_at\s*\|\|\s*(Number\()?\s*\w+\.current_value/;
 
 describe("progresso de KR — fonte única (sem reimplementação inline)", () => {
   it.each(CONSUMERS)("%s consome a lib canônica e não recalcula a fórmula", (file) => {

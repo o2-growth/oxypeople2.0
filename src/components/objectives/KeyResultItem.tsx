@@ -47,7 +47,7 @@ import { useCheckins } from "@/hooks/useCheckins";
 import { useActions, useCreateAction, getWeekBucket, formatWeekLabel } from "@/hooks/useActions";
 import { useDeleteKeyResult } from "@/hooks/useObjectives";
 import { useAuth } from "@/contexts/AuthContext";
-import { krProgress } from "@/lib/kr-progress";
+import { krProgress, krIsMet, krIsMeasured, krMode, formatKrValue } from "@/lib/kr-progress";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -107,14 +107,21 @@ export function KeyResultItem({ keyResult, canEdit = false, canCheckin = false, 
 
   // Progresso via lib canônica de KR — respeita tipo (binary) e direção (down),
   // que a fórmula inline anterior ignorava (down ficava travado em 0%).
-  const progress = krProgress({
+  const shape = {
     target_value: keyResult.target_value,
     current_value: keyResult.current_value,
     initial_value: keyResult.initial_value,
     kr_type: keyResult.kr_type,
     direction: keyResult.direction,
-  });
-  const isComplete = progress >= 100;
+    last_checkin_at: keyResult.last_checkin_at,
+  };
+  const progress = krProgress(shape);
+  const isComplete = krIsMet(shape);
+  // Meta de teto (CAC < 12k): estar abaixo do limite É a meta batida. Mostrar
+  // "10704 / 12000" convidava a ler como fração — foi o que o CEO leu como
+  // "89%, quase lá" no que já estava dentro do limite.
+  const isCeiling = krMode(shape) === "ceiling";
+  const medido = krIsMeasured(shape);
 
   const isOverdue = (() => {
     if (!keyResult.last_checkin_at) return true;
@@ -164,13 +171,36 @@ export function KeyResultItem({ keyResult, canEdit = false, canCheckin = false, 
             <ProgressBarStatus value={progress} showValue={false} size="sm" />
           </div>
 
-          <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
-            {keyResult.current_value} / {keyResult.target_value} {keyResult.unit || ""}
+          <span
+            className="text-xs text-muted-foreground whitespace-nowrap shrink-0"
+            title={
+              !medido
+                ? "Sem medição — faça o primeiro check-in"
+                : isCeiling
+                  ? isComplete ? "Dentro do teto" : "Acima do teto"
+                  : undefined
+            }
+          >
+            {isCeiling ? (
+              <>
+                {formatKrValue(keyResult.current_value, keyResult.kr_type, keyResult.unit)}
+                {" · teto "}
+                {formatKrValue(keyResult.target_value, keyResult.kr_type, keyResult.unit)}
+              </>
+            ) : (
+              <>
+                {keyResult.current_value} / {keyResult.target_value} {keyResult.unit || ""}
+              </>
+            )}
           </span>
 
           <span className={cn(
             "text-xs font-semibold shrink-0",
-            progress >= 75 ? "text-emerald-500" : progress >= 50 ? "text-yellow-500" : progress >= 25 ? "text-orange-500" : "text-red-500"
+            // No teto a régua de 75/50/25 mentiria: 92% é um KR estourado.
+            // Verde só quando está dentro do limite.
+            isCeiling
+              ? isComplete ? "text-emerald-500" : "text-red-500"
+              : progress >= 75 ? "text-emerald-500" : progress >= 50 ? "text-yellow-500" : progress >= 25 ? "text-orange-500" : "text-red-500"
           )}>
             {Math.round(progress)}%
           </span>

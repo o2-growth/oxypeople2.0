@@ -19,6 +19,7 @@ import {
 import { useCreateKeyResult } from "@/hooks/useCreateKeyResult";
 import { toast } from "sonner";
 import { toastDbError } from "@/lib/db-errors";
+import { DIRECTION_LABELS } from "@/lib/kr-progress";
 
 interface CreateKeyResultDialogProps {
   open: boolean;
@@ -158,8 +159,9 @@ export function CreateKeyResultDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="up">↑ Subir</SelectItem>
-                  <SelectItem value="down">↓ Descer</SelectItem>
+                  {Object.entries(DIRECTION_LABELS).map(([v, l]) => (
+                    <SelectItem key={v} value={v}>{l}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

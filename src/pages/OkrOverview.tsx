@@ -25,7 +25,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { QueryError } from "@/components/QueryError";
 import { useObjectives, usePeriods, type ObjectiveWithDetails } from "@/hooks/useObjectives";
 import { rollup, type WeightOf } from "@/lib/objective-rollup";
-import { krProgress } from "@/lib/kr-progress";
+import { krProgress, krIsMeasured } from "@/lib/kr-progress";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { useDriverTour } from "@/hooks/useDriverTour";
 import { OKR_OVERVIEW_TOUR_ID, okrOverviewSteps } from "@/lib/tours";
@@ -145,7 +145,7 @@ function TeamRow({ team, weightOf }: { team: ObjectiveWithDetails; weightOf: Wei
   const krs = team.key_results ?? [];
   const { progress: pct, expected } = rollup(team, weightOf);
   const behind = expected > 0 && pct < expected;
-  const hasCheckin = krs.some((k) => k.last_checkin_at || Number(k.current_value ?? 0) > 0);
+  const hasCheckin = krs.some((k) => krIsMeasured(k));
   const tone = progressTone(pct, hasCheckin);
   const teamName = team.team?.name || team.title.replace(/^OKR\s+/, "").replace(/\s+—.*$/, "");
 

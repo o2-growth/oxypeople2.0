@@ -32,6 +32,7 @@ import { useUpdateKeyResult } from "@/hooks/useObjectives";
 import { useCompanyMembers } from "@/hooks/useTeams";
 import { type KeyResult } from "./KeyResultItem";
 import { toast } from "sonner";
+import { DIRECTION_LABELS, krModeHint } from "@/lib/kr-progress";
 
 const formSchema = z.object({
   title:         z.string().min(1, "Título obrigatório"),
@@ -59,10 +60,7 @@ const krTypeLabels: Record<string, string> = {
   sla_time: "SLA/Tempo",
 };
 
-const directionLabels: Record<string, string> = {
-  up:   "Aumentar (↑)",
-  down: "Diminuir (↓)",
-};
+const directionLabels = DIRECTION_LABELS;
 
 export function EditKeyResultDialog({ keyResult, open, onOpenChange }: Props) {
   const updateKR    = useUpdateKeyResult();
@@ -94,6 +92,15 @@ export function EditKeyResultDialog({ keyResult, open, onOpenChange }: Props) {
       });
     }
   }, [open, keyResult, form]);
+
+  const valores = form.watch();
+  const hint = krModeHint({
+    kr_type:       valores.kr_type,
+    direction:     valores.direction,
+    initial_value: valores.initial_value,
+    target_value:  valores.target_value,
+    unit:          valores.unit,
+  });
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -238,7 +245,7 @@ export function EditKeyResultDialog({ keyResult, open, onOpenChange }: Props) {
                 name="target_value"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Meta</FormLabel>
+                    <FormLabel>{hint?.startsWith("Modo teto") ? "Meta (teto)" : "Meta"}</FormLabel>
                     <FormControl><Input type="number" step="any" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -256,6 +263,9 @@ export function EditKeyResultDialog({ keyResult, open, onOpenChange }: Props) {
                 )}
               />
             </div>
+
+            {/* Qual conta vai valer, com os números que estão na tela. */}
+            {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

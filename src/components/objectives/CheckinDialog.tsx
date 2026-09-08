@@ -31,7 +31,7 @@ import { useCreateCheckin, useCheckins, useOkrSettings } from "@/hooks/useChecki
 import { useUploadCheckinAttachments } from "@/hooks/useCheckinAttachments";
 import { AttachmentUploader } from "./AttachmentUploader";
 import { CheckinStreak } from "./CheckinStreak";
-import { krProgressForValue, formatKrValue } from "@/lib/kr-progress";
+import { krProgress, krProgressForValue, krMode, formatKrValue } from "@/lib/kr-progress";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -132,8 +132,11 @@ export function CheckinDialog({ open, onOpenChange, keyResult }: CheckinDialogPr
 
   // Preview de avanço AO VIVO (antes → depois) pela lib canônica de KR,
   // respeitando direção e valor inicial.
-  const beforePct = krProgressForValue(keyResult.current_value, keyResult);
+  // O "antes" passa pelo krProgress porque KR nunca medido vale 0 mesmo num
+  // teto; o "depois" é valor digitado, e digitar é medir.
+  const beforePct = krProgress(keyResult);
   const afterPct = krProgressForValue(newValue, keyResult);
+  const isCeiling = krMode(keyResult) === "ceiling";
   const delta = afterPct - beforePct;
 
   return (
@@ -267,8 +270,15 @@ export function CheckinDialog({ open, onOpenChange, keyResult }: CheckinDialogPr
               </div>
               <Progress value={afterPct} className="h-2" />
               <p className="text-xs text-muted-foreground">
-                Meta: {formatKrValue(keyResult.target_value, krType, keyResult.unit)} · Início:{" "}
-                {formatKrValue(keyResult.initial_value ?? 0, krType, keyResult.unit)}
+                {isCeiling ? "Teto" : "Meta"}:{" "}
+                {formatKrValue(keyResult.target_value, krType, keyResult.unit)}
+                {/* Teto não tem ponto de partida: ninguém parte rumo a um limite. */}
+                {!isCeiling && (
+                  <>
+                    {" · Início: "}
+                    {formatKrValue(keyResult.initial_value ?? 0, krType, keyResult.unit)}
+                  </>
+                )}
               </p>
             </div>
           </div>
