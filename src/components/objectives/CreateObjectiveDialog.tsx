@@ -44,8 +44,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { DIRECTION_LABELS } from "@/lib/kr-progress";
+import { OkrCopilotPanel } from "./OkrCopilotPanel";
+import { propostaParaFormulario, camposParaConferir, type OkrDraft } from "@/lib/okr/draft-contract";
 
-const keyResultSchema = z.object({
+/** Exportado para o teste de paridade com o contrato do copiloto. */
+export const keyResultSchema = z.object({
   title: z.string().min(1, "Título obrigatório"),
   targetValue: z.coerce.number().min(0.01, "Meta deve ser maior que 0"),
   currentValue: z.coerce.number().min(0).default(0),
@@ -133,13 +136,40 @@ export function CreateObjectiveDialog({
         periodId: parentObjective?.period_id || undefined,
         department: parentObjective?.department || undefined,
       });
+      setDraftAplicado(null);
     }
   }, [open, defaultType, defaultParentId, user?.id]);
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: "keyResults",
   });
+
+  // Proposta do copiloto já aplicada ao formulário. Guardada para mostrar o que
+  // ficou pendente de confirmação — o formulário em si é a fonte da verdade.
+  const [draftAplicado, setDraftAplicado] = React.useState<OkrDraft | null>(null);
+  const krsParaConferir = React.useMemo(
+    () => new Set(draftAplicado ? camposParaConferir(draftAplicado) : []),
+    [draftAplicado],
+  );
+
+  const aplicarProposta = (draft: OkrDraft) => {
+    // O modelo cita objetivo-pai por título porque nunca recebe id nenhum;
+    // a resolução para id acontece aqui, com o que o front já carregou.
+    const dados = propostaParaFormulario(draft, {
+      objetivoPorTitulo: (titulo) =>
+        allObjectives.find((o) => o.title.trim().toLowerCase() === titulo.trim().toLowerCase())?.id,
+    });
+
+    form.setValue("title", dados.title, { shouldValidate: true });
+    form.setValue("description", dados.description);
+    form.setValue("commitmentType", dados.commitmentType);
+    // KR só existe em objetivo operacional; a proposta sempre traz KRs.
+    form.setValue("type", "operational");
+    if (dados.parentId) form.setValue("parentId", dados.parentId);
+    replace(dados.keyResults);
+    setDraftAplicado(draft);
+  };
 
   const selectedType = form.watch("type");
   const ownerId = form.watch("ownerId");
@@ -211,6 +241,10 @@ export function CreateObjectiveDialog({
           unit: kr.unit,
           kr_type: kr.krType,
           weight_percentage: kr.weightPercentage,
+          // A direção era escolhida no formulário e descartada aqui: todo KR
+          // criado por este diálogo nascia "up", inclusive os de teto. É a
+          // origem dos KRs de CPMQL que apareciam 100% batidos estourados.
+          direction: kr.direction,
         })),
       });
 
@@ -283,6 +317,12 @@ export function CreateObjectiveDialog({
               </TabsList>
 
               <TabsContent value="general" className="space-y-4 mt-4">
+                <OkrCopilotPanel
+                  onAplicar={aplicarProposta}
+                  aplicado={draftAplicado}
+                  disabled={createObjective.isPending}
+                />
+
                 {/* Title */}
                 <FormField
                   control={form.control}
@@ -605,7 +645,17 @@ export function CreateObjectiveDialog({
                 {showKRSection && fields.map((field, index) => (
                   <div key={field.id} className="p-3 border rounded-lg space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">KR {index + 1}</span>
+                      <span className="flex items-center gap-2 text-sm font-medium">
+                        KR {index + 1}
+                        {/* Número que o copiloto deduziu: some da tela só depois
+                            de alguém confirmar. Meta inferida não pode ter a
+                            mesma cara de meta combinada. */}
+                        {krsParaConferir.has(index) && (
+                          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-600">
+                            confira a meta
+                          </span>
+                        )}
+                      </span>
                       <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => remove(index)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
