@@ -1,3 +1,23 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    {
+      "source": "/.well-known/oauth-protected-resource",
+      "destination": "https://ixtsnaxhgyoeaotrched.supabase.co/functions/v1/okr-mcp/.well-known/oauth-protected-resource"
+    },
+    {
+      "source": "/.well-known/oauth-protected-resource/mcp",
+      "destination": "https://ixtsnaxhgyoeaotrched.supabase.co/functions/v1/okr-mcp/.well-known/oauth-protected-resource"
+    },
+    {
+      "source": "/.well-known/oauth-authorization-server",
+      "destination": "https://ixtsnaxhgyoeaotrched.supabase.co/functions/v1/okr-mcp/.well-known/oauth-authorization-server"
+    },
+    {
+      "source": "/.well-known/oauth-authorization-server/mcp",
+      "destination": "https://ixtsnaxhgyoeaotrched.supabase.co/functions/v1/okr-mcp/.well-known/oauth-authorization-server"
+    },
+    { "source": "/mcp", "destination": "https://ixtsnaxhgyoeaotrched.supabase.co/functions/v1/okr-mcp" },
+    { "source": "/mcp/:caminho*", "destination": "https://ixtsnaxhgyoeaotrched.supabase.co/functions/v1/okr-mcp/:caminho*" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }

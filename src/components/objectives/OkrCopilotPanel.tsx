@@ -21,7 +21,15 @@ interface Props {
  * Fica dentro do diálogo que já existe: o formulário continua sendo o produto,
  * isto é um atalho para chegar nele preenchido. Nada é salvo daqui.
  */
+/**
+ * Enquanto a chave da API não estiver nos secrets, o copiloto não aparece —
+ * botão que só sabe dizer "não configurado" é pior que botão nenhum.
+ */
+const COPILOTO_LIGADO = import.meta.env.VITE_COPILOT_ENABLED === "true";
+
 export function OkrCopilotPanel({ onAplicar, aplicado, disabled }: Props) {
+  if (!COPILOTO_LIGADO) return null;
+
   const [texto, setTexto] = useState("");
   const [aberto, setAberto] = useState(false);
   const draft = useOkrDraft();

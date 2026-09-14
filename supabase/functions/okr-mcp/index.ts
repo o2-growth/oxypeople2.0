@@ -32,7 +32,26 @@ const cors = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-const BASE = `${SUPABASE_URL}/functions/v1/okr-mcp`;
+const BASE_DIRETA = `${SUPABASE_URL}/functions/v1/okr-mcp`;
+
+/**
+ * O domínio pelo qual o cliente enxerga este servidor.
+ *
+ * Cliente OAuth procura os metadados na RAIZ do domínio (RFC 9728), e a raiz de
+ * *.supabase.co é do gateway deles: responde 404 "requested path is invalid"
+ * antes de chegar aqui, e o registro dinâmico falha. Por isso o MCP é servido
+ * pelo domínio do OxyPeople, que faz proxy para esta function.
+ *
+ * A lista é fixa de propósito: `x-forwarded-host` é cabeçalho de cliente, e
+ * confiar nele aqui deixaria qualquer um apontar o fluxo de login para o
+ * próprio domínio.
+ */
+const HOSTS_PUBLICOS = new Set(["oxypeople20.vercel.app"]);
+
+function basePublica(req: Request): string {
+  const encaminhado = req.headers.get("x-forwarded-host") ?? "";
+  return HOSTS_PUBLICOS.has(encaminhado) ? `https://${encaminhado}/mcp` : BASE_DIRETA;
+}
 
 function log(level: "info" | "warn" | "error", msg: string, ctx?: Record<string, unknown>) {
   const p = { level, msg, ts: new Date().toISOString(), ...ctx };
@@ -52,11 +71,13 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
   const url = new URL(req.url);
+  const BASE = basePublica(req);
   // O runtime entrega o path já sem o prefixo em alguns ambientes e com ele em
   // outros; normalizar os dois evita 404 conforme onde a função está rodando.
   const rota = url.pathname
     .replace(/^\/functions\/v1\/okr-mcp/, "")
-    .replace(/^\/okr-mcp/, "") || "/";
+    .replace(/^\/okr-mcp/, "")
+    .replace(/^\/mcp/, "") || "/";
 
   // ---- Descoberta OAuth ------------------------------------------------------
   // É o que faz o cliente saber como se autenticar sozinho. Sem estes dois
