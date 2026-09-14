@@ -94,7 +94,11 @@ serve(async (req) => {
   if (rota === "/.well-known/oauth-protected-resource") {
     return json({
       resource: BASE,
-      authorization_servers: [BASE],
+      // Precisa ser o ISSUER, não o endpoint do recurso: o cliente pede o
+      // metadata deste endereço e compara com o `issuer` que volta. Apontar
+      // para .../mcp e devolver um documento cujo issuer é a raiz faz a
+      // validação falhar — é o "não foi possível registrar no serviço de login".
+      authorization_servers: [ISSUER],
       scopes_supported: ["okr:read"],
       bearer_methods_supported: ["header"],
     });
