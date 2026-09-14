@@ -112,9 +112,16 @@ export function useUserPermissions() {
     return false;
   };
 
-  const canDeleteObjective = (objective: { created_by: string }): boolean => {
+  // Espelha can_delete_objective da RLS: dono OU criador OU admin. Faltava o
+  // dono — quem recebia um objetivo criado por outra pessoa não via o botão,
+  // embora o banco fosse aceitar a exclusão.
+  const canDeleteObjective = (objective: {
+    created_by: string;
+    owner_id?: string;
+  }): boolean => {
     if (!user?.id) return false;
     if (objective.created_by === user.id) return true;
+    if (objective.owner_id && objective.owner_id === user.id) return true;
     if (isAdmin) return true;
     return false;
   };

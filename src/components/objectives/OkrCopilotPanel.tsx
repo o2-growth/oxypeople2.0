@@ -28,7 +28,6 @@ interface Props {
 const COPILOTO_LIGADO = import.meta.env.VITE_COPILOT_ENABLED === "true";
 
 export function OkrCopilotPanel({ onAplicar, aplicado, disabled }: Props) {
-  if (!COPILOTO_LIGADO) return null;
 
   const [texto, setTexto] = useState("");
   const [aberto, setAberto] = useState(false);
@@ -39,6 +38,9 @@ export function OkrCopilotPanel({ onAplicar, aplicado, disabled }: Props) {
   };
 
   const curto = texto.trim().length < 20;
+
+  // Depois dos hooks: sair antes mudaria a ordem deles entre renders.
+  if (!COPILOTO_LIGADO) return null;
 
   if (!aberto && !aplicado) {
     return (

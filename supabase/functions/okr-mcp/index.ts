@@ -65,7 +65,8 @@ const ISSUER = ORIGEM_PUBLICA || BASE_DIRETA;
 
 function log(level: "info" | "warn" | "error", msg: string, ctx?: Record<string, unknown>) {
   const p = { level, msg, ts: new Date().toISOString(), ...ctx };
-  level === "error" ? console.error(JSON.stringify(p)) : console.log(JSON.stringify(p));
+  if (level === "error") console.error(JSON.stringify(p));
+  else console.log(JSON.stringify(p));
 }
 
 const json = (body: unknown, status = 200, extra: Record<string, string> = {}) =>

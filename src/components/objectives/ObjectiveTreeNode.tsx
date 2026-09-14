@@ -205,7 +205,7 @@ export function ObjectiveTreeNode({ objective, depth = 0, onCreateChild, onSelec
     created_by: objective.created_by,
     team_id: objective.team_id,
   });
-  const canDelete = canDeleteObjective({ created_by: objective.created_by });
+  const canDelete = canDeleteObjective({ created_by: objective.created_by, owner_id: objective.owner_id });
 
   const getInitials = (name: string | null, email: string) => {
     if (name) return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);

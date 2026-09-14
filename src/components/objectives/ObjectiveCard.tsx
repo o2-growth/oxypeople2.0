@@ -81,6 +81,7 @@ export function ObjectiveCard({ objective, onEdit }: ObjectiveCardProps) {
 
   const canDelete = canDeleteObjective({
     created_by: objective.created_by,
+    owner_id: objective.owner_id,
   });
 
   const getInitials = (name: string | null, email: string) => {

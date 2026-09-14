@@ -372,7 +372,15 @@ function OperationalContent({
   const deleteKr = useDeleteKeyResult();
   const { user } = useAuth();
   const { tier, isAdmin } = useOkrTier();
-  const canEditKr = tier === "manager" || isAdmin;
+  const { canEditObjective } = useUserPermissions();
+  // Era `tier === "manager" || isAdmin`, muito mais restrito que a RLS: o dono
+  // do objetivo não conseguia mexer nos próprios KRs pela tela, embora o banco
+  // aceitasse. Quem lidera o dono e quem lidera o time também ficavam de fora.
+  const canEditKr = canEditObjective({
+    owner_id: objective.owner_id,
+    created_by: objective.created_by,
+    team_id: objective.team_id,
+  }) || tier === "manager" || isAdmin;
   const allKrIds = objective.key_results.map((kr) => kr.id);
   const firstKrId = allKrIds[0];
   useRealtimeObjective(objective.id);
