@@ -109,6 +109,11 @@ export function useObjectives() {
         `)
         .eq("company_id", companyId)
         .is("deleted_at", null)
+        // O embed NÃO herda o filtro do pai: sem esta linha, todo KR excluído
+        // continua chegando em tudo que consome este hook — lista, cards,
+        // árvore, export e o painel de "objetivos para check-in". Foi o que
+        // fez um KR excluído em 14/09 continuar na tela depois de recarregar.
+        .is("key_results.deleted_at", null)
         .order("created_at", { ascending: false });
 
       if (error) {
