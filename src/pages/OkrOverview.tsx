@@ -31,6 +31,7 @@ import { useDriverTour } from "@/hooks/useDriverTour";
 import { OKR_OVERVIEW_TOUR_ID, okrOverviewSteps } from "@/lib/tours";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { useRealtimeOkrList } from "@/hooks/useRealtimeObjective";
 
 type KeyResultRow = Database["public"]["Tables"]["key_results"]["Row"];
 
@@ -262,6 +263,10 @@ function AreaCard({
 }
 
 export default function OkrOverview() {
+  // Sem isto, quem fica na lista não vê exclusão nem edição feita por
+  // outra pessoa até recarregar a página.
+  useRealtimeOkrList();
+
   const { data: objectives = [], isLoading, isError, refetch } = useObjectives();
   const { data: periods = [] } = usePeriods();
   const weightOf = useObjectiveWeights();

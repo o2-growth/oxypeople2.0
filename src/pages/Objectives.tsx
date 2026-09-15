@@ -13,6 +13,7 @@ import { useObjectives } from "@/hooks/useObjectives";
 import { useOkrTier } from "@/hooks/useOkrTier";
 import { useAuth } from "@/contexts/AuthContext";
 import { ownsActiveKr } from "@/lib/my-okrs";
+import { useRealtimeOkrList } from "@/hooks/useRealtimeObjective";
 
 type TabKey = "mine" | "company" | "board";
 
@@ -35,6 +36,10 @@ function readStoredTab(): TabKey | "" {
  * localStorage.
  */
 export default function Objectives() {
+  // Sem isto, quem fica na lista não vê exclusão nem edição feita por
+  // outra pessoa até recarregar a página.
+  useRealtimeOkrList();
+
   const { user } = useAuth();
   const { data: objectives = [], isLoading } = useObjectives();
   const { canCreateObjective } = useOkrTier();
