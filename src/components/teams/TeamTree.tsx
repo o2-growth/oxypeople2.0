@@ -102,7 +102,8 @@ function Niveis({
      *
      * Somar as contagens daria número inflado onde alguém ocupa duas cadeiras
      * na mesma área — a líder de Serviços Especiais também atende como CFO
-     * dentro do CAAS, e apareceria como duas pessoas na Operação.
+     * dentro do Coordenador Financeiro, e apareceria como duas pessoas na
+     * Operação.
      */
     const distintas = (ids: string[]) => {
       const vistos = new Set<string>();
@@ -111,7 +112,8 @@ function Niveis({
     };
 
     // O total do time inclui quem está nos squads: contar só o vínculo direto
-    // mostraria "0" no CAAS, cujas 15 pessoas estão todas em squads.
+    // mostraria "0" no Coordenador Financeiro, cujas 15 pessoas estão todas
+    // em squads.
     const totalDoTime = (t: Team) => distintas([t.id, ...squadsDe(t.id).map((s) => s.id)]);
 
     const areas = new Map<string, Team[]>();
