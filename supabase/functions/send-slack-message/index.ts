@@ -55,6 +55,63 @@ serve(async (req) => {
       );
     }
 
+    // POST ?action=dm — mensagem direta para uma pessoa, pelo e-mail dela.
+    //
+    // A rota de post existente carimba "📢 Novo post de …" porque nasceu para
+    // publicar o mural num canal. Aviso individual precisa chegar como recado,
+    // não como anúncio — por isso uma rota própria, sem o cabeçalho.
+    //
+    // O id do Slack não vive no nosso banco: resolvemos pelo e-mail a cada
+    // envio, que é o mesmo e-mail com que a pessoa entra na plataforma.
+    if (req.method === 'POST' && action === 'dm') {
+      const { email, message } = await req.json();
+
+      if (!email || !message) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'email e message são obrigatórios' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const lookup = await fetch(
+        `${SLACK_API_URL}/users.lookupByEmail?email=${encodeURIComponent(email)}`,
+        { headers: { 'Authorization': `Bearer ${SLACK_BOT_TOKEN}` } }
+      );
+      const achado = await lookup.json();
+
+      if (!achado.ok) {
+        // users_not_found = a pessoa não tem conta no Slack com esse e-mail;
+        // missing_scope = o app não tem permissão de ler e-mails.
+        return new Response(
+          JSON.stringify({ success: false, error: `Slack lookup: ${achado.error}` }),
+          { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const envio = await fetch(`${SLACK_API_URL}/chat.postMessage`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${SLACK_BOT_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        // channel com um user id abre (ou reusa) a conversa direta com a pessoa.
+        body: JSON.stringify({ channel: achado.user.id, text: message, mrkdwn: true }),
+      });
+      const resultado = await envio.json();
+
+      if (!resultado.ok) {
+        return new Response(
+          JSON.stringify({ success: false, error: `Slack postMessage: ${resultado.error}` }),
+          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, to: achado.user.name, message_ts: resultado.ts }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // POST - Send message
     if (req.method === 'POST') {
       const { channel_id, channel_name, message, author_name, images } = await req.json();
