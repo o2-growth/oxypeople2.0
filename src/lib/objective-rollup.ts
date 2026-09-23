@@ -49,7 +49,10 @@ export function rollup(
   obj: ObjectiveWithDetails,
   weightOf: WeightOf,
 ): { progress: number; expected: number } {
-  const kids = obj.children ?? [];
+  // Filho cancelado não entra na conta: o trabalho foi encerrado, e mantê-lo
+  // como 0% penaliza o pai por algo que ninguém vai mais entregar. Concluído
+  // continua contando — foi entregue de verdade.
+  const kids = (obj.children ?? []).filter((c) => c.status !== "canceled");
   if (kids.length) {
     const parts = kids.map((c) => ({ r: rollup(c, weightOf), w: weightOf(c.id) }));
     return {

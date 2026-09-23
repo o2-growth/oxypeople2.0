@@ -48,7 +48,7 @@ export default function ObjectiveDetail() {
   // Find children
   const children = useMemo(() => {
     if (!objective) return [];
-    return objectives.filter((o) => o.parent_id === objective.id);
+    return objectives.filter((o) => o.parent_id === objective.id && o.status !== "canceled");
   }, [objectives, objective]);
 
   // Find parent
