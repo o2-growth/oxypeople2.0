@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/QueryError";
@@ -11,12 +12,14 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Scale, Check } from "lucide-react";
+import { Scale, Check, Undo2 } from "lucide-react";
+import { format, parseISO } from "date-fns";
 import {
   useCalibrationTargets, useCalibrationDetail, useSaveCalibration,
   CALIBRATION_SCALE, type CalibrationTarget,
 } from "@/hooks/useCalibration";
 import type { PerformanceCycle } from "@/hooks/usePerformanceCycles";
+import { useNotasDoCiclo, usePublicarNota, useReabrirNota, type NotaDoCiclo } from "@/hooks/useNotaFinal";
 
 interface CalibrationPanelProps {
   cycles: PerformanceCycle[];
@@ -54,6 +57,10 @@ export function CalibrationPanel({ cycles }: CalibrationPanelProps) {
 
   const pessoas = targets.data ?? [];
   const pessoaAberta = pessoas.find((p) => p.evaluatedId === selecionado) ?? null;
+  const notas = useNotasDoCiclo(cycleId);
+  const notaAberta = selecionado ? notas.data?.get(selecionado) ?? null : null;
+  const publicar = usePublicarNota();
+  const reabrir = useReabrirNota();
 
   return (
     <div className="space-y-4">
@@ -90,6 +97,7 @@ export function CalibrationPanel({ cycles }: CalibrationPanelProps) {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_1fr]">
           <ListaDeAvaliados
             pessoas={pessoas}
+            notas={notas.data}
             selecionado={selecionado}
             onSelecionar={setSelecionado}
           />
@@ -179,6 +187,68 @@ export function CalibrationPanel({ cycles }: CalibrationPanelProps) {
                       </TableBody>
                     </Table>
                   </div>
+
+                  {/* O encerramento. Antes dele o número é rascunho do comitê;
+                      depois, é a nota da pessoa. */}
+                  {notaAberta && (
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3.5">
+                      <div className="min-w-0">
+                        <p className="text-sm">
+                          <span className="font-medium">Nota final: </span>
+                          <span className="font-semibold tabular-nums">
+                            {notaAberta.score?.toFixed(2) ?? "—"}
+                          </span>
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            {notaAberta.calibradas} de{" "}
+                            {notaAberta.calibradas + notaAberta.herdadas + notaAberta.semBase} calibradas
+                            {notaAberta.herdadas > 0 &&
+                              `, ${notaAberta.herdadas} pelo consenso auto/líder`}
+                          </span>
+                        </p>
+                        {notaAberta.semBase > 0 && (
+                          <p className="mt-1 text-xs text-destructive">
+                            {notaAberta.semBase} atitude(s) sem autoavaliação nem nota do líder — não dá para publicar.
+                          </p>
+                        )}
+                        {notaAberta.publicada && notaAberta.publishedAt && (
+                          <p className="mt-1 text-xs text-success">
+                            Publicada em{" "}
+                            {format(parseISO(notaAberta.publishedAt), "dd/MM/yyyy 'às' HH:mm")}
+                            {notaAberta.scorePublicado !== null &&
+                              notaAberta.scorePublicado !== notaAberta.score &&
+                              ` com nota ${notaAberta.scorePublicado.toFixed(2)} — a calibragem mudou depois`}
+                          </p>
+                        )}
+                      </div>
+
+                      {notaAberta.publicada ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={reabrir.isPending}
+                          onClick={() =>
+                            cycleId && selecionado &&
+                            reabrir.mutate({ cycleId, evaluatedId: selecionado })
+                          }
+                        >
+                          <Undo2 className="mr-2 h-3.5 w-3.5" />
+                          Reabrir
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          disabled={publicar.isPending || notaAberta.semBase > 0}
+                          onClick={() =>
+                            cycleId && selecionado &&
+                            publicar.mutate({ cycleId, evaluatedId: selecionado })
+                          }
+                        >
+                          <Check className="mr-2 h-3.5 w-3.5" />
+                          Publicar nota final
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
             </CardContent>
@@ -190,9 +260,10 @@ export function CalibrationPanel({ cycles }: CalibrationPanelProps) {
 }
 
 function ListaDeAvaliados({
-  pessoas, selecionado, onSelecionar,
+  pessoas, notas, selecionado, onSelecionar,
 }: {
   pessoas: CalibrationTarget[];
+  notas?: Map<string, NotaDoCiclo>;
   selecionado: string | null;
   onSelecionar: (id: string) => void;
 }) {
@@ -231,6 +302,25 @@ function ListaDeAvaliados({
                     </p>
                   )}
                 </div>
+                {/* A nota que sai da calibragem, antes e depois de publicada:
+                    é o número que a pessoa vai ver, e fica à vista enquanto o
+                    comitê discute. */}
+                {(() => {
+                  const n = notas?.get(p.evaluatedId);
+                  if (!n?.score && n?.score !== 0) return null;
+                  return (
+                    <span className="shrink-0 text-right">
+                      <span className={`block text-sm font-semibold tabular-nums ${
+                        n.publicada ? "text-success" : "text-foreground"
+                      }`}>
+                        {n.score.toFixed(2)}
+                      </span>
+                      <span className="block text-[10px] text-muted-foreground">
+                        {n.publicada ? "publicada" : "prévia"}
+                      </span>
+                    </span>
+                  );
+                })()}
                 {p.calibradas > 0 && (
                   <Badge
                     variant="outline"

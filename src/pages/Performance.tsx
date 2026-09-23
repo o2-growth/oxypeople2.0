@@ -12,6 +12,7 @@ import { MyEvaluations } from "@/components/performance/MyEvaluations";
 import { EvaluationForm } from "@/components/performance/EvaluationForm";
 import { CycleDetailDialog } from "@/components/performance/CycleDetailDialog";
 import { MyResults } from "@/components/performance/MyResults";
+import { MinhaNotaFinal } from "@/components/performance/MinhaNotaFinal";
 import { CalibrationPanel } from "@/components/performance/CalibrationPanel";
 import { usePerformanceCycles } from "@/hooks/usePerformanceCycles";
 import { useEvaluations } from "@/hooks/useEvaluations";
@@ -215,6 +216,7 @@ export default function Performance() {
               ) : (
                 <>
                   <TabsContent value="mine" className="space-y-6 mt-0">
+                    <MinhaNotaFinal />
                     <MyResults />
                     <MyEvaluations
                       pendingEvaluations={pendingEvaluations}
@@ -385,7 +387,8 @@ export default function Performance() {
 
             <div className="mt-6">
               <TabsContent value="mine" className="space-y-6 mt-0">
-                <MyResults />
+                <MinhaNotaFinal />
+                    <MyResults />
                 <MyEvaluations
                   pendingEvaluations={pendingEvaluations}
                   completedEvaluations={completedEvaluations}
@@ -401,7 +404,8 @@ export default function Performance() {
           </Tabs>
         ) : (
           <div className="space-y-6">
-            <MyResults />
+            <MinhaNotaFinal />
+                    <MyResults />
             <MyEvaluations
             pendingEvaluations={pendingEvaluations}
             completedEvaluations={completedEvaluations}
