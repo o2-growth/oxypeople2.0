@@ -6,7 +6,10 @@ name: Pipefy People Sync Cron
 # vive em pipefy_sync_config; o body vazio manda a função usá-la.
 on:
   schedule:
-    - cron: "0 10 * * *"
+    # 05:00 UTC = 02:00 BRT. O GitHub vem atrasando o schedule em até 5h
+    # (execuções reais entre 14:18 e 15:06 UTC para um cron de 10:00); saindo
+    # de madrugada, quem foi cadastrado na véspera ainda entra antes das 9h.
+    - cron: "0 5 * * *"
   workflow_dispatch:
 
 # O sync pagina a table inteira e escreve por pessoa; duas execuções

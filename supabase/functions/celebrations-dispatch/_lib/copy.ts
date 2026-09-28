@@ -5,6 +5,11 @@
 export interface Pessoa {
   fullName: string;
   years?: number;
+  /** Só na admissão: cargo e time vêm do Pipefy via sync. */
+  position?: string | null;
+  team?: string | null;
+  /** ID Slack para a menção; sem ele, o nome sai em negrito. */
+  slackUserId?: string | null;
 }
 
 export function slackAniversario(p: Pessoa): string {
@@ -17,10 +22,28 @@ export function slackO2versario(p: Pessoa): string {
   return `ÉÉÉÉ HOJEEE!!!\n\nSim, *${p.fullName}* completa hoje ${tempo} na nossa empresa. 🎉\n\nBORA COMEMORAR ???`;
 }
 
+// Base: o post de boas-vindas do Feedz ("seja muito bem-vinda à O2 Inc.! Hoje
+// começa sua jornada conosco como ... no time ..."). "Boas-vindas" no lugar de
+// "bem-vindo/a" porque o cadastro não diz o gênero da pessoa.
+export function slackBoasVindas(p: Pessoa): string {
+  const quem = p.slackUserId ? `<@${p.slackUserId}>` : `*${p.fullName}*`;
+  const cargo = p.position ? ` como *${p.position}*` : "";
+  const time = p.team ? ` no time *${p.team}*` : "";
+  const detalhe = `${cargo}${time}`;
+  // "O2 Inc." já fecha a frase quando não há cargo nem time.
+  const fecho = detalhe ? `${detalhe}.` : "";
+  return `👋 Boas-vindas, ${quem}! Hoje começa sua jornada na O2 Inc.${fecho}\n\nConte com toda a equipe nessa nova fase — sucesso! 🚀🎉`;
+}
+
 /** Assunto do e-mail do dia — um só, mesmo com várias celebrações. */
-export function assuntoEmail(aniversarios: Pessoa[], o2versarios: Pessoa[]): string {
-  const nomes = [...aniversarios, ...o2versarios].map((p) => primeiroNome(p.fullName));
+export function assuntoEmail(
+  aniversarios: Pessoa[],
+  o2versarios: Pessoa[],
+  chegadas: Pessoa[] = [],
+): string {
+  const nomes = [...chegadas, ...aniversarios, ...o2versarios].map((p) => primeiroNome(p.fullName));
   if (nomes.length === 1) {
+    if (chegadas.length === 1) return `👋 ${nomes[0]} chega hoje na O2`;
     return aniversarios.length === 1
       ? `🎂 Hoje é aniversário de ${nomes[0]}`
       : `🎉 ${nomes[0]} faz aniversário de O2 hoje`;
@@ -28,7 +51,11 @@ export function assuntoEmail(aniversarios: Pessoa[], o2versarios: Pessoa[]): str
   return `🎉 Hoje na O2: ${listar(nomes)}`;
 }
 
-export function htmlEmail(aniversarios: Pessoa[], o2versarios: Pessoa[]): string {
+export function htmlEmail(
+  aniversarios: Pessoa[],
+  o2versarios: Pessoa[],
+  chegadas: Pessoa[] = [],
+): string {
   const bloco = (titulo: string, itens: string[]) =>
     itens.length === 0
       ? ""
@@ -38,6 +65,13 @@ export function htmlEmail(aniversarios: Pessoa[], o2versarios: Pessoa[]): string
            .join("")}</ul>`;
 
   const corpo = [
+    bloco(
+      "👋 Chegando hoje",
+      chegadas.map((p) => {
+        const detalhe = [p.position, p.team ? `time ${p.team}` : null].filter(Boolean).join(" · ");
+        return detalhe ? `${escapar(p.fullName)} — ${escapar(detalhe)}` : escapar(p.fullName);
+      }),
+    ),
     bloco(
       "🎂 Aniversário",
       aniversarios.map((p) => escapar(p.fullName)),
@@ -52,9 +86,17 @@ export function htmlEmail(aniversarios: Pessoa[], o2versarios: Pessoa[]): string
   ].join("");
 
   return `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px">
-  <h2 style="margin:0 0 16px;font-size:18px;color:#111">Hoje tem gente para comemorar 🥳</h2>
+  <h2 style="margin:0 0 16px;font-size:18px;color:#111">${
+    chegadas.length > 0 && aniversarios.length + o2versarios.length === 0
+      ? "Hoje tem gente nova na O2 👋"
+      : "Hoje tem gente para comemorar 🥳"
+  }</h2>
   ${corpo}
-  <p style="margin:0;color:#666;font-size:13px">Passa lá no Slack e manda um parabéns.</p>
+  <p style="margin:0;color:#666;font-size:13px">${
+    aniversarios.length + o2versarios.length === 0
+      ? "Passa lá no Slack e dá as boas-vindas."
+      : "Passa lá no Slack e manda um parabéns."
+  }</p>
 </div>`;
 }
 

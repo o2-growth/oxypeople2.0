@@ -19,7 +19,30 @@ jobs:
   celebrar:
     runs-on: ubuntu-latest
     steps:
-      - name: Comunicar aniversários e o2versários
+      # A admissão do dia só é anunciada se a pessoa já estiver na plataforma.
+      # O sync tem cron próprio, mas o GitHub não garante a ordem entre dois
+      # workflows — rodar aqui antes elimina a corrida. Falhar no sync não
+      # impede aniversários e o2versários de saírem.
+      - name: Sincronizar pessoas do Pipefy antes
+        continue-on-error: true
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          STATUS=$(curl -s -o /tmp/sync.json -w "%{http_code}" -X POST \
+            "${SUPABASE_URL}/functions/v1/pipefy-sync" \
+            -H "Authorization: Bearer ${ANON_KEY}" \
+            -H "x-cron-secret: ${CRON_SECRET}" \
+            -H "Content-Type: application/json" \
+            --max-time 300 \
+            -d '{}')
+          echo "HTTP $STATUS"
+          cat /tmp/sync.json
+          echo
+          [ "$STATUS" = "200" ] || echo "::warning::pipefy-sync respondeu $STATUS; seguindo com as celebrações"
+
+      - name: Comunicar aniversários, o2versários e boas-vindas
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           # Chave pública, não a service_role: quem autoriza de fato é o

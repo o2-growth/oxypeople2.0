@@ -109,3 +109,28 @@ export async function postSlackChannel(
     return false;
   }
 }
+
+/**
+ * ID Slack de quem tem este e-mail, para a menção no post de boas-vindas.
+ * Null se o bot não tiver token, a pessoa ainda não estiver no workspace ou a
+ * busca falhar — o post sai com o nome em negrito.
+ */
+export async function slackUserIdByEmail(email: string, log: Logger): Promise<string | null> {
+  const botToken = Deno.env.get("SLACK_BOT_TOKEN");
+  if (!botToken) return null;
+  try {
+    const res = await fetch(
+      `${SLACK_API_URL}/users.lookupByEmail?email=${encodeURIComponent(email)}`,
+      { headers: { Authorization: `Bearer ${botToken}` } },
+    );
+    const data = await res.json();
+    if (!data.ok) {
+      log("info", "celebrations:slack-lookup-miss", { error: data.error });
+      return null;
+    }
+    return data.user?.id ?? null;
+  } catch (err) {
+    log("warn", "celebrations:slack-lookup-exception", { msg: (err as Error).message });
+    return null;
+  }
+}

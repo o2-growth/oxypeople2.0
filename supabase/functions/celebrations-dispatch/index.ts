@@ -1,10 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.93.3";
-import { postSlackChannel, sendEmails, type EmailTarget } from "./_lib/notify.ts";
+import {
+  postSlackChannel,
+  sendEmails,
+  slackUserIdByEmail,
+  type EmailTarget,
+} from "./_lib/notify.ts";
 import {
   assuntoEmail,
   htmlEmail,
   slackAniversario,
+  slackBoasVindas,
   slackO2versario,
   type Pessoa,
 } from "./_lib/copy.ts";
@@ -41,12 +47,15 @@ function hojeBRT(): string {
 interface MembroRow {
   user_id: string;
   hire_date: string | null;
+  position: string | null;
+  department: string | null;
   users: { id: string; full_name: string | null; email: string; birth_date: string | null } | null;
 }
 
 interface Celebrado extends Pessoa {
   userId: string;
-  kind: "birthday" | "work_anniversary";
+  kind: "birthday" | "work_anniversary" | "welcome";
+  email?: string;
 }
 
 serve(async (req) => {
@@ -108,7 +117,7 @@ serve(async (req) => {
     for (const empresa of empresas ?? []) {
       const { data: membros, error: erroMembros } = await supabase
         .from("company_memberships")
-        .select("user_id, hire_date, users!company_memberships_user_id_fkey(id, full_name, email, birth_date)")
+        .select("user_id, hire_date, position, department, users!company_memberships_user_id_fkey(id, full_name, email, birth_date)")
         .eq("company_id", empresa.id)
         .eq("status", "active");
       if (erroMembros) throw erroMembros;
@@ -128,8 +137,19 @@ serve(async (req) => {
 
         if (m.hire_date?.slice(5) === mesDia) {
           const anos = anoAtual - Number(m.hire_date.slice(0, 4));
-          // Ano zero é a admissão de hoje, não o2versário.
-          if (anos >= 1) {
+          // Ano zero é a admissão de hoje: boas-vindas, não o2versário.
+          // O sync do Pipefy roda antes desta rotina no mesmo workflow, então
+          // quem foi cadastrado na véspera já está aqui como ativo.
+          if (anos === 0) {
+            celebrados.push({
+              userId: m.user_id,
+              fullName: nome,
+              kind: "welcome",
+              position: m.position,
+              team: m.department,
+              email: m.users?.email,
+            });
+          } else if (anos >= 1) {
             celebrados.push({
               userId: m.user_id,
               fullName: nome,
@@ -182,8 +202,15 @@ serve(async (req) => {
       // individual em resposta a uma lista.
       const slackOk = new Map<string, boolean>();
       for (const c of pendentes) {
+        if (c.kind === "welcome" && c.email) {
+          c.slackUserId = await slackUserIdByEmail(c.email, log);
+        }
         const texto =
-          c.kind === "birthday" ? slackAniversario(c) : slackO2versario(c);
+          c.kind === "birthday"
+            ? slackAniversario(c)
+            : c.kind === "welcome"
+              ? slackBoasVindas(c)
+              : slackO2versario(c);
         const ok = await postSlackChannel(canal, texto, log);
         slackOk.set(`${c.userId}:${c.kind}`, ok);
       }
@@ -191,6 +218,7 @@ serve(async (req) => {
       // E-mail: um por dia para a empresa inteira, não um por celebração.
       const aniversarios = pendentes.filter((c) => c.kind === "birthday");
       const o2versarios = pendentes.filter((c) => c.kind === "work_anniversary");
+      const chegadas = pendentes.filter((c) => c.kind === "welcome");
       const idsCelebrados = new Set(pendentes.map((c) => c.userId));
 
       const destinatarios: EmailTarget[] = ativos
@@ -199,8 +227,8 @@ serve(async (req) => {
 
       const enviados = await sendEmails(
         destinatarios,
-        assuntoEmail(aniversarios, o2versarios),
-        htmlEmail(aniversarios, o2versarios),
+        assuntoEmail(aniversarios, o2versarios, chegadas),
+        htmlEmail(aniversarios, o2versarios, chegadas),
         log,
       );
 

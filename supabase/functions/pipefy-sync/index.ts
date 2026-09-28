@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendAccessEmail } from "./_lib/access-email.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -157,15 +158,17 @@ async function fetchAllAuthUsers(supabase: any): Promise<Map<string, any>> {
 }
 
 /**
- * Generate a strong random password. The old hardcoded '123456' fails whenever
- * the project enforces a minimum password length/complexity, silently skipping
- * every new user. Users receive access via invite/reset flow, not this password.
+ * Senha provisória de quem o sync cria. Vai no e-mail de acesso, então precisa
+ * ser digitável: 12 caracteres sem os ambíguos (0/O, 1/l/I) e um prefixo que
+ * cobre a exigência de maiúscula, minúscula, número e símbolo. A antiga
+ * '123456' fixa falhava na política de senha e pulava todo novo usuário.
  */
 function generateStrongPassword(): string {
-  const bytes = new Uint8Array(24);
+  const alfabeto = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  const bytes = new Uint8Array(12);
   crypto.getRandomValues(bytes);
-  const b64 = btoa(String.fromCharCode(...bytes)).replace(/[^a-zA-Z0-9]/g, '');
-  return `Aa1!${b64}`;
+  const corpo = Array.from(bytes, (b) => alfabeto[b % alfabeto.length]).join('');
+  return `Aa1!${corpo}`;
 }
 
 /**
@@ -259,6 +262,7 @@ serve(async (req) => {
     let recordsUpdated = 0;
     let recordsSkipped = 0;
     let recordsSynced = 0;
+    const accessEmails: Array<{ email: string; sent: boolean }> = [];
     const skipReasons: Array<{ email: string | null; reason: string }> = [];
 
     try {
@@ -453,9 +457,10 @@ serve(async (req) => {
             // User does NOT exist - CREATE NEW USER via Admin API
             console.log(`Creating new user: ${normalizedEmail}`);
             
+            const senhaProvisoria = generateStrongPassword();
             const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
               email: normalizedEmail,
-              password: generateStrongPassword(),
+              password: senhaProvisoria,
               email_confirm: true, // Auto-confirm email for immediate access
               user_metadata: {
                 full_name: fullName || normalizedEmail.split('@')[0],
@@ -533,6 +538,10 @@ serve(async (req) => {
             }
 
             recordsCreated++;
+
+            // Sem isso a conta existe mas a pessoa não sabe como entrar.
+            const sent = await sendAccessEmail(normalizedEmail, fullName, senhaProvisoria);
+            accessEmails.push({ email: normalizedEmail, sent });
           }
 
           // Handle team if specified
@@ -612,7 +621,7 @@ serve(async (req) => {
           records_created: recordsCreated,
           records_updated: recordsUpdated,
           records_skipped: recordsSkipped,
-          details: { skipReasons },
+          details: { skipReasons, accessEmails },
         })
         .eq('id', logId);
 
@@ -622,6 +631,7 @@ serve(async (req) => {
         recordsCreated,
         recordsUpdated,
         recordsSkipped,
+        accessEmails,
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

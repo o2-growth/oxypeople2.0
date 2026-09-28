@@ -7,6 +7,8 @@
  *   node scripts/send-access-welcome.mjs                 # DRY-RUN (lista, não envia)
  *   node scripts/send-access-welcome.mjs --test EMAIL    # envia só para EMAIL (teste)
  *   node scripts/send-access-welcome.mjs --apply         # envia para TODOS os ativos
+ *   node scripts/send-access-welcome.mjs --only EMAIL    # envia só para EMAIL, com o nome real
+ *                                                        # (admissão avulsa; não mexe na senha)
  */
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -34,6 +36,8 @@ const DOMAIN = "@o2inc.com.br";
 const testIdx = process.argv.indexOf("--test");
 const TEST_EMAIL = testIdx > -1 ? process.argv[testIdx + 1] : null;
 const APPLY = process.argv.includes("--apply");
+const onlyIdx = process.argv.indexOf("--only");
+const ONLY_EMAIL = onlyIdx > -1 ? process.argv[onlyIdx + 1]?.toLowerCase() : null;
 
 const db = createClient(URL, KEY, { auth: { persistSession: false } });
 
@@ -107,6 +111,14 @@ const targets = (us || [])
   .sort((a, b) => a.nome.localeCompare(b.nome));
 
 console.log(`Alvos (ativos ${DOMAIN}): ${targets.length}`);
+
+if (ONLY_EMAIL) {
+  const alvo = targets.find((t) => t.email === ONLY_EMAIL);
+  if (!alvo) { console.error(`${ONLY_EMAIL} não é membro ativo ${DOMAIN}`); process.exit(1); }
+  const ok = await send(alvo.email, alvo.nome);
+  console.log(`\n[ONLY] ${alvo.email}: ${ok ? "OK ✓" : "FALHOU ✗"}`);
+  process.exit(ok ? 0 : 1);
+}
 
 if (TEST_EMAIL) {
   const ok = await send(TEST_EMAIL, "Andrey (teste)");
