@@ -85,6 +85,9 @@ const ORIGEM: Record<string, { label: string; icon: typeof User }> = {
 
 export function MyResults() {
   const { data, isLoading } = useMyResults();
+  // Antes dos returns: hook depois de um return antecipado muda a contagem de
+  // hooks entre o render de carregamento e o com dados, e o React derruba a tela.
+  const [aberta, setAberta] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -103,7 +106,6 @@ export function MyResults() {
 
   if (!data?.length) return null;
 
-  const [aberta, setAberta] = useState<string | null>(null);
   const liberadas = data.filter((d) => d.can_view && d.overall_score != null);
   const media = liberadas.length
     ? liberadas.reduce((a, d) => a + (d.overall_score ?? 0), 0) /

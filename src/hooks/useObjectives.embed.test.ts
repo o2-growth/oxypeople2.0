@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -28,7 +29,6 @@ describe("embed de key_results esconde o que foi excluído", () => {
 
   it("nenhum outro arquivo embute key_results sem o filtro", () => {
     // Se um consumidor novo aparecer, ou entra com o filtro ou entra nesta lista.
-    const { execSync } = require("node:child_process");
     const saida = execSync(
       `grep -rln "key_results(" src/ --include="*.ts" --include="*.tsx" || true`,
       { encoding: "utf-8" },
