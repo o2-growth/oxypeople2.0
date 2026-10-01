@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.93.3";
+import { generateStrongPassword, sendAccessEmail } from "../_shared/access-email.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -27,53 +28,6 @@ function jsonResponse(status: number, body: unknown) {
   });
 }
 
-async function sendResendWelcomeEmail(args: {
-  email: string;
-  inviterName: string | null;
-  companyName: string | null;
-}): Promise<{ ok: boolean; error?: string }> {
-  const apiKey = Deno.env.get("RESEND_API_KEY");
-  if (!apiKey) {
-    log("info", "invite-user:resend-skip", { reason: "no RESEND_API_KEY — user must use Supabase magic link" });
-    return { ok: true };
-  }
-
-  const fromAddress = Deno.env.get("RESEND_FROM_EMAIL") ?? "no-reply@o2-growth.com";
-  const inviter = args.inviterName ?? "alguém da equipe";
-  const company = args.companyName ?? "oxypeople";
-
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: fromAddress,
-        to: [args.email],
-        subject: `Convite para entrar no ${company}`,
-        html: `
-          <p>Olá!</p>
-          <p>${inviter} convidou você para fazer parte do <strong>${company}</strong>.</p>
-          <p>Você receberá em paralelo um e-mail do Supabase com o link mágico para criar sua senha. Use-o para entrar.</p>
-          <p>Qualquer dúvida, é só responder este e-mail.</p>
-        `,
-      }),
-    });
-    if (!res.ok) {
-      const body = await res.text();
-      log("warn", "invite-user:resend-failed", { status: res.status, body });
-      return { ok: false, error: `resend ${res.status}` };
-    }
-    return { ok: true };
-  } catch (err) {
-    const msg = (err as Error).message;
-    log("warn", "invite-user:resend-exception", { msg });
-    return { ok: false, error: msg };
-  }
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -86,7 +40,6 @@ serve(async (req) => {
   const startedAt = Date.now();
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
   const authHeader = req.headers.get("Authorization") ?? "";
   if (!authHeader.startsWith("Bearer ")) {
@@ -96,10 +49,6 @@ serve(async (req) => {
 
   // Service-role client for privileged ops (auth admin + bypass RLS for memberships insert)
   const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-  // Caller-scoped client used only to resolve the invoking user from the JWT
-  const callerClient = createClient(SUPABASE_URL, ANON_KEY, {
-    global: { headers: { Authorization: authHeader } },
-  });
 
   log("info", "invite-user:start");
 
@@ -123,8 +72,11 @@ serve(async (req) => {
     return jsonResponse(400, { success: false, error: "companyId obrigatório" });
   }
 
-  // Resolve caller
-  const { data: callerData, error: callerErr } = await callerClient.auth.getUser();
+  // Resolve caller. O token vai explícito: getUser() sem argumento, num client
+  // de edge function, não tem sessão e devolve 401 para todo mundo — foi por
+  // isso que esta função nunca funcionou.
+  const jwt = authHeader.replace(/^Bearer\s+/i, "");
+  const { data: callerData, error: callerErr } = await adminClient.auth.getUser(jwt);
   if (callerErr || !callerData?.user) {
     log("warn", "invite-user:auth-failed", { msg: callerErr?.message });
     return jsonResponse(401, { success: false, error: "Não autenticado" });
@@ -157,13 +109,12 @@ serve(async (req) => {
     invited_by: callerId,
   };
 
-  const DEFAULT_PASSWORD = "Alterar@01";
-
-  // Create user with default password so they can log in immediately (no magic link needed).
-  // email_confirm: true skips the confirmation e-mail — admin shares the password directly.
+  // Senha provisória única, que vai no e-mail de acesso. email_confirm pula a
+  // confirmação: a pessoa entra direto com login e senha.
+  let senhaProvisoria: string | null = generateStrongPassword();
   const { data: inviteData, error: inviteErr } = await adminClient.auth.admin.createUser({
     email,
-    password: DEFAULT_PASSWORD,
+    password: senhaProvisoria,
     email_confirm: true,
     user_metadata: inviteMetadata,
   });
@@ -175,6 +126,9 @@ serve(async (req) => {
     const errMsg = inviteErr.message?.toLowerCase() ?? "";
     if (errMsg.includes("already") || errMsg.includes("registered") || errMsg.includes("exists")) {
       log("info", "invite-user:user-exists-recovering", { email });
+      // Conta que já existia tem senha própria; só ganha uma nova se o convite
+      // ainda estiver pendente (abaixo).
+      senhaProvisoria = null;
       const { data: existing, error: existingErr } = await adminClient
         .from("users")
         .select("id")
@@ -213,11 +167,19 @@ serve(async (req) => {
   if (existingMembership?.id) {
     membershipId = existingMembership.id;
     if (existingMembership.status === "invited") {
-      // Touch updated_at to bump invite freshness
+      // Reenvio: a pessoa nunca entrou, então ganha senha nova e outro e-mail.
       await adminClient
         .from("company_memberships")
         .update({ position, department_id: departmentId, invited_by: callerId })
         .eq("id", membershipId);
+      senhaProvisoria = generateStrongPassword();
+      const { error: pwdErr } = await adminClient.auth.admin.updateUserById(invitedUserId, {
+        password: senhaProvisoria,
+      });
+      if (pwdErr) {
+        log("error", "invite-user:password-reset-failed", { msg: pwdErr.message });
+        return jsonResponse(500, { success: false, error: pwdErr.message });
+      }
     } else {
       log("info", "invite-user:membership-already-exists", {
         membershipId,
@@ -247,25 +209,40 @@ serve(async (req) => {
       });
     }
     membershipId = insertData.id;
+
+    // Papel de membro, como o sync do Pipefy faz. Sem ele a pessoa entra sem
+    // permissão nenhuma. Se já houver papel nessa empresa, fica o existente.
+    const { data: roleExistente } = await adminClient
+      .from("user_roles")
+      .select("id")
+      .eq("user_id", invitedUserId)
+      .eq("company_id", companyId)
+      .maybeSingle();
+    if (!roleExistente) {
+      const { error: roleInsertErr } = await adminClient
+        .from("user_roles")
+        .insert({ user_id: invitedUserId, company_id: companyId, role: "member" });
+      if (roleInsertErr) {
+        log("warn", "invite-user:role-insert-failed", { msg: roleInsertErr.message });
+      }
+    }
   }
 
-  // Best-effort welcome email via Resend (no-op if RESEND_API_KEY missing)
-  const { data: inviterRow } = await adminClient
-    .from("users")
-    .select("full_name")
-    .eq("id", callerId)
-    .maybeSingle();
-  const { data: companyRow } = await adminClient
-    .from("companies")
-    .select("name")
-    .eq("id", companyId)
-    .maybeSingle();
-
-  const emailResult = await sendResendWelcomeEmail({
-    email,
-    inviterName: inviterRow?.full_name ?? null,
-    companyName: companyRow?.name ?? null,
-  });
+  // E-mail de acesso (n8n → Gmail), o mesmo do sync do Pipefy. Só sai quando
+  // há senha nova para entregar; quem já tinha conta entra com a dele.
+  let emailResult: { ok: boolean; error?: string } = {
+    ok: false,
+    error: "Pessoa já tinha conta; nenhuma senha nova foi enviada",
+  };
+  if (senhaProvisoria) {
+    const { data: invitedRow } = await adminClient
+      .from("users")
+      .select("full_name")
+      .eq("id", invitedUserId)
+      .maybeSingle();
+    const ok = await sendAccessEmail(email, invitedRow?.full_name ?? null, senhaProvisoria);
+    emailResult = ok ? { ok } : { ok, error: "Falha ao enviar o e-mail de acesso" };
+  }
 
   const durationMs = Date.now() - startedAt;
   log("info", "invite-user:done", {

@@ -33,14 +33,10 @@ serve(async (req) => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  // Verify caller is authenticated and is admin/owner
-  const authHeader = req.headers.get("authorization") ?? "";
-  const callerClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
-    global: { headers: { authorization: authHeader } },
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-
-  const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
+  // Verify caller is authenticated and is admin/owner. O token vai explícito:
+  // getUser() sem argumento, num client sem sessão, devolve 401 para todos.
+  const jwt = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+  const { data: { user: caller }, error: authErr } = await adminClient.auth.getUser(jwt);
   if (authErr || !caller) {
     return jsonResponse(401, { success: false, error: "Unauthorized" });
   }
@@ -65,9 +61,13 @@ serve(async (req) => {
 
   log("info", "reset-user-password:start", { callerId: caller.id, email });
 
+  // Sem redirectTo o link cai na raiz do site, que não trata o token de
+  // recuperação; /reset-password é a tela que pede a senha nova.
+  const appUrl = Deno.env.get("APP_URL") ?? "https://oxypeople20.vercel.app";
   const { data, error } = await adminClient.auth.admin.generateLink({
     type: "recovery",
     email,
+    options: { redirectTo: `${appUrl}/reset-password` },
   });
 
   if (error || !data?.properties?.action_link) {

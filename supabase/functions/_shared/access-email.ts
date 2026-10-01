@@ -1,4 +1,5 @@
-// E-mail de "seu acesso está pronto" para quem o sync acabou de criar.
+// E-mail de "seu acesso está pronto" para quem acabou de ganhar conta — pelo
+// sync do Pipefy ou pelo convite manual do admin (invite-user).
 //
 // Antes, a conta nascia com senha aleatória e ninguém recebia nada: a pessoa
 // existia na plataforma sem conseguir entrar, até alguém rodar
@@ -9,6 +10,21 @@
 // celebrações usam. Best-effort: falhar em avisar não derruba o sync.
 
 const APP_URL = "https://oxypeople20.vercel.app/auth";
+
+/**
+ * Senha provisória que vai no e-mail de acesso, então precisa ser digitável:
+ * 12 caracteres sem os ambíguos (0/O, 1/l/I) e um prefixo que cobre a
+ * exigência de maiúscula, minúscula, número e símbolo. Uma por pessoa — a
+ * padrão compartilhada (Alterar@01) vale para qualquer conta que ninguém
+ * trocou.
+ */
+export function generateStrongPassword(): string {
+  const alfabeto = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+  const bytes = new Uint8Array(12);
+  crypto.getRandomValues(bytes);
+  const corpo = Array.from(bytes, (b) => alfabeto[b % alfabeto.length]).join("");
+  return `Aa1!${corpo}`;
+}
 
 function primeiroNome(nome: string | null): string {
   return (nome ?? "").trim().split(/\s+/)[0] || "Olá";

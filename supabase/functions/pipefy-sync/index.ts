@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendAccessEmail } from "./_lib/access-email.ts";
+import { generateStrongPassword, sendAccessEmail } from "../_shared/access-email.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -155,20 +155,6 @@ async function fetchAllAuthUsers(supabase: any): Promise<Map<string, any>> {
     page++;
   }
   return byEmail;
-}
-
-/**
- * Senha provisória de quem o sync cria. Vai no e-mail de acesso, então precisa
- * ser digitável: 12 caracteres sem os ambíguos (0/O, 1/l/I) e um prefixo que
- * cobre a exigência de maiúscula, minúscula, número e símbolo. A antiga
- * '123456' fixa falhava na política de senha e pulava todo novo usuário.
- */
-function generateStrongPassword(): string {
-  const alfabeto = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
-  const bytes = new Uint8Array(12);
-  crypto.getRandomValues(bytes);
-  const corpo = Array.from(bytes, (b) => alfabeto[b % alfabeto.length]).join('');
-  return `Aa1!${corpo}`;
 }
 
 /**

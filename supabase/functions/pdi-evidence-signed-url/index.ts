@@ -14,7 +14,6 @@ serve(async (req) => {
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
   try {
     const authHeader = req.headers.get("Authorization");
@@ -33,12 +32,14 @@ serve(async (req) => {
       });
     }
 
-    // Create anon client with user JWT to validate identity
-    const anonClient = createClient(SUPABASE_URL, ANON_KEY, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    // Service role para validar o token e checar acesso ao plano sem a RLS
+    // bloquear as consultas de apoio.
+    const serviceClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-    const { data: { user } } = await anonClient.auth.getUser();
+    // O token vai explícito: getUser() sem argumento, num client sem sessão,
+    // devolve 401 para todos.
+    const jwt = authHeader.replace(/^Bearer\s+/i, "");
+    const { data: { user } } = await serviceClient.auth.getUser(jwt);
     if (!user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
@@ -59,9 +60,6 @@ serve(async (req) => {
 
     const planId = pathSegments[1];
 
-    // Use service role to check plan access without RLS blocking meta-queries
-    const serviceClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-
     const { data: plan } = await serviceClient
       .from("pdi_plans")
       .select("user_id, manager_id, company_id")
@@ -80,10 +78,13 @@ serve(async (req) => {
 
     let isOrgManager = false;
     if (!isOwner && !isManager) {
+      // Nomes dos parâmetros iguais aos da função no banco; com os antigos
+      // (manager_id/member_id/company_id) a chamada falhava e o gestor da
+      // hierarquia era barrado.
       const { data } = await serviceClient.rpc("is_user_manager", {
-        manager_id: requesterId,
-        member_id: plan.user_id,
-        company_id: plan.company_id,
+        manager_uid: requesterId,
+        subordinate_uid: plan.user_id,
+        comp_id: plan.company_id,
       });
       isOrgManager = !!data;
     }
