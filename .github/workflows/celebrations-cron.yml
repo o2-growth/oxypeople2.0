@@ -1,12 +1,14 @@
 name: Celebrations Cron
 
-# Diário, 10:00 UTC (07:00 BRT): quem faz aniversário ou completa mais um ano
-# de O2 hoje ganha um post no canal do Slack, e a empresa recebe um e-mail com
-# as datas do dia. O mural não depende desta rotina — lá o card é derivado da
+# Disparo manual da rotina diária (a agendada roda às 08:00 BRT pelo pg_cron):
+# quem faz aniversário, completa mais um ano de O2 ou começa hoje ganha um post
+# no canal do Slack, e a empresa recebe um e-mail com as datas do dia. O mural não depende desta rotina — lá o card é derivado da
 # data de nascimento e da admissão a cada leitura.
 on:
-  schedule:
-    - cron: "0 10 * * *"
+  # O agendamento diário saiu daqui: o GitHub atrasava o schedule em até 8h.
+  # Quem dispara agora é o pg_cron do banco (migration
+  # 20261001120000_cron_anuncios_pela_manha). Este workflow fica para disparo
+  # manual.
   workflow_dispatch:
 
 # Duas execuções ao mesmo tempo mandariam o parabéns em dobro: o registro em

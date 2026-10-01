@@ -1,15 +1,15 @@
 name: Pipefy People Sync Cron
 
-# Diário, 10:00 UTC (07:00 BRT): espelha a table Pessoas do Pipefy na
+# Disparo manual do sync diário (o agendado roda às 06:00 BRT pelo pg_cron):
+# espelha a table Pessoas do Pipefy na
 # plataforma — status ativo/inativo, data e motivo de desligamento,
 # aniversário, admissão e cargo. A config (table + mapeamento de campos)
 # vive em pipefy_sync_config; o body vazio manda a função usá-la.
 on:
-  schedule:
-    # 05:00 UTC = 02:00 BRT. O GitHub vem atrasando o schedule em até 5h
-    # (execuções reais entre 14:18 e 15:06 UTC para um cron de 10:00); saindo
-    # de madrugada, quem foi cadastrado na véspera ainda entra antes das 9h.
-    - cron: "0 5 * * *"
+  # O agendamento diário saiu daqui: o GitHub atrasava o schedule em até 8h.
+  # Quem dispara agora é o pg_cron do banco (migration
+  # 20261001120000_cron_anuncios_pela_manha). Este workflow fica para disparo
+  # manual.
   workflow_dispatch:
 
 # O sync pagina a table inteira e escreve por pessoa; duas execuções
